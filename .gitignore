@@ -1,0 +1,21 @@
+.vscode
+node_modules
+fullmakt
+
+# generated
+/dist/*
+
+# tests
+/.nyc_output
+/coverage
+/src/test/**/*.pdf
+/src/test/**/*.html
+
+node_modules/
+dist/
+.parcel-cache/
+.yarn/
+out/
+pnpm-lock.yaml
+package-lock.json
+pnpm-workspace.yaml
