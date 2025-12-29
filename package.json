@@ -52,8 +52,6 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.10",
 		"@types/listr": "0.14.10",
-		"pdfjs-dist": "5.4.530",
-		"ts-node": "10.9.2",
 		"typescript": "5.9.3"
 	}
 }

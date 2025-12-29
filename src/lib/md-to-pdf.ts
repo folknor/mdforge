@@ -4,6 +4,10 @@ import { dirname, relative, resolve } from "node:path";
 import type { Browser } from "puppeteer";
 import YAML from "yaml";
 import type { Config } from "./config.js";
+import { generateOutput } from "./generate-output.js";
+import { getHtml } from "./get-html.js";
+import { getOutputFilePath } from "./get-output-file-path.js";
+import { getMarginObject } from "./helpers.js";
 
 /**
  * Parse YAML front-matter from markdown content.
@@ -21,10 +25,6 @@ function parseFrontMatter(content: string): { data: Record<string, unknown>; con
 		return { data: {}, content };
 	}
 }
-import { generateOutput } from "./generate-output.js";
-import { getHtml } from "./get-html.js";
-import { getOutputFilePath } from "./get-output-file-path.js";
-import { getMarginObject } from "./helpers.js";
 
 type CliArgs = typeof import("../cli.js").cliFlags;
 
