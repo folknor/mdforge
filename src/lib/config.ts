@@ -36,8 +36,6 @@ export const defaultConfig: Config = {
 				),
 		},
 	},
-	md_file_encoding: "utf-8",
-	stylesheet_encoding: "utf-8",
 	as_html: false,
 	marked_extensions: [],
 	toc_options: {
@@ -147,16 +145,6 @@ interface BasicConfig {
 	 */
 	// biome-ignore lint/suspicious/noExplicitAny: gray-matter requires flexible typing for front-matter data
 	gray_matter_options: GrayMatterOption<string, any>;
-
-	/**
-	 * Markdown file encoding. Default: `utf-8`.
-	 */
-	md_file_encoding: string;
-
-	/**
-	 * CSS stylesheet encoding. Default: `utf-8`.
-	 */
-	stylesheet_encoding: string;
 
 	/**
 	 * Port to run the local server on.

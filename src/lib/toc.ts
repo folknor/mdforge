@@ -8,6 +8,7 @@
 
 import GithubSlugger from "github-slugger";
 import { marked, type Token, type Tokens } from "marked";
+import { cleanForSlug } from "./slugger.js";
 
 export interface TOCOptions {
 	/** Include the first h1 heading in the TOC. Default: true */
@@ -94,8 +95,8 @@ class MarkedAdapter {
 		}
 
 		const text = this.getTokenText(token);
-		// Use github-slugger (same as gfmHeadingId) to ensure links match
-		const slug = this.slugger.slug(headingToken.text);
+		// Use same slug logic as gfmHeadingId to ensure links match
+		const slug = this.slugger.slug(cleanForSlug(headingToken.text));
 
 		const heading: HeadingToken = {
 			content: text,
