@@ -5,8 +5,6 @@ const helpText = `
 
     -h, --help ............... Output usage information
     -v, --version ............ Output version
-    -w, --watch .............. Watch the current file(s) for changes
-    --watch-options .......... Options for Chokidar's watch call
     --basedir ................ Base directory to be served by the file server
     --stylesheet ............. Path to a local or remote stylesheet (can be passed multiple times)
     --css .................... String of styles
@@ -37,14 +35,6 @@ const helpText = `
   - Convert all markdown files in current directory recursively
 
     $ md-to-pdf ./**/*.md
-
-  - Convert and enable watch mode
-
-    $ md-to-pdf ./*.md -w
-
-  - Convert and enable watch mode with custom options
-
-    $ md-to-pdf ./*.md --watch --watch-options '{ "atomic": true }'
 
   - Convert path/to/file.md with a different base directory
 

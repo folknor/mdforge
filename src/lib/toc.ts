@@ -19,7 +19,11 @@ export interface TOCOptions {
 	/** Indentation string. Default: '  ' */
 	indent?: string;
 	/** Filter function to exclude certain headings */
-	filter?: (content: string, token: HeadingToken, tokens: HeadingToken[]) => boolean;
+	filter?: (
+		content: string,
+		token: HeadingToken,
+		tokens: HeadingToken[],
+	) => boolean;
 }
 
 export interface HeadingToken {
@@ -124,7 +128,11 @@ class MarkedAdapter {
 			const linkToken = token as Tokens.Link;
 			return linkToken.text || linkToken.href;
 		}
-		if (token.type === "strong" || token.type === "em" || token.type === "codespan") {
+		if (
+			token.type === "strong" ||
+			token.type === "em" ||
+			token.type === "codespan"
+		) {
 			return (token as Tokens.Strong | Tokens.Em | Tokens.Codespan).text;
 		}
 		if ("text" in token && typeof token.text === "string") {
@@ -168,7 +176,9 @@ class MarkedAdapter {
 			const indentLevel = Math.max(0, heading.lvl - highestLevel);
 			const indentation = indent.repeat(indentLevel);
 
-			lines.push(`${indentation}${bullet} [${heading.content}](#${heading.slug})`);
+			lines.push(
+				`${indentation}${bullet} [${heading.content}](#${heading.slug})`,
+			);
 		}
 
 		return lines.join("\n");

@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ChokidarOptions as WatchOptions } from "chokidar";
 import type { GrayMatterOption } from "gray-matter";
 import type { MarkedExtension, MarkedOptions } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
@@ -170,13 +169,6 @@ interface BasicConfig {
 	 * Port to run the local server on.
 	 */
 	port?: number;
-
-	/**
-	 * Options to pass to Chokidar's `watch` call.
-	 *
-	 * This is specifically useful when running into issues when editor plugins trigger additional saves after the initial save.
-	 */
-	watch_options?: WatchOptions;
 
 	/**
 	 * Custm Extensions to be passed to marked.

@@ -40,7 +40,6 @@
 	"homepage": "https://github.com/folknor/md-to-pdf",
 	"dependencies": {
 		"arg": "^5.0.2",
-		"chokidar": "^5.0.0",
 		"diacritics-map": "^0.1.0",
 		"get-port": "^7.1.0",
 		"get-stdin": "^9.0.0",

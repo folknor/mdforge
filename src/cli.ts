@@ -6,8 +6,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import arg from "arg";
-import type { ChokidarOptions as WatchOptions } from "chokidar";
-import { watch } from "chokidar";
 import getPort from "get-port";
 import getStdin from "get-stdin";
 import Listr from "listr";
@@ -25,8 +23,6 @@ export const cliFlags = arg({
 	"--help": Boolean,
 	"--version": Boolean,
 	"--basedir": String,
-	"--watch": Boolean,
-	"--watch-options": String,
 	"--stylesheet": [String],
 	"--css": String,
 	"--document-title": String,
@@ -47,7 +43,6 @@ export const cliFlags = arg({
 	// aliases
 	"-h": "--help",
 	"-v": "--version",
-	"-w": "--watch",
 });
 
 // --
@@ -200,34 +195,8 @@ async function main(args: typeof cliFlags, config: Config) {
 		exitOnError: false,
 	})
 		.run()
-		.then(async () => {
-			if (args["--watch"]) {
-				console.log("\n watching for changes \n");
-
-				const watchOptions = args["--watch-options"]
-					? (JSON.parse(args["--watch-options"]) as WatchOptions)
-					: config.watch_options;
-
-				watch(files, watchOptions).on("change", async (file) =>
-					new Listr([getListrTask(file)], { exitOnError: false })
-						.run()
-						.catch(console.error),
-				);
-			} else {
-				await closeBrowser();
-				await closeServer(server);
-			}
-		})
-		.catch((error: Error) => {
-			/**
-			 * In watch mode the error needs to be shown immediately because the `main` function's catch handler will never execute.
-			 *
-			 * @todo is this correct or does `main` actually finish and the process is just kept alive because of the file server?
-			 */
-			if (args["--watch"]) {
-				return console.error(error);
-			}
-
-			throw error;
+		.finally(async () => {
+			await closeBrowser();
+			await closeServer(server);
 		});
 }
