@@ -25,10 +25,19 @@
 		"md-to-pdf": "dist/cli.js",
 		"md2pdf": "dist/cli.js"
 	},
-	"author": "Simon Haenisch (https://github.com/simonhaenisch)",
+	"author": {
+		"name": "folknor",
+		"url": "https://github.com/folknor"
+	},
+	"contributors": [
+		{
+			"name": "Simon Haenisch",
+			"url": "https://github.com/simonhaenisch"
+		}
+	],
 	"license": "MIT",
-	"repository": "simonhaenisch/md-to-pdf",
-	"homepage": "https://github.com/simonhaenisch/md-to-pdf#readme",
+	"repository": "folknor/md-to-pdf",
+	"homepage": "https://github.com/folknor/md-to-pdf",
 	"dependencies": {
 		"arg": "^5.0.2",
 		"chokidar": "^5.0.0",

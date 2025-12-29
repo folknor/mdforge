@@ -10,6 +10,6 @@
 		"enabled": true
 	},
 	"files": {
-		"includes": ["**", "!**/*.generated.js", "!!**/dist", "!!**/fullmakt"]
+		"includes": ["**", "!**/*.generated.js", "!!**/dist"]
 	}
 }
