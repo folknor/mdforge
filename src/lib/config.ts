@@ -37,26 +37,11 @@ export const defaultConfig: Config = {
 	},
 };
 
-/**
- * In config keys, dashes of cli flag names are replaced with underscores.
- */
-export type Config = PdfConfig | HtmlConfig;
-
-export interface PdfConfig extends BasicConfig {
+export interface Config {
 	/**
 	 * If true, generate HTML output instead of PDF output. Default: `false`.
 	 */
-	as_html?: false;
-}
-
-export interface HtmlConfig extends BasicConfig {
-	/**
-	 * If true, generate HTML output instead of PDF output. Default: `false`.
-	 */
-	as_html: true;
-}
-
-interface BasicConfig {
+	as_html: boolean;
 	/**
 	 * Base directory to be served by the file server.
 	 */

@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import puppeteer, { type Browser } from "puppeteer";
-import type { Config, HtmlConfig, PdfConfig } from "./config.js";
-import { isHttpUrl } from "./is-http-url.js";
+import type { Config } from "./config.js";
+import { isHttpUrl } from "./util.js";
 
 export type Output = PdfOutput | HtmlOutput;
 
@@ -31,24 +31,6 @@ export const closeBrowser = async () => (await browserPromise)?.close();
 /**
  * Generate the output (either PDF or HTML).
  */
-export async function generateOutput(
-	html: string,
-	relativePath: string,
-	config: PdfConfig,
-	browserRef?: Browser,
-): Promise<PdfOutput>;
-export async function generateOutput(
-	html: string,
-	relativePath: string,
-	config: HtmlConfig,
-	browserRef?: Browser,
-): Promise<HtmlOutput>;
-export async function generateOutput(
-	html: string,
-	relativePath: string,
-	config: Config,
-	browserRef?: Browser,
-): Promise<Output>;
 export async function generateOutput(
 	html: string,
 	relativePath: string,

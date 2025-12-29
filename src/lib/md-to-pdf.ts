@@ -2,30 +2,15 @@ import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, relative, resolve } from "node:path";
 import type { Browser } from "puppeteer";
-import YAML from "yaml";
 import type { Config } from "./config.js";
 import { generateOutput } from "./generate-output.js";
-import { getHtml } from "./get-html.js";
-import { getOutputFilePath } from "./get-output-file-path.js";
-import { getMarginObject } from "./helpers.js";
-import { resolveFileRefs } from "./resolve-file-refs.js";
-
-/**
- * Parse YAML front-matter from markdown content.
- */
-function parseFrontMatter(content: string): { data: Record<string, unknown>; content: string } {
-	const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(content);
-	if (!match) return { data: {}, content };
-	try {
-		return {
-			data: YAML.parse(match[1]!) || {},
-			content: match[2]!,
-		};
-	} catch (error) {
-		console.warn("Warning: front-matter could not be parsed:", error);
-		return { data: {}, content };
-	}
-}
+import { getHtml } from "./markdown.js";
+import {
+	getMarginObject,
+	getOutputFilePath,
+	parseFrontMatter,
+	resolveFileRefs,
+} from "./util.js";
 
 type CliArgs = typeof import("../cli.js").cliFlags;
 
