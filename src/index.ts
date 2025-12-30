@@ -16,7 +16,8 @@ export async function mdToPdf(
 	const mergedConfig: Config = {
 		...defaultConfig,
 		...config,
-		basedir: config.basedir ?? ("path" in input ? getDir(input.path) : process.cwd()),
+		basedir:
+			config.basedir ?? ("path" in input ? getDir(input.path) : process.cwd()),
 		dest: config.dest ?? "",
 		pdf_options: { ...defaultConfig.pdf_options, ...config.pdf_options },
 	};

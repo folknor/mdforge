@@ -90,7 +90,7 @@ class MarkedAdapter {
 		const headingDepth = headingToken.depth;
 
 		// Skip headings beyond maxdepth
-		if (headingDepth > this.options.maxdepth!) {
+		if (headingDepth > (this.options.maxdepth ?? 6)) {
 			return;
 		}
 
@@ -146,18 +146,19 @@ class MarkedAdapter {
 		// Apply filter function if provided
 		if (typeof this.options.filter === "function") {
 			this.headings = this.headings.filter((heading) => {
-				return this.options.filter!(heading.content, heading, this.headings);
+				return this.options.filter?.(heading.content, heading, this.headings);
 			});
 		}
 	}
 
 	private generateTOCContent(): string {
 		const lines: string[] = [];
-		const bullets = this.options.bullets!;
-		const indent = this.options.indent!;
+		const bullets = this.options.bullets ?? ["-"];
+		const indent = this.options.indent ?? "  ";
+		const maxdepth = this.options.maxdepth ?? 6;
 
 		for (const heading of this.headings) {
-			if (heading.lvl > this.options.maxdepth!) {
+			if (heading.lvl > maxdepth) {
 				continue;
 			}
 

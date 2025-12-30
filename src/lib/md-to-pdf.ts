@@ -13,9 +13,14 @@ import {
 	parseFrontMatter,
 	resolveFileRefs,
 } from "./util.js";
-import { validateConfig, formatValidationErrors } from "./validate-config.js";
+import { formatValidationErrors, validateConfig } from "./validate-config.js";
 
-const PAGED_JS_URL = "https://unpkg.com/pagedjs/dist/paged.polyfill.js";
+const require = createRequire(import.meta.url);
+const PAGED_JS_PATH = resolve(
+	dirname(require.resolve("pagedjs")),
+	"dist",
+	"paged.polyfill.js",
+);
 
 type CliArgs = typeof import("../cli.js").cliFlags;
 
@@ -41,7 +46,8 @@ export const convertMdToPdf = async (
 	const { content: md, data: rawFrontMatter } = parseFrontMatter(mdFileContent);
 
 	// resolve @filename references in front-matter relative to markdown file
-	const baseDir = "path" in input ? dirname(resolve(input.path)) : process.cwd();
+	const baseDir =
+		"path" in input ? dirname(resolve(input.path)) : process.cwd();
 	const frontMatterConfig = await resolveFileRefs(
 		rawFrontMatter as Partial<Config>,
 		baseDir,
@@ -136,11 +142,16 @@ export const convertMdToPdf = async (
 			(s) => s.url?.includes("pagedjs") || s.path?.includes("pagedjs"),
 		);
 		if (!hasPagedJs) {
-			config.script = [...config.script, { url: PAGED_JS_URL }];
+			config.script = [...config.script, { path: PAGED_JS_PATH }];
 		}
 
 		// Paged.js handles margins, set Puppeteer margins to 0
-		config.pdf_options.margin = { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" };
+		config.pdf_options.margin = {
+			top: "0mm",
+			right: "0mm",
+			bottom: "0mm",
+			left: "0mm",
+		};
 
 		// Disable Puppeteer's displayHeaderFooter (paged.js renders in content)
 		config.pdf_options.displayHeaderFooter = false;
@@ -176,7 +187,6 @@ export const convertMdToPdf = async (
 				: "stdout";
 	}
 
-	const require = createRequire(import.meta.url);
 	const highlightStylesheet = resolve(
 		dirname(require.resolve("highlight.js")),
 		"..",

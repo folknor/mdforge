@@ -1,4 +1,4 @@
-import { themes, type Config, type Theme } from "./config.js";
+import { type Config, type Theme, themes } from "./config.js";
 
 interface ValidationError {
 	path: string;
@@ -9,7 +9,10 @@ interface ValidationError {
 /**
  * Known config keys and their expected types
  */
-const CONFIG_SCHEMA: Record<string, { type: string; values?: readonly string[] }> = {
+const CONFIG_SCHEMA: Record<
+	string,
+	{ type: string; values?: readonly string[] }
+> = {
 	as_html: { type: "boolean" },
 	basedir: { type: "string" },
 	dest: { type: "string" },
@@ -116,7 +119,10 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 
 	// Validate theme specifically
 	if (config.theme !== undefined && config.theme !== false) {
-		if (typeof config.theme === "string" && !themes.includes(config.theme as Theme)) {
+		if (
+			typeof config.theme === "string" &&
+			!themes.includes(config.theme as Theme)
+		) {
 			errors.push({
 				path: "theme",
 				message: `Unknown theme "${config.theme}". Available: ${themes.join(", ")}`,
@@ -139,7 +145,11 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 
 		// Validate margin structure
 		const margin = config.pdf_options.margin;
-		if (margin !== undefined && typeof margin !== "string" && typeof margin === "object") {
+		if (
+			margin !== undefined &&
+			typeof margin !== "string" &&
+			typeof margin === "object"
+		) {
 			const validMarginKeys = new Set(["top", "right", "bottom", "left"]);
 			for (const key of Object.keys(margin)) {
 				if (!validMarginKeys.has(key)) {

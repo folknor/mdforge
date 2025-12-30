@@ -54,15 +54,10 @@ async function imageToDataUri(
 /**
  * Process markdown image syntax and convert to data URI
  */
-async function processImages(
-	text: string,
-	baseDir: string,
-): Promise<string> {
+async function processImages(text: string, baseDir: string): Promise<string> {
 	const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
 	let result = text;
-	let match: RegExpExecArray | null;
-
-	while ((match = imgRegex.exec(text)) !== null) {
+	for (const match of text.matchAll(imgRegex)) {
 		const [fullMatch, , src] = match;
 		if (!src || src.startsWith("data:") || src.startsWith("http")) continue;
 
@@ -80,19 +75,21 @@ async function processImages(
  * Convert our variable syntax to CSS content syntax
  */
 function variablesToCss(text: string): string {
-	return text
-		// Date with locale: {date:nb-NO} -> pre-formatted string
-		.replace(/\{date:([^}]+)\}/g, (_, locale) => `"${formatDate(locale)}"`)
-		// Standard date -> pre-formatted with default locale
-		.replace(/\{date\}/g, `"${formatDate()}"`)
-		// Page counters
-		.replace(/\{page\}/g, '" counter(page) "')
-		.replace(/\{pages\}/g, '" counter(pages) "')
-		// Title and chapter use string-set
-		.replace(/\{title\}/g, '" string(doctitle) "')
-		.replace(/\{chapter\}/g, '" string(chaptertitle) "')
-		// URL
-		.replace(/\{url\}/g, '" string(docurl) "');
+	return (
+		text
+			// Date with locale: {date:nb-NO} -> pre-formatted string
+			.replace(/\{date:([^}]+)\}/g, (_, locale) => `"${formatDate(locale)}"`)
+			// Standard date -> pre-formatted with default locale
+			.replace(/\{date\}/g, `"${formatDate()}"`)
+			// Page counters
+			.replace(/\{page\}/g, '" counter(page) "')
+			.replace(/\{pages\}/g, '" counter(pages) "')
+			// Title and chapter use string-set
+			.replace(/\{title\}/g, '" string(doctitle) "')
+			.replace(/\{chapter\}/g, '" string(chaptertitle) "')
+			// URL
+			.replace(/\{url\}/g, '" string(docurl) "')
+	);
 }
 
 /**
@@ -227,19 +224,27 @@ h2 { string-set: chaptertitle content(text); }
 }
 
 /* First page exceptions */
-${config.firstPageHeader === false ? `
+${
+	config.firstPageHeader === false
+		? `
 @page:first {
   @top-left { content: none; }
   @top-center { content: none; }
   @top-right { content: none; }
-}` : ""}
+}`
+		: ""
+}
 
-${config.firstPageFooter === false ? `
+${
+	config.firstPageFooter === false
+		? `
 @page:first {
   @bottom-left { content: none; }
   @bottom-center { content: none; }
   @bottom-right { content: none; }
-}` : ""}
+}`
+		: ""
+}
 
 /* Margin box styling */
 @page {

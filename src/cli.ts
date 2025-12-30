@@ -11,7 +11,8 @@ import { closeBrowser } from "./lib/generate-output.js";
 import { convertMdToPdf } from "./lib/md-to-pdf.js";
 import { resolveFileRefs } from "./lib/util.js";
 
-const help = () => console.log(`
+const help = () =>
+	console.log(`
   Usage: md-to-pdf [options] <files...>
 
   Options:
@@ -109,7 +110,9 @@ async function main(args: typeof cliFlags) {
 				pdf_options: { ...config.pdf_options, ...configFile.pdf_options },
 			};
 		} catch (error) {
-			console.warn(`Warning: couldn't read config file: ${resolve(args["--config-file"])}`);
+			console.warn(
+				`Warning: couldn't read config file: ${resolve(args["--config-file"])}`,
+			);
 			console.warn(error instanceof Error ? error.message : error);
 		}
 	}

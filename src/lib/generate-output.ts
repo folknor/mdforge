@@ -56,7 +56,9 @@ export async function generateOutput(
 	const page = await browser.newPage();
 
 	// Inject <base> tag so relative paths in markdown resolve correctly
-	const baseUrl = pathToFileURL(resolve(config.basedir, relativePath) + "/").href;
+	const baseUrl = pathToFileURL(
+		`${resolve(config.basedir, relativePath)}/`,
+	).href;
 	const htmlWithBase = html.replace("<head>", `<head><base href="${baseUrl}">`);
 	await page.setContent(htmlWithBase, { waitUntil: "domcontentloaded" });
 
@@ -106,5 +108,8 @@ export async function generateOutput(
 		};
 	}
 
-	return { filename: config.dest, content: outputFileContent as Buffer | Uint8Array };
+	return {
+		filename: config.dest,
+		content: outputFileContent as Buffer | Uint8Array,
+	};
 }

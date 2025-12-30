@@ -96,13 +96,16 @@ export function extractFirstHeading(md: string): string | null {
 /**
  * Parse YAML front-matter from markdown content.
  */
-export function parseFrontMatter(content: string): { data: Record<string, unknown>; content: string } {
+export function parseFrontMatter(content: string): {
+	data: Record<string, unknown>;
+	content: string;
+} {
 	const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(content);
 	if (!match) return { data: {}, content };
 	try {
 		return {
-			data: YAML.parse(match[1]!) || {},
-			content: match[2]!,
+			data: YAML.parse(match[1] ?? "") || {},
+			content: match[2] ?? "",
 		};
 	} catch (error) {
 		console.warn("Warning: front-matter could not be parsed:", error);

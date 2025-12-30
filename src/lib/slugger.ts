@@ -4,9 +4,9 @@ import type { MarkedExtension } from "marked";
 const unescapeTest = /&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/gi;
 
 /**
- * Unescape HTML entities in a string.
+ * Decode HTML entities in a string.
  */
-function unescape(html: string): string {
+function decodeHtmlEntities(html: string): string {
 	return html.replace(unescapeTest, (_, n: string) => {
 		n = n.toLowerCase();
 		if (n === "colon") return ":";
@@ -24,7 +24,7 @@ function unescape(html: string): string {
  * Exported for use by toc.ts to ensure consistent slug generation.
  */
 export function cleanForSlug(text: string): string {
-	return unescape(text)
+	return decodeHtmlEntities(text)
 		.trim()
 		.replace(/<[!/a-z].*?>/gi, "");
 }
