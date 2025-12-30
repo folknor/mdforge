@@ -1,0 +1,21 @@
+/* Style a specific heading by ID */
+#important-section {
+  color: #2563eb;
+  border-left: 4px solid #2563eb;
+  padding-left: 0.75em;
+}
+
+/* Warning heading with red color */
+#warning-read-carefully {
+  color: #dc2626;
+}
+#warning-read-carefully::before {
+  content: "\26A0\0020";  /* Warning sign + space */
+}
+
+/* Style the "How It Works" section differently */
+#how-it-works {
+  background: #f0f9ff;
+  padding: 0.5em 0.75em;
+  border-radius: 4px;
+}
