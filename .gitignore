@@ -19,3 +19,7 @@ dist/
 out/
 pnpm-lock.yaml
 package-lock.json
+
+# Electron build artifacts
+packages/desktop/release/
+packages/desktop/out/

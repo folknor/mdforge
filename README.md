@@ -1,24 +1,24 @@
-# md-to-pdf
+# mdforge
 
-CLI tool to convert Markdown files to PDF using Puppeteer.
+Convert Markdown to beautifully styled PDFs.
 
-Fork of [simonhaenisch/md-to-pdf](https://github.com/simonhaenisch/md-to-pdf).
+Originally forked from [simonhaenisch/md-to-pdf](https://github.com/simonhaenisch/md-to-pdf).
 
 ## Install
 
 ```bash
-npm install -g md-to-pdf
+npm install -g mdforge
 ```
 
 ## Usage
 
 ```bash
-md-to-pdf document.md
-md-to-pdf document.md --config-file config.yaml
-md-to-pdf document.md -o output.pdf
-md-to-pdf *.md                              # multiple files
-md-to-pdf --as-html document.md             # output HTML instead
-cat document.md | md-to-pdf > output.pdf    # stdio
+mdforge document.md
+mdforge document.md --config-file config.yaml
+mdforge document.md -o output.pdf
+mdforge *.md                              # multiple files
+mdforge --as-html document.md             # output HTML instead
+cat document.md | mdforge > output.pdf    # stdio
 ```
 
 ## Themes
@@ -100,6 +100,10 @@ toc_options:
 
 header: null
 footer: null
+metadata: null            # { title, author, subject, keywords, creator, producer }
+fonts: null               # { heading, body } - any Google Font name
+font_pairing: null        # modern-professional, classic-elegant, etc.
+templates: null           # { name: "path/to/template.md" }
 ```
 
 ## Configuration Options
@@ -115,10 +119,14 @@ footer: null
 | `toc_options` | `object` | see below | Table of contents options |
 | `header` | `string \| object` | - | Header config (see Headers section) |
 | `footer` | `string \| object` | - | Footer config (see Footers section) |
+| `metadata` | `object` | - | PDF metadata (author, title, subject, keywords) |
+| `fonts` | `object` | - | Custom fonts (heading, body) from Google Fonts |
+| `font_pairing` | `string` | - | Named font pairing preset |
+| `templates` | `object` | - | Named templates for @template directive |
 
 ## Stylesheets
 
-If no stylesheet is specified, md-to-pdf auto-detects a CSS file in the same directory as the markdown file:
+If no stylesheet is specified, mdforge auto-detects a CSS file in the same directory as the markdown file:
 
 1. First looks for `{basename}.css` (e.g., `document.css` for `document.md`)
 2. Falls back to `index.css`
@@ -249,6 +257,83 @@ Use simple selectors to style header/footer positions:
 
 Available selectors: `.header-left`, `.header-center`, `.header-right`, `.footer-left`, `.footer-center`, `.footer-right`
 
+## Includes and Templates
+
+Include markdown files directly in your documents.
+
+### @include Directive
+
+Include content from another markdown file:
+
+```markdown
+@include ./shared/header.md
+@include /absolute/path/to/disclaimer.md
+@include "path with spaces/file.md"
+```
+
+Paths can be:
+- Relative: `./shared/header.md`
+- Absolute: `/home/user/templates/footer.md`
+- Quoted (for paths with spaces): `"My Templates/header.md"`
+
+Includes can be nested (included files can include other files).
+
+### @template Directive
+
+Define reusable templates in config and use them by name:
+
+```yaml
+templates:
+  legal-footer: "/path/to/legal-footer.md"
+  company-header: "/path/to/company-header.md"
+```
+
+Then in markdown:
+
+```markdown
+# Document Title
+
+@template company-header
+
+Content here...
+
+@template legal-footer
+```
+
+Templates are resolved from the paths specified in config, while `@include` resolves relative to the current file.
+
+## Icons
+
+Use icons from [Iconify](https://iconify.design/) (200,000+ icons from 150+ icon sets).
+
+### Basic Usage
+
+```markdown
+Home: :icon[mdi:home]
+Settings: :icon[mdi:cog]
+Star: :icon[ph:star-fill]
+```
+
+Format: `:icon[prefix:name]` where `prefix` is the icon set (e.g., `mdi`, `ph`, `lucide`) and `name` is the icon name.
+
+### With Size
+
+```markdown
+Small: :icon[mdi:star]{size=16}
+Medium: :icon[mdi:star]{size=24}
+Large: :icon[mdi:star]{size=48}
+```
+
+### Inline in Text
+
+```markdown
+Click :icon[mdi:home]{size=16} to go home.
+```
+
+Icons are fetched from the Iconify API and cached locally in `~/.cache/mdforge/icons/`.
+
+Browse available icons at [icon-sets.iconify.design](https://icon-sets.iconify.design/).
+
 ## Table of Contents
 
 Add `<!-- toc -->` marker where you want the TOC:
@@ -291,6 +376,74 @@ See [highlight.js examples](https://highlightjs.org/examples) for available them
 
 PDF bookmarks are automatically generated from headings, allowing navigation via the PDF viewer's bookmark panel.
 
+## Fonts
+
+Load custom fonts from Google Fonts for headings and body text.
+
+### Font Pairings
+
+Use a preset font pairing:
+
+```yaml
+font_pairing: classic-elegant
+```
+
+Available pairings:
+
+| Pairing | Heading | Body |
+|---------|---------|------|
+| `modern-professional` | Inter | Inter |
+| `classic-elegant` | Playfair Display | Libre Baskerville |
+| `modern-geometric` | Poppins | Open Sans |
+| `tech-minimal` | Space Grotesk | DM Sans |
+| `editorial` | Cormorant Garamond | Libre Baskerville |
+| `clean-sans` | DM Sans | Inter |
+
+### Custom Fonts
+
+Specify any Google Font by name:
+
+```yaml
+fonts:
+  heading: "Playfair Display"
+  body: "Inter"
+```
+
+You can specify just one:
+
+```yaml
+fonts:
+  heading: "Poppins"  # Uses theme default for body
+```
+
+Fonts are loaded via Google Fonts and set as CSS variables (`--font-heading`, `--font-body`).
+
+## PDF Metadata
+
+Set PDF document properties (visible in PDF viewer info panels):
+
+```yaml
+metadata:
+  title: "My Document"        # defaults to first h1
+  author: "John Doe"
+  subject: "Technical Report"
+  keywords:
+    - markdown
+    - pdf
+    - documentation
+```
+
+Available metadata fields:
+
+| Field | Description |
+|-------|-------------|
+| `title` | Document title (auto-detected from first h1 if not set) |
+| `author` | Document author |
+| `subject` | Document subject/description |
+| `keywords` | Array of keywords for search indexing |
+| `creator` | Application that created the document (default: "mdforge") |
+| `producer` | PDF producer (usually set by pdf-lib) |
+
 ## Page Breaks
 
 HTML:
@@ -309,13 +462,13 @@ h1 { page-break-before: always; }
 Output HTML instead of PDF to inspect in browser:
 
 ```bash
-md-to-pdf --as-html document.md
+mdforge --as-html document.md
 ```
 
 ## Programmatic API
 
 ```typescript
-import { mdToPdf } from "md-to-pdf";
+import { mdToPdf } from "mdforge";
 
 // From file
 const result = await mdToPdf({ path: "document.md" });

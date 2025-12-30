@@ -1,0 +1,30 @@
+{
+	"name": "@mdforge/cli",
+	"version": "1.0.0",
+	"description": "CLI for mdforge - Convert Markdown to PDF",
+	"type": "module",
+	"main": "dist/cli.js",
+	"bin": {
+		"mdforge": "dist/cli.js",
+		"md-to-pdf": "dist/cli.js"
+	},
+	"files": [
+		"/dist"
+	],
+	"scripts": {
+		"dev": "tsc --watch",
+		"build": "tsc",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@mdforge/core": "workspace:*",
+		"arg": "^5.0.2",
+		"listr": "^0.14.3",
+		"yaml": "^2.8.2"
+	},
+	"devDependencies": {
+		"@types/listr": "0.14.10",
+		"typescript": "5.9.3"
+	},
+	"license": "MIT"
+}

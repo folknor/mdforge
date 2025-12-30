@@ -3,7 +3,10 @@ import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
 import type { Browser } from "puppeteer";
 import { type Config, themes, themesDir } from "./config.js";
+import { generateFontStylesheet } from "./fonts.js";
 import { generateOutput } from "./generate-output.js";
+import { processIcons } from "./icons.js";
+import { processIncludes } from "./includes.js";
 import { getHtml } from "./markdown.js";
 import {
 	buildPuppeteerTemplate,
@@ -27,7 +30,10 @@ const PAGED_JS_PATH = resolve(
 	"paged.polyfill.js",
 );
 
-type CliArgs = typeof import("../cli.js").cliFlags;
+/** Options that can be passed from CLI or other callers */
+interface ConvertOptions {
+	"--as-html"?: boolean;
+}
 
 /**
  * Convert markdown to pdf.
@@ -36,10 +42,10 @@ export const convertMdToPdf = async (
 	input: { path: string } | { content: string },
 	config: Config,
 	{
-		args = {} as CliArgs,
+		args = {},
 		browser,
 	}: {
-		args?: CliArgs;
+		args?: ConvertOptions;
 		browser?: Browser;
 	} = {},
 ) => {
@@ -125,6 +131,13 @@ export const convertMdToPdf = async (
 		const themeStylesheet = resolve(themesDir, `${themeName}.css`);
 		// prepend theme stylesheet so user stylesheets can override
 		config.stylesheet = [themeStylesheet, ...config.stylesheet];
+	}
+
+	// Generate font stylesheet from config
+	const fontCss = generateFontStylesheet(config.fonts, config.font_pairing);
+	if (fontCss) {
+		// Prepend font CSS so it loads before theme (fonts need to be available early)
+		config.stylesheet = [fontCss, ...config.stylesheet];
 	}
 
 	// add print-urls body class and CSS if enabled
@@ -224,9 +237,26 @@ export const convertMdToPdf = async (
 		config.pdf_options.displayHeaderFooter = true;
 	}
 
+	// Process @include and @template directives
+	let processedMd = md;
+	try {
+		processedMd = await processIncludes(md, baseDir, config.templates);
+	} catch (error) {
+		const err = error as Error;
+		console.error(`Include error: ${err.message}`);
+	}
+
+	// Process :icon[prefix:name] syntax - fetch and inline SVGs from Iconify
+	try {
+		processedMd = await processIcons(processedMd);
+	} catch (error) {
+		const err = error as Error;
+		console.error(`Icon processing error: ${err.message}`);
+	}
+
 	// auto-detect document title from first heading if not set
 	if (!config.document_title) {
-		config.document_title = extractFirstHeading(md) ?? "";
+		config.document_title = extractFirstHeading(processedMd) ?? "";
 	}
 
 	// merge --as-html from CLI args
@@ -256,7 +286,7 @@ export const convertMdToPdf = async (
 
 	config.stylesheet = [...new Set([...config.stylesheet, highlightStylesheet])];
 
-	const html = getHtml(md, config);
+	const html = getHtml(processedMd, config);
 
 	const relativePath =
 		"path" in input ? relative(config.basedir, input.path) : ".";

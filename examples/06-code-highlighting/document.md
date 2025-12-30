@@ -68,7 +68,7 @@ function createPdf(config: Config): Promise<Buffer> {
 #!/bin/bash
 
 for file in *.md; do
-  md-to-pdf "$file"
+  mdforge "$file"
   echo "Converted: $file"
 done
 ```

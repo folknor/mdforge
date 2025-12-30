@@ -3,7 +3,7 @@
 This is the simplest possible example. Just run:
 
 ```bash
-md-to-pdf document.md
+mdforge document.md
 ```
 
 No configuration needed. The default theme (beryl) is applied automatically.

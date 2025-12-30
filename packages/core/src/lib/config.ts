@@ -2,6 +2,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
+import type { FontConfig, FontPairing } from "./fonts.js";
+import type { TemplatesConfig } from "./includes.js";
+import type { PdfMetadata } from "./pdf-metadata.js";
 import type { TOCOptions } from "./toc.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -151,6 +154,31 @@ export interface Config {
 	 * Markdown is supported and will be converted to HTML.
 	 */
 	footer?: HeaderFooterValue;
+
+	/**
+	 * PDF metadata (author, title, subject, keywords, etc.)
+	 * Title is auto-detected from first h1 if not specified.
+	 */
+	metadata?: PdfMetadata;
+
+	/**
+	 * Custom fonts from Google Fonts.
+	 * Specify heading and/or body fonts by name.
+	 */
+	fonts?: FontConfig;
+
+	/**
+	 * Named font pairing preset.
+	 * Available: modern-professional, classic-elegant, modern-geometric,
+	 * tech-minimal, editorial, clean-sans
+	 */
+	font_pairing?: FontPairing;
+
+	/**
+	 * Named templates for @template directive.
+	 * Maps template names to file paths (absolute paths recommended).
+	 */
+	templates?: TemplatesConfig;
 }
 
 export type PuppeteerLaunchOptions = Parameters<typeof launch>[0];

@@ -13,5 +13,5 @@ Config files are useful when:
 ## Running This Example
 
 ```bash
-md-to-pdf --config-file config.yaml document.md
+mdforge --config-file config.yaml document.md
 ```

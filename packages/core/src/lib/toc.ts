@@ -1,5 +1,5 @@
 /*!
- * Table of Contents generation for md-to-pdf
+ * Table of Contents generation for mdforge
  * Adapted from markdown-toc <https://github.com/jonschlinkert/markdown-toc>
  *
  * Copyright (c) 2013-2023, Jon Schlinkert.
@@ -199,7 +199,7 @@ export function insertToc(str: string, options: TOCOptions = {}): string {
 	}
 
 	if (sections.length > 3) {
-		throw new Error("md-to-pdf only supports one Table of Contents per file.");
+		throw new Error("mdforge only supports one Table of Contents per file.");
 	}
 
 	const last = sections[sections.length - 1] as string;

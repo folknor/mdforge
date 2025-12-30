@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import puppeteer, { type Browser } from "puppeteer";
 import type { Config } from "./config.js";
+import { injectPdfMetadata } from "./pdf-metadata.js";
 import { isHttpUrl } from "./util.js";
 
 export type Output = PdfOutput | HtmlOutput;
@@ -106,8 +107,29 @@ export async function generateOutput(
 		};
 	}
 
+	// Inject PDF metadata if configured
+	let pdfContent = outputFileContent as Buffer | Uint8Array;
+	if (config.metadata) {
+		const metadata = {
+			...config.metadata,
+			// Use document_title as fallback for metadata title
+			title: config.metadata.title || config.document_title || undefined,
+			// Set creator to mdforge if not specified
+			creator: config.metadata.creator || "mdforge",
+		};
+		// Only inject if there's meaningful metadata
+		if (
+			metadata.title ||
+			metadata.author ||
+			metadata.subject ||
+			metadata.keywords?.length
+		) {
+			pdfContent = await injectPdfMetadata(Buffer.from(pdfContent), metadata);
+		}
+	}
+
 	return {
 		filename: config.dest,
-		content: outputFileContent as Buffer | Uint8Array,
+		content: pdfContent,
 	};
 }

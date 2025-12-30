@@ -396,7 +396,7 @@ export async function generatePagedCss(
 	// Helper to build margin rule with optional extra styles
 	const addMarginRule = async (position: string, text: string) => {
 		const { content, styles } = await buildContentValue(text, baseDir);
-		const extraStyles = styles.length > 0 ? styles.join("; ") + "; " : "";
+		const extraStyles = styles.length > 0 ? `${styles.join("; ")}; ` : "";
 		marginRules.push(`@${position} { ${extraStyles}content: ${content}; }`);
 	};
 

@@ -1,0 +1,36 @@
+{
+	"name": "@mdforge/core",
+	"version": "1.0.0",
+	"description": "Core library for mdforge - Convert Markdown to PDF",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"/dist",
+		"/themes"
+	],
+	"scripts": {
+		"dev": "tsc --watch",
+		"build": "tsc",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"github-slugger": "^2.0.0",
+		"highlight.js": "^11.11.1",
+		"marked": "^17.0.1",
+		"marked-footnote": "^1.4.0",
+		"marked-highlight": "^2.2.3",
+		"marked-linkify-it": "^3.1.14",
+		"marked-smartypants": "^1.1.11",
+		"pagedjs": "^0.4.3",
+		"pdf-lib": "^1.17.1",
+		"puppeteer": "^24.34.0",
+		"transliteration": "^2.6.0",
+		"yaml": "^2.8.2"
+	},
+	"devDependencies": {
+		"@types/linkify-it": "^5.0.0",
+		"typescript": "5.9.3"
+	},
+	"license": "MIT"
+}

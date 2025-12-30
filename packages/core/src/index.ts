@@ -1,8 +1,18 @@
 import puppeteer from "puppeteer";
 import { type Config, defaultConfig } from "./lib/config.js";
+import { convertMdToPdf } from "./lib/convert.js";
 import type { Output } from "./lib/generate-output.js";
-import { convertMdToPdf } from "./lib/md-to-pdf.js";
 import { getDir } from "./lib/util.js";
+
+// Re-export types and utilities for CLI and other consumers
+export { type Config, defaultConfig } from "./lib/config.js";
+export { convertMdToPdf } from "./lib/convert.js";
+export type { FontConfig, FontPairing } from "./lib/fonts.js";
+export { closeBrowser, type Output } from "./lib/generate-output.js";
+export type { TemplatesConfig } from "./lib/includes.js";
+// Re-export types that might be useful
+export type { PdfMetadata } from "./lib/pdf-metadata.js";
+export { resolveFileRefs } from "./lib/util.js";
 
 type Input = { content: string } | { path: string };
 

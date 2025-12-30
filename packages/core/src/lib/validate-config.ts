@@ -1,4 +1,5 @@
 import { type Config, type Theme, themes } from "./config.js";
+import { fontPairings } from "./fonts.js";
 
 interface ValidationError {
 	path: string;
@@ -29,6 +30,10 @@ const CONFIG_SCHEMA: Record<
 	toc_options: { type: "object" },
 	header: { type: "string|object" },
 	footer: { type: "string|object" },
+	metadata: { type: "object" },
+	fonts: { type: "object" },
+	font_pairing: { type: "string", values: Object.keys(fontPairings) },
+	templates: { type: "object" },
 };
 
 /**
@@ -177,6 +182,65 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 						value: value[key as keyof typeof value],
 					});
 				}
+			}
+		}
+	}
+
+	// Validate metadata structure
+	if (config.metadata && typeof config.metadata === "object") {
+		const validMetadataKeys = new Set([
+			"title",
+			"author",
+			"subject",
+			"keywords",
+			"creator",
+			"producer",
+		]);
+		for (const key of Object.keys(config.metadata)) {
+			if (!validMetadataKeys.has(key)) {
+				errors.push({
+					path: `metadata.${key}`,
+					message: `Unknown metadata key "${key}". Use: title, author, subject, keywords, creator, producer`,
+					value: config.metadata[key as keyof typeof config.metadata],
+				});
+			}
+		}
+		// Validate keywords is an array if present
+		if (
+			config.metadata.keywords !== undefined &&
+			!Array.isArray(config.metadata.keywords)
+		) {
+			errors.push({
+				path: "metadata.keywords",
+				message: "metadata.keywords should be an array of strings",
+				value: config.metadata.keywords,
+			});
+		}
+	}
+
+	// Validate fonts structure
+	if (config.fonts && typeof config.fonts === "object") {
+		const validFontKeys = new Set(["heading", "body"]);
+		for (const key of Object.keys(config.fonts)) {
+			if (!validFontKeys.has(key)) {
+				errors.push({
+					path: `fonts.${key}`,
+					message: `Unknown fonts key "${key}". Use: heading, body`,
+					value: config.fonts[key as keyof typeof config.fonts],
+				});
+			}
+		}
+	}
+
+	// Validate templates structure (all values must be strings)
+	if (config.templates && typeof config.templates === "object") {
+		for (const [key, value] of Object.entries(config.templates)) {
+			if (typeof value !== "string") {
+				errors.push({
+					path: `templates.${key}`,
+					message: `Template "${key}" must be a string (file path)`,
+					value,
+				});
 			}
 		}
 	}

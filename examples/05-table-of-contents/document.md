@@ -18,10 +18,10 @@ This document demonstrates the automatic table of contents feature. Add `<!-- to
 
 ### Installation
 
-Install md-to-pdf globally:
+Install mdforge globally:
 
 ```bash
-npm install -g md-to-pdf
+npm install -g mdforge
 ```
 
 ### Basic Usage
@@ -29,7 +29,7 @@ npm install -g md-to-pdf
 Run the converter:
 
 ```bash
-md-to-pdf document.md
+mdforge document.md
 ```
 
 ## Features
@@ -64,7 +64,7 @@ toc_options:
 
 ### Other Settings
 
-All standard md-to-pdf options are available.
+All standard mdforge options are available.
 
 ## Conclusion
 

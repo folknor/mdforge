@@ -3,17 +3,20 @@
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
+import {
+	type Config,
+	closeBrowser,
+	convertMdToPdf,
+	defaultConfig,
+	resolveFileRefs,
+} from "@mdforge/core";
 import arg from "arg";
 import Listr from "listr";
 import YAML from "yaml";
-import { type Config, defaultConfig } from "./lib/config.js";
-import { closeBrowser } from "./lib/generate-output.js";
-import { convertMdToPdf } from "./lib/md-to-pdf.js";
-import { resolveFileRefs } from "./lib/util.js";
 
 const help = () =>
 	console.log(`
-  Usage: md-to-pdf [options] <files...>
+  Usage: mdforge [options] <files...>
 
   Options:
 
@@ -25,11 +28,11 @@ const help = () =>
 
   Examples:
 
-    $ md-to-pdf file.md
-    $ md-to-pdf file1.md file2.md file3.md
-    $ md-to-pdf *.md
-    $ md-to-pdf --as-html README.md
-    $ md-to-pdf --config-file config.yaml docs/*.md
+    $ mdforge file.md
+    $ mdforge file1.md file2.md file3.md
+    $ mdforge *.md
+    $ mdforge --as-html README.md
+    $ mdforge --config-file config.yaml docs/*.md
 
   Config files use YAML format:
 
@@ -70,7 +73,7 @@ main(cliFlags).catch((error) => {
 // Define Main Function
 
 async function main(args: typeof cliFlags) {
-	process.title = "md-to-pdf";
+	process.title = "mdforge";
 
 	if (args["--version"]) {
 		const require = createRequire(import.meta.url);

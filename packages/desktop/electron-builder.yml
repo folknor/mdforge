@@ -1,0 +1,35 @@
+appId: com.mdforge.desktop
+productName: mdforge
+directories:
+  output: release
+  buildResources: resources
+
+# Disable auto-update publishing
+publish: null
+
+files:
+  - out/**/*
+  - "!node_modules/puppeteer/.local-chromium"
+
+win:
+  target:
+    - target: portable
+      arch: [x64]
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Utility
+
+mac:
+  target:
+    - target: zip
+      arch: [x64, arm64]
+  category: public.app-category.utilities
+
+portable:
+  artifactName: mdforge-${version}-portable.exe
+
+appImage:
+  artifactName: mdforge-${version}.AppImage
