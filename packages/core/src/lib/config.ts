@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
-import type { FontConfig, FontPairing } from "./fonts.js";
+import type { FontConfig } from "./fonts.js";
 import type { TemplatesConfig } from "./includes.js";
 import type { PdfMetadata } from "./pdf-metadata.js";
 import type { TOCOptions } from "./toc.js";
@@ -21,6 +21,27 @@ export interface HeaderFooterColumn {
 }
 
 export type HeaderFooterValue = string | HeaderFooterColumn;
+
+/**
+ * Page number format options.
+ */
+export type PageNumberFormat =
+	| "arabic" // 1, 2, 3 (default)
+	| "roman" // i, ii, iii
+	| "roman-upper" // I, II, III
+	| "alpha" // a, b, c
+	| "alpha-upper"; // A, B, C
+
+export interface PageNumbersConfig {
+	/**
+	 * Format for page numbers. Default: "arabic"
+	 */
+	format?: PageNumberFormat;
+	/**
+	 * Starting page number. Default: 1
+	 */
+	start?: number;
+}
 
 export const themesDir = resolve(__dirname, "..", "..", "themes");
 
@@ -162,23 +183,25 @@ export interface Config {
 	metadata?: PdfMetadata;
 
 	/**
-	 * Custom fonts from Google Fonts.
-	 * Specify heading and/or body fonts by name.
+	 * Font configuration. Can be:
+	 * - A preset name: "classic-elegant", "modern-professional", etc.
+	 * - An object with custom fonts: { heading, body, mono }
+	 *
+	 * Theme names (beryl, tufte, etc.) are also valid presets.
 	 */
-	fonts?: FontConfig;
-
-	/**
-	 * Named font pairing preset.
-	 * Available: modern-professional, classic-elegant, modern-geometric,
-	 * tech-minimal, editorial, clean-sans
-	 */
-	font_pairing?: FontPairing;
+	fonts?: FontConfig | string;
 
 	/**
 	 * Named templates for @template directive.
 	 * Maps template names to file paths (absolute paths recommended).
 	 */
 	templates?: TemplatesConfig;
+
+	/**
+	 * Page number formatting options.
+	 * Controls the format (arabic, roman, etc.) and starting number.
+	 */
+	page_numbers?: PageNumbersConfig;
 }
 
 export type PuppeteerLaunchOptions = Parameters<typeof launch>[0];

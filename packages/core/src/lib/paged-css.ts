@@ -1,6 +1,11 @@
 import { promises as fs } from "node:fs";
 import { extname, resolve } from "node:path";
-import type { HeaderFooterColumn, HeaderFooterValue } from "./config.js";
+import type {
+	HeaderFooterColumn,
+	HeaderFooterValue,
+	PageNumberFormat,
+	PageNumbersConfig,
+} from "./config.js";
 
 /**
  * MIME types for image embedding
@@ -134,18 +139,47 @@ async function processImages(text: string, baseDir: string): Promise<string> {
 }
 
 /**
+ * Map page number format to CSS counter style
+ */
+function formatToCssCounterStyle(format?: PageNumberFormat): string {
+	switch (format) {
+		case "roman":
+			return "lower-roman";
+		case "roman-upper":
+			return "upper-roman";
+		case "alpha":
+			return "lower-alpha";
+		case "alpha-upper":
+			return "upper-alpha";
+		case "arabic":
+		default:
+			return "decimal";
+	}
+}
+
+/**
  * Convert our variable syntax to CSS content syntax
  */
-function variablesToCss(text: string): string {
+function variablesToCss(text: string, pageFormat?: PageNumberFormat): string {
+	const counterStyle = formatToCssCounterStyle(pageFormat);
+	const pageCounter =
+		counterStyle === "decimal"
+			? "counter(page)"
+			: `counter(page, ${counterStyle})`;
+	const pagesCounter =
+		counterStyle === "decimal"
+			? "counter(pages)"
+			: `counter(pages, ${counterStyle})`;
+
 	return (
 		text
 			// Date with locale: {date:nb-NO} -> pre-formatted string
 			.replace(/\{date:([^}]+)\}/g, (_, locale) => `"${formatDate(locale)}"`)
 			// Standard date -> pre-formatted with default locale
 			.replace(/\{date\}/g, `"${formatDate()}"`)
-			// Page counters
-			.replace(/\{page\}/g, '" counter(page) "')
-			.replace(/\{pages\}/g, '" counter(pages) "')
+			// Page counters with format
+			.replace(/\{page\}/g, `" ${pageCounter} "`)
+			.replace(/\{pages\}/g, `" ${pagesCounter} "`)
 			// Title and chapter use string-set
 			.replace(/\{title\}/g, '" string(doctitle) "')
 			.replace(/\{chapter\}/g, '" string(chaptertitle) "')
@@ -196,6 +230,7 @@ interface ContentResult {
 async function buildContentValue(
 	text: string,
 	baseDir: string,
+	pageFormat?: PageNumberFormat,
 ): Promise<ContentResult> {
 	// Process images first (converts ![](path) to url("data:..."))
 	let processed = await processImages(text, baseDir);
@@ -205,7 +240,7 @@ async function buildContentValue(
 	processed = mdProcessed;
 
 	// Convert variables to CSS syntax
-	processed = variablesToCss(processed);
+	processed = variablesToCss(processed, pageFormat);
 
 	// If it contains url() from image processing, handle specially
 	if (processed.includes('url("data:')) {
@@ -248,6 +283,7 @@ function normalizeToColumns(
 export interface PagedCssConfig {
 	header?: HeaderFooterValue;
 	footer?: HeaderFooterValue;
+	page_numbers?: PageNumbersConfig;
 }
 
 /**
@@ -390,12 +426,18 @@ export async function generatePagedCss(
 
 	const header = normalizeToColumns(config.header);
 	const footer = normalizeToColumns(config.footer);
+	const pageFormat = config.page_numbers?.format;
+	const pageStart = config.page_numbers?.start;
 
 	const marginRules: string[] = [];
 
 	// Helper to build margin rule with optional extra styles
 	const addMarginRule = async (position: string, text: string) => {
-		const { content, styles } = await buildContentValue(text, baseDir);
+		const { content, styles } = await buildContentValue(
+			text,
+			baseDir,
+			pageFormat,
+		);
 		const extraStyles = styles.length > 0 ? `${styles.join("; ")}; ` : "";
 		marginRules.push(`@${position} { ${extraStyles}content: ${content}; }`);
 	};
@@ -421,6 +463,12 @@ export async function generatePagedCss(
 		rule.replace("{ content:", `{${marginStyle}\n    content:`),
 	);
 
+	// Counter reset for custom start value (subtract 1 because counter increments before first page)
+	const counterReset =
+		pageStart !== undefined && pageStart !== 1
+			? `\n  counter-reset: page ${pageStart - 1};`
+			: "";
+
 	// Build the CSS
 	const css = `
 /* Theme CSS */
@@ -433,7 +481,7 @@ h2 { string-set: chaptertitle content(text); }
 /* Page setup */
 @page {
   size: A4;
-  margin: 25mm 20mm;
+  margin: 25mm 20mm;${counterReset}
 
   ${styledMarginRules.join("\n  ")}
 }

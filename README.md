@@ -98,12 +98,12 @@ toc_options:
   skip_first_h1: false    # skip first h1 in TOC (usually the document title)
   maxdepth: 6             # maximum heading depth to include (1-6)
 
-header: null
-footer: null
-metadata: null            # { title, author, subject, keywords, creator, producer }
-fonts: null               # { heading, body } - any Google Font name
-font_pairing: null        # modern-professional, classic-elegant, etc.
-templates: null           # { name: "path/to/template.md" }
+# header: { left, center, right } or "centered text"
+# footer: { left, center, right } or "centered text"
+# metadata: { title, author, subject, keywords }
+# fonts: "preset-name" or { heading, body, mono }
+# templates: { name: "path/to/template.md" }
+# page_numbers: { format, start }
 ```
 
 ## Configuration Options
@@ -120,9 +120,9 @@ templates: null           # { name: "path/to/template.md" }
 | `header` | `string \| object` | - | Header config (see Headers section) |
 | `footer` | `string \| object` | - | Footer config (see Footers section) |
 | `metadata` | `object` | - | PDF metadata (author, title, subject, keywords) |
-| `fonts` | `object` | - | Custom fonts (heading, body) from Google Fonts |
-| `font_pairing` | `string` | - | Named font pairing preset |
+| `fonts` | `string \| object` | - | Font preset name or custom fonts `{ heading, body, mono }` |
 | `templates` | `object` | - | Named templates for @template directive |
+| `page_numbers` | `object` | - | Page number format and start value |
 
 ## Stylesheets
 
@@ -136,6 +136,23 @@ To use a custom stylesheet:
 ```yaml
 stylesheet: custom.css
 ```
+
+### CSS Load Order
+
+Stylesheets are loaded in this order (later styles override earlier ones via the [CSS cascade](https://developer.mozilla.org/en-US/docs/Web/CSS/Cascade)):
+
+1. **Theme** - base styles from the selected theme
+2. **Fonts** - font-family declarations from font presets
+3. **Your stylesheet** - custom styles that override the above
+
+This means you can use a theme as a foundation and add customizations on top:
+
+```yaml
+theme: tufte
+stylesheet: my-overrides.css
+```
+
+Your `my-overrides.css` will override any theme styles you want to change while keeping the rest.
 
 ## PDF Options
 
@@ -256,6 +273,50 @@ Use simple selectors to style header/footer positions:
 ```
 
 Available selectors: `.header-left`, `.header-center`, `.header-right`, `.footer-left`, `.footer-center`, `.footer-right`
+
+## Page Number Formats
+
+Customize how page numbers are displayed in headers and footers.
+
+### Format Options
+
+```yaml
+page_numbers:
+  format: roman      # i, ii, iii, iv...
+```
+
+Available formats:
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| `arabic` | 1, 2, 3 | Default decimal numbers |
+| `roman` | i, ii, iii | Lowercase roman numerals |
+| `roman-upper` | I, II, III | Uppercase roman numerals |
+| `alpha` | a, b, c | Lowercase letters |
+| `alpha-upper` | A, B, C | Uppercase letters |
+
+### Custom Start Value
+
+Start page numbering at a specific number (e.g., for documents continuing from a previous section):
+
+```yaml
+page_numbers:
+  start: 5           # First page is numbered 5
+```
+
+### Combined Example
+
+```yaml
+header:
+  right: "Page {page}"
+footer:
+  center: "{page} of {pages}"
+page_numbers:
+  format: roman-upper
+  start: 1
+```
+
+This produces page numbers like "I", "II", "III" instead of "1", "2", "3".
 
 ## Includes and Templates
 
@@ -378,26 +439,28 @@ PDF bookmarks are automatically generated from headings, allowing navigation via
 
 ## Fonts
 
-Load custom fonts from Google Fonts for headings and body text.
+Load custom fonts from Google Fonts for headings, body text, and code. System fonts are used when available; missing fonts are downloaded from Google Fonts and cached in `~/.cache/mdforge/fonts/`.
 
-### Font Pairings
+### Font Presets
 
-Use a preset font pairing:
+Use a preset by name:
 
 ```yaml
-font_pairing: classic-elegant
+fonts: classic-elegant
 ```
 
-Available pairings:
+Available presets:
 
-| Pairing | Heading | Body |
-|---------|---------|------|
-| `modern-professional` | Inter | Inter |
-| `classic-elegant` | Playfair Display | Libre Baskerville |
-| `modern-geometric` | Poppins | Open Sans |
-| `tech-minimal` | Space Grotesk | DM Sans |
-| `editorial` | Cormorant Garamond | Libre Baskerville |
-| `clean-sans` | DM Sans | Inter |
+| Preset | Heading | Body | Mono |
+|--------|---------|------|------|
+| `modern-professional` | Inter | Inter | Fira Code |
+| `classic-elegant` | Playfair Display | Libre Baskerville | Fira Code |
+| `modern-geometric` | Poppins | Open Sans | Fira Code |
+| `tech-minimal` | Space Grotesk | DM Sans | JetBrains Mono |
+| `editorial` | Cormorant Garamond | Libre Baskerville | Fira Code |
+| `clean-sans` | DM Sans | Inter | Fira Code |
+
+Each theme also has a matching font preset (`beryl`, `tufte`, `buttondown`, `pandoc`) that's automatically applied when using that theme.
 
 ### Custom Fonts
 
@@ -407,16 +470,17 @@ Specify any Google Font by name:
 fonts:
   heading: "Playfair Display"
   body: "Inter"
+  mono: "JetBrains Mono"
 ```
 
-You can specify just one:
+You can specify just one or two:
 
 ```yaml
 fonts:
-  heading: "Poppins"  # Uses theme default for body
+  heading: "Poppins"  # Uses theme default for body and mono
 ```
 
-Fonts are loaded via Google Fonts and set as CSS variables (`--font-heading`, `--font-body`).
+Fonts are set as CSS variables (`--font-heading`, `--font-body`, `--font-mono`) that themes use for styling.
 
 ## PDF Metadata
 

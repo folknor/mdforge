@@ -31,9 +31,9 @@ const CONFIG_SCHEMA: Record<
 	header: { type: "string|object" },
 	footer: { type: "string|object" },
 	metadata: { type: "object" },
-	fonts: { type: "object" },
-	font_pairing: { type: "string", values: Object.keys(fontPairings) },
+	fonts: { type: "string|object" },
 	templates: { type: "object" },
+	page_numbers: { type: "object" },
 };
 
 /**
@@ -218,16 +218,28 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 		}
 	}
 
-	// Validate fonts structure
-	if (config.fonts && typeof config.fonts === "object") {
-		const validFontKeys = new Set(["heading", "body"]);
-		for (const key of Object.keys(config.fonts)) {
-			if (!validFontKeys.has(key)) {
+	// Validate fonts (string preset or object config)
+	if (config.fonts) {
+		if (typeof config.fonts === "string") {
+			// Validate preset name
+			if (!(config.fonts in fontPairings)) {
 				errors.push({
-					path: `fonts.${key}`,
-					message: `Unknown fonts key "${key}". Use: heading, body`,
-					value: config.fonts[key as keyof typeof config.fonts],
+					path: "fonts",
+					message: `Unknown font preset "${config.fonts}". Available: ${Object.keys(fontPairings).join(", ")}`,
+					value: config.fonts,
 				});
+			}
+		} else if (typeof config.fonts === "object") {
+			// Validate object structure
+			const validFontKeys = new Set(["heading", "body", "mono"]);
+			for (const key of Object.keys(config.fonts)) {
+				if (!validFontKeys.has(key)) {
+					errors.push({
+						path: `fonts.${key}`,
+						message: `Unknown fonts key "${key}". Use: heading, body, mono`,
+						value: config.fonts[key as keyof typeof config.fonts],
+					});
+				}
 			}
 		}
 	}
@@ -240,6 +252,54 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 					path: `templates.${key}`,
 					message: `Template "${key}" must be a string (file path)`,
 					value,
+				});
+			}
+		}
+	}
+
+	// Validate page_numbers structure
+	if (config.page_numbers && typeof config.page_numbers === "object") {
+		const validPageNumbersKeys = new Set(["format", "start"]);
+		const validFormats = [
+			"arabic",
+			"roman",
+			"roman-upper",
+			"alpha",
+			"alpha-upper",
+		];
+
+		for (const key of Object.keys(config.page_numbers)) {
+			if (!validPageNumbersKeys.has(key)) {
+				errors.push({
+					path: `page_numbers.${key}`,
+					message: `Unknown page_numbers key "${key}". Use: format, start`,
+					value: config.page_numbers[key as keyof typeof config.page_numbers],
+				});
+			}
+		}
+
+		// Validate format value
+		if (
+			config.page_numbers.format !== undefined &&
+			!validFormats.includes(config.page_numbers.format)
+		) {
+			errors.push({
+				path: "page_numbers.format",
+				message: `Invalid format "${config.page_numbers.format}". Use: ${validFormats.join(", ")}`,
+				value: config.page_numbers.format,
+			});
+		}
+
+		// Validate start is a positive number
+		if (config.page_numbers.start !== undefined) {
+			if (
+				typeof config.page_numbers.start !== "number" ||
+				config.page_numbers.start < 1
+			) {
+				errors.push({
+					path: "page_numbers.start",
+					message: "start must be a positive number",
+					value: config.page_numbers.start,
 				});
 			}
 		}

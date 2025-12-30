@@ -39,7 +39,7 @@ export async function convertFile(
 		}
 
 		if (config.fontPairing) {
-			mergedConfig.font_pairing = config.fontPairing;
+			mergedConfig.fonts = config.fontPairing;
 		}
 
 		if (config.metadata) {

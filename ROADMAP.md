@@ -32,7 +32,7 @@ Uses pdf-lib for post-processing after Puppeteer generates PDF.
   ```
   Or use a preset:
   ```yaml
-  font_pairing: modern-professional
+  fonts: modern-professional
   ```
 - [x] Verified ALL fonts are on Google Fonts (free):
   - Playfair Display, Inter, Poppins, Open Sans
@@ -96,11 +96,11 @@ Uses pdf-lib for post-processing after Puppeteer generates PDF.
   - macOS: `.app` bundle - configured
 - [ ] Auto-update (optional, lower priority)
 
-## 9. Page Number Formats
+## 9. Page Number Formats ✓
 
-- [ ] Roman numerals for front matter (i, ii, iii)
-- [ ] Restart numbering after front matter
-- [ ] Config: `page_numbers: { start: 1, format: "arabic" | "roman" }`
+- [x] Roman numerals for front matter (i, ii, iii)
+- [x] Custom start value for page numbering
+- [x] Config: `page_numbers: { start: 1, format: "arabic" | "roman" | "roman-upper" | "alpha" | "alpha-upper" }`
 
 ---
 
@@ -156,4 +156,4 @@ Overlay text on pages.
 6. ~~Icons~~ ✓
 7. Themes
 8. ~~Desktop app~~ ✓
-9. Page number formats
+9. ~~Page number formats~~ ✓
