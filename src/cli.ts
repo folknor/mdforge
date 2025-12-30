@@ -98,11 +98,48 @@ async function main(args: typeof cliFlags) {
 	if (args["--config-file"]) {
 		try {
 			const configFilePath = resolve(args["--config-file"]);
-			const configContent = await fs.readFile(configFilePath, "utf-8");
-			const configFile = await resolveFileRefs(
-				YAML.parse(configContent) as Partial<Config>,
-				dirname(configFilePath),
-			);
+			let configFile: Partial<Config>;
+
+			if (configFilePath.endsWith(".js") || configFilePath.endsWith(".cjs")) {
+				// Load JS/CJS config via dynamic import
+				const { pathToFileURL } = await import("node:url");
+				const { createRequire } = await import("node:module");
+				let rawConfig: Partial<Config>;
+
+				if (configFilePath.endsWith(".cjs")) {
+					// CommonJS config
+					const require = createRequire(import.meta.url);
+					rawConfig = require(configFilePath);
+				} else {
+					// ES module config
+					const module = await import(pathToFileURL(configFilePath).href);
+					rawConfig = module.default || module;
+				}
+
+				configFile = await resolveFileRefs(rawConfig, dirname(configFilePath));
+			} else {
+				// Load YAML config
+				const configContent = await fs.readFile(configFilePath, "utf-8");
+				configFile = await resolveFileRefs(
+					YAML.parse(configContent) as Partial<Config>,
+					dirname(configFilePath),
+				);
+			}
+
+			// Set basedir from config file location if not explicitly set
+			const configDir = dirname(configFilePath);
+			if (!configFile.basedir) {
+				configFile.basedir = configDir;
+			}
+
+			// Resolve relative stylesheet paths to config directory
+			if (Array.isArray(configFile.stylesheet)) {
+				configFile.stylesheet = configFile.stylesheet.map((s) =>
+					typeof s === "string" && !s.startsWith("/") && !s.includes("\n")
+						? resolve(configDir, s)
+						: s,
+				);
+			}
 
 			config = {
 				...config,

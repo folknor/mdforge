@@ -1,5 +1,6 @@
 import GithubSlugger from "github-slugger";
 import type { MarkedExtension } from "marked";
+import { transliterate } from "transliteration";
 
 const unescapeTest = /&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/gi;
 
@@ -20,13 +21,16 @@ function decodeHtmlEntities(html: string): string {
 }
 
 /**
- * Clean text for slug generation: unescape HTML entities and strip HTML tags.
+ * Clean text for slug generation: unescape HTML entities, strip HTML tags,
+ * and transliterate Unicode to ASCII for CSS selector compatibility.
  * Exported for use by toc.ts to ensure consistent slug generation.
  */
 export function cleanForSlug(text: string): string {
-	return decodeHtmlEntities(text)
+	const cleaned = decodeHtmlEntities(text)
 		.trim()
 		.replace(/<[!/a-z].*?>/gi, "");
+	// Transliterate Unicode to ASCII (e.g., å→a, ø→o, ñ→n)
+	return transliterate(cleaned);
 }
 
 /**
