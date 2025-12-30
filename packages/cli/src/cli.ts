@@ -2,12 +2,14 @@
 
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import {
 	type Config,
+	type ConvertResult,
 	closeBrowser,
 	convertMdToPdf,
 	defaultConfig,
+	formatConversionInfo,
 	resolveFileRefs,
 } from "@mdforge/core";
 import arg from "arg";
@@ -142,9 +144,16 @@ async function main(args: typeof cliFlags) {
 		config.dest = resolve(args["--output"]);
 	}
 
+	// Store results for info display
+	const results: Map<string, ConvertResult> = new Map();
+
 	const getListrTask = (file: string) => ({
-		title: `generating ${args["--as-html"] ? "HTML" : "PDF"} from ${file}`,
-		task: async () => convertMdToPdf({ path: file }, config, { args }),
+		title: `generating ${args["--as-html"] ? "HTML" : "PDF"} from ${basename(file)}`,
+		task: async () => {
+			const result = await convertMdToPdf({ path: file }, config, { args });
+			results.set(file, result);
+			return result;
+		},
 	});
 
 	await new Listr(files.map(getListrTask), {
@@ -155,4 +164,18 @@ async function main(args: typeof cliFlags) {
 		.finally(async () => {
 			await closeBrowser();
 		});
+
+	// Display conversion info for each file
+	for (const [file, result] of results) {
+		if (files.length > 1) {
+			console.log(`\n${basename(file)}:`);
+		}
+		const infoText = formatConversionInfo(result.info);
+		if (infoText) {
+			console.log(infoText);
+		}
+		if (result.info.output?.path && result.info.output.path !== "stdout") {
+			console.log(`  → ${result.info.output.path}`);
+		}
+	}
 }

@@ -3,6 +3,10 @@ import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
 import type { Browser } from "puppeteer";
 import { type Config, themes, themesDir } from "./config.js";
+import {
+	type ConversionInfo,
+	createConversionInfo,
+} from "./conversion-info.js";
 import { generateFontStylesheet } from "./fonts.js";
 import { generateOutput } from "./generate-output.js";
 import { processIcons } from "./icons.js";
@@ -35,6 +39,13 @@ interface ConvertOptions {
 	"--as-html"?: boolean;
 }
 
+/** Output from convertMdToPdf */
+export interface ConvertResult {
+	filename: string | undefined;
+	content: Buffer | Uint8Array | string;
+	info: ConversionInfo;
+}
+
 /**
  * Convert markdown to pdf.
  */
@@ -48,7 +59,10 @@ export const convertMdToPdf = async (
 		args?: ConvertOptions;
 		browser?: Browser;
 	} = {},
-) => {
+): Promise<ConvertResult> => {
+	// Track conversion info for CLI output
+	const info = createConversionInfo();
+
 	const mdFileContent =
 		"content" in input
 			? input.content
@@ -110,17 +124,27 @@ export const convertMdToPdf = async (
 		try {
 			await fs.access(candidateCss);
 			config.stylesheet = [candidateCss];
+			info.stylesheet = { type: "auto", path: basename(candidateCss) };
 		} catch {
 			try {
 				await fs.access(indexCss);
 				config.stylesheet = [indexCss];
+				info.stylesheet = { type: "auto", path: "index.css" };
 			} catch {
 				// No stylesheet found, continue without
+				info.stylesheet = { type: "none" };
 			}
+		}
+	} else if (config.stylesheet.length > 0) {
+		// User specified stylesheet
+		const firstStylesheet = config.stylesheet[0];
+		if (typeof firstStylesheet === "string" && !firstStylesheet.includes("\n")) {
+			info.stylesheet = { type: "specified", path: basename(firstStylesheet) };
 		}
 	}
 
 	// resolve theme to stylesheet path
+	let themeStylesheet: string | undefined;
 	if (config.theme !== false && config.theme !== undefined) {
 		const themeName = config.theme;
 		if (!themes.includes(themeName)) {
@@ -128,17 +152,29 @@ export const convertMdToPdf = async (
 				`Unknown theme "${themeName}". Available themes: ${themes.join(", ")}`,
 			);
 		}
-		const themeStylesheet = resolve(themesDir, `${themeName}.css`);
-		// prepend theme stylesheet so user stylesheets can override
-		config.stylesheet = [themeStylesheet, ...config.stylesheet];
+		themeStylesheet = resolve(themesDir, `${themeName}.css`);
+		info.theme = themeName;
+	} else if (config.theme === false) {
+		info.theme = false;
 	}
 
-	// Generate font stylesheet from config
-	const fontCss = generateFontStylesheet(config.fonts, config.font_pairing);
-	if (fontCss) {
-		// Prepend font CSS so it loads before theme (fonts need to be available early)
-		config.stylesheet = [fontCss, ...config.stylesheet];
+	// Generate font stylesheet from config (fonts are cached locally)
+	// If no fonts specified but theme is set, use theme name as default preset
+	const effectiveFonts = config.fonts || config.theme || undefined;
+	const fontResult = await generateFontStylesheet(effectiveFonts);
+	const fontCss = fontResult?.css;
+
+	// Track font resolution info
+	if (fontResult?.info) {
+		info.fonts = fontResult.info;
 	}
+
+	// Build stylesheet list: theme, fonts, user stylesheets
+	// Order matters: theme first, fonts override theme, user overrides all
+	const baseStylesheets: string[] = [];
+	if (themeStylesheet) baseStylesheets.push(themeStylesheet);
+	if (fontCss) baseStylesheets.push(fontCss);
+	config.stylesheet = [...baseStylesheets, ...config.stylesheet];
 
 	// add print-urls body class and CSS if enabled
 	if (config.print_urls) {
@@ -156,6 +192,15 @@ export const convertMdToPdf = async (
 		const headerFooterConfig = {
 			header: config.header,
 			footer: config.footer,
+			page_numbers: config.page_numbers,
+		};
+
+		// Helper to summarize header/footer config
+		const summarize = (cfg: typeof config.header): string | undefined => {
+			if (!cfg) return undefined;
+			if (typeof cfg === "string") return cfg;
+			const parts = [cfg.left, cfg.center, cfg.right].filter(Boolean);
+			return parts.join(" | ") || undefined;
 		};
 
 		// Check if backgrounds are used (requires Puppeteer templates)
@@ -176,6 +221,11 @@ export const convertMdToPdf = async (
 				);
 			}
 			config.pdf_options.displayHeaderFooter = true;
+			info.headerFooter = {
+				type: "puppeteer",
+				header: summarize(config.header),
+				footer: summarize(config.footer),
+			};
 		} else {
 			// Use paged.js for text-only headers/footers
 			// Collect all CSS for header/footer styling
@@ -227,7 +277,15 @@ export const convertMdToPdf = async (
 
 			// Disable Puppeteer's displayHeaderFooter (paged.js renders in content)
 			config.pdf_options.displayHeaderFooter = false;
+
+			info.headerFooter = {
+				type: "paged.js",
+				header: summarize(config.header),
+				footer: summarize(config.footer),
+			};
 		}
+	} else {
+		info.headerFooter = { type: "none" };
 	}
 
 	// Auto-enable displayHeaderFooter if raw templates are set via pdf_options
@@ -305,5 +363,16 @@ export const convertMdToPdf = async (
 		}
 	}
 
-	return output;
+	// Track output info
+	if (output.filename) {
+		info.output = {
+			path: output.filename,
+		};
+	}
+
+	return {
+		filename: output.filename,
+		content: output.content,
+		info,
+	};
 };

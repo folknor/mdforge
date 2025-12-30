@@ -1,12 +1,15 @@
 import puppeteer from "puppeteer";
 import { type Config, defaultConfig } from "./lib/config.js";
-import { convertMdToPdf } from "./lib/convert.js";
-import type { Output } from "./lib/generate-output.js";
+import { type ConvertResult, convertMdToPdf } from "./lib/convert.js";
 import { getDir } from "./lib/util.js";
 
 // Re-export types and utilities for CLI and other consumers
 export { type Config, defaultConfig } from "./lib/config.js";
-export { convertMdToPdf } from "./lib/convert.js";
+export {
+	type ConversionInfo,
+	formatConversionInfo,
+} from "./lib/conversion-info.js";
+export { type ConvertResult, convertMdToPdf } from "./lib/convert.js";
 export type { FontConfig, FontPairing } from "./lib/fonts.js";
 export { closeBrowser, type Output } from "./lib/generate-output.js";
 export type { TemplatesConfig } from "./lib/includes.js";
@@ -22,7 +25,7 @@ type Input = { content: string } | { path: string };
 export async function mdToPdf(
 	input: Input,
 	config: Partial<Config> = {},
-): Promise<Output> {
+): Promise<ConvertResult> {
 	const mergedConfig: Config = {
 		...defaultConfig,
 		...config,
