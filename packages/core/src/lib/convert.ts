@@ -7,6 +7,7 @@ import {
 	type ConversionInfo,
 	createConversionInfo,
 } from "./conversion-info.js";
+import { validateCss, formatCssErrors } from "./css-validator.js";
 import { ConfigError, GenerationError, IncludeError } from "./errors.js";
 import { generateFontStylesheet } from "./fonts.js";
 import { generateOutput } from "./generate-output.js";
@@ -352,20 +353,46 @@ export const convertMdToPdf = async (
 
 	config.stylesheet = [...new Set([...config.stylesheet, highlightStylesheet])];
 
-	// Validate stylesheets exist before passing to Puppeteer
+	// Validate stylesheets exist and have valid syntax before passing to Puppeteer
 	const validatedStylesheets: string[] = [];
 	for (const stylesheet of config.stylesheet) {
-		// Skip if it's CSS content (from @file) or a URL
-		if (stylesheet.includes("\n") || stylesheet.includes("{") || stylesheet.startsWith("http")) {
+		// Skip URLs
+		if (stylesheet.startsWith("http")) {
 			validatedStylesheets.push(stylesheet);
 			continue;
 		}
-		// Check if file exists
-		try {
-			await fs.access(stylesheet);
+
+		// Check if it's inline CSS content (from @file or generated)
+		const isInlineCss = stylesheet.includes("\n") || stylesheet.includes("{");
+
+		if (isInlineCss) {
+			// Validate inline CSS syntax
+			const result = validateCss(stylesheet);
+			if (!result.valid) {
+				info.warnings.push(
+					...formatCssErrors(result.errors, "inline CSS"),
+				);
+			}
 			validatedStylesheets.push(stylesheet);
-		} catch {
-			info.warnings.push(`Stylesheet not found: ${stylesheet}`);
+		} else {
+			// It's a file path - check if file exists
+			try {
+				await fs.access(stylesheet);
+				// Read and validate CSS syntax
+				const css = await fs.readFile(stylesheet, "utf-8");
+				const result = validateCss(css, basename(stylesheet));
+				if (!result.valid) {
+					info.warnings.push(...formatCssErrors(result.errors, basename(stylesheet)));
+				}
+				validatedStylesheets.push(stylesheet);
+			} catch (error) {
+				const err = error as NodeJS.ErrnoException;
+				if (err.code === "ENOENT") {
+					info.warnings.push(`Stylesheet not found: ${stylesheet}`);
+				} else {
+					info.warnings.push(`Stylesheet not readable: ${stylesheet}`);
+				}
+			}
 		}
 	}
 	config.stylesheet = validatedStylesheets;
