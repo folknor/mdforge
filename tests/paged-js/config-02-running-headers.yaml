@@ -1,6 +1,5 @@
 theme: false
-stylesheet:
-  - "@02-running-headers.css"
+stylesheet: "@02-running-headers.css"
 script:
   - url: https://unpkg.com/pagedjs/dist/paged.polyfill.js
 pdf_options:

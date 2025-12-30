@@ -3,8 +3,7 @@
 # Text colors (red, green, purple) still work, but blue background disappears
 # CONCLUSION: Keep -webkit-print-color-adjust: exact in the template
 
-stylesheet:
-  - "@no-print-color-adjust.css"
+stylesheet: "@no-print-color-adjust.css"
 
 header:
   left: "RED TEXT"

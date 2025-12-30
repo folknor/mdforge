@@ -3,8 +3,7 @@
 # Check: Header left=RED text, center=BLUE background, right=GREEN text
 # Check: Footer text should be PURPLE
 
-stylesheet:
-  - "@colors.css"
+stylesheet: "@colors.css"
 
 header:
   left: "RED TEXT"

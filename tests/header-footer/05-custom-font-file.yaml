@@ -3,8 +3,7 @@
 # Using Abel font - should look distinctly different from system fonts
 # NOTE: Font affects both body AND headers/footers (this is expected - --font-body cascades)
 
-stylesheet:
-  - "@custom-font.css"
+stylesheet: "@custom-font.css"
 
 header:
   left: "Abel Font Test"

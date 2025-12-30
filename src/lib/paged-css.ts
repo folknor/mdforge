@@ -161,9 +161,6 @@ function normalizeToColumns(
 export interface PagedCssConfig {
 	header?: HeaderFooterValue;
 	footer?: HeaderFooterValue;
-	firstPageHeader?: boolean; // default true
-	firstPageFooter?: boolean; // default true
-	// Future: mirrorMargins, etc.
 }
 
 /**
@@ -328,7 +325,7 @@ h2 { string-set: chaptertitle content(text); }
 
 /* First page exceptions */
 ${
-	config.firstPageHeader === false
+	header.firstPage === false
 		? `
 @page:first {
   @top-left { content: none; }
@@ -339,7 +336,7 @@ ${
 }
 
 ${
-	config.firstPageFooter === false
+	footer.firstPage === false
 		? `
 @page:first {
   @bottom-left { content: none; }

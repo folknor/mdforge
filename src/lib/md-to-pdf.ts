@@ -108,8 +108,6 @@ export const convertMdToPdf = async (
 		const headerFooterConfig = {
 			header: config.header,
 			footer: config.footer,
-			firstPageHeader: config.firstPageHeader,
-			firstPageFooter: config.firstPageFooter,
 		};
 
 		// Check if backgrounds are used (requires Puppeteer templates)
@@ -218,7 +216,7 @@ export const convertMdToPdf = async (
 		dirname(require.resolve("highlight.js")),
 		"..",
 		"styles",
-		`${config.highlight_style}.css`,
+		`${config.code_block_style}.css`,
 	);
 
 	config.stylesheet = [...new Set([...config.stylesheet, highlightStylesheet])];

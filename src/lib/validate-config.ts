@@ -23,16 +23,13 @@ const CONFIG_SCHEMA: Record<
 	document_title: { type: "string" },
 	body_class: { type: "array" },
 	page_media_type: { type: "string", values: ["screen", "print"] },
-	highlight_style: { type: "string" },
-	marked_options: { type: "object" },
+	code_block_style: { type: "string" },
 	pdf_options: { type: "object" },
 	launch_options: { type: "object" },
 	marked_extensions: { type: "array" },
 	toc_options: { type: "object" },
 	header: { type: "string|object" },
 	footer: { type: "string|object" },
-	firstPageHeader: { type: "boolean" },
-	firstPageFooter: { type: "boolean" },
 	outline: { type: "boolean" },
 };
 
@@ -167,7 +164,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 	for (const field of ["header", "footer"] as const) {
 		const value = config[field];
 		if (value && typeof value === "object") {
-			const validKeys = new Set(["left", "center", "right"]);
+			const validKeys = new Set(["left", "center", "right", "background", "firstPage"]);
 			for (const key of Object.keys(value)) {
 				if (!validKeys.has(key)) {
 					errors.push({

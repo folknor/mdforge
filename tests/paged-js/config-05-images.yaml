@@ -1,6 +1,5 @@
 theme: false
-stylesheet:
-  - "@05-images.css"
+stylesheet: "@05-images.css"
 script:
   - url: https://unpkg.com/pagedjs/dist/paged.polyfill.js
 pdf_options:

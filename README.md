@@ -15,8 +15,9 @@ npm install -g md-to-pdf
 ```bash
 md-to-pdf document.md
 md-to-pdf document.md --config-file config.yaml
+md-to-pdf document.md -o output.pdf
 md-to-pdf *.md                              # multiple files
-md-to-pdf document.md --watch               # watch mode
+md-to-pdf --as-html document.md             # output HTML instead
 cat document.md | md-to-pdf > output.pdf    # stdio
 ```
 
@@ -33,64 +34,29 @@ Set `theme: false` to disable theming.
 ## Configuration
 
 Options can be set via:
-1. YAML config file (`--config-file`)
+1. YAML config file (`--config-file config.yaml`)
 2. Front-matter in markdown file
-3. CLI arguments
 
-### Config file
+Later sources override earlier ones. Front-matter overrides config file.
 
-All defaults:
-
-```yaml
-theme: beryl
-stylesheet: []
-print_urls: false
-document_title: ""      # auto-detected from first heading if not specified
-page_media_type: screen # or "print" for @media print rules
-highlight_style: github # see https://highlightjs.org/demo
-marked_options:
-  gfm: true             # GitHub Flavored Markdown
-  breaks: false         # convert \n to <br>
-  pedantic: false       # conform to original markdown.pl
-  silent: false         # suppress error output
-# always enabled: smartypants, heading IDs (github-slugger)
-pdf_options:
-  printBackground: true
-  format: A4
-  margin:
-    top: 20mm
-    right: 20mm
-    bottom: 20mm
-    left: 20mm
-launch_options: {}      # Puppeteer browser launch options
-```
-
-Example with custom settings:
+### Config File
 
 ```yaml
 theme: tufte
-stylesheet:
-  - custom.css
-print_urls: true
-body_class:
-  - my-class
+stylesheet: "@custom.css"
+footer: "Page {page} of {pages}"
 pdf_options:
-  headerTemplate: "@header.html"
-  footerTemplate: "@footer.html"
-  displayHeaderFooter: true
-marked_options:
-  gfm: true
-  breaks: true
+  format: Letter
 ```
 
-Use `@filename` to reference external files for templates.
+Use `@filename` syntax to load external file contents.
 
 ### Front-matter
 
 ```markdown
 ---
 theme: pandoc
-stylesheet: custom.css
+footer: "Page {page} of {pages}"
 ---
 
 # Document Title
@@ -98,56 +64,85 @@ stylesheet: custom.css
 Content here.
 ```
 
-### Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `theme` | string\|false | `"beryl"` | Built-in theme name or false |
-| `stylesheet` | string\|string[] | `[]` | Additional CSS files |
-| `print_urls` | boolean | `false` | Show URLs after links in print |
-| `document_title` | string | auto | PDF title (defaults to first heading) |
-| `body_class` | string\|string[] | `[]` | Classes to add to body |
-| `basedir` | string | cwd | Base directory for relative paths |
-| `dest` | string | - | Output file path |
-| `pdf_options` | object | - | Puppeteer PDF options |
-| `launch_options` | object | - | Puppeteer launch options |
-| `highlight_style` | string | `"github"` | highlight.js theme |
-| `marked_options` | object | - | Marked parser options |
-| `html` | boolean | `false` | Treat input as HTML |
-| `devtools` | boolean | `false` | Open devtools |
-
-### PDF Options
-
-Pass-through to [Puppeteer's page.pdf()](https://pptr.dev/api/puppeteer.pdfoptions):
+## All Defaults
 
 ```yaml
+theme: beryl              # beryl, tufte, buttondown, pandoc (or false to disable)
+stylesheet: ""            # CSS file path or inline CSS
+document_title: ""        # auto-detected from first heading if not specified
+code_block_style: github  # see https://highlightjs.org/examples
+outline: true             # generate PDF bookmarks from headings
+print_urls: false         # append URLs after links: [text](url) → "text (url)"
+
 pdf_options:
-  format: A4
-  landscape: false
   printBackground: true
+  format: A4
   margin:
     top: 20mm
     right: 20mm
     bottom: 20mm
     left: 20mm
+
+toc_options:
+  skip_first_h1: false    # skip first h1 in TOC (usually the document title)
+  maxdepth: 6             # maximum heading depth to include (1-6)
+
+header: null
+footer: null
 ```
 
-### Headers and Footers
+## Configuration Options
 
-There are two ways to add headers and footers:
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `theme` | `string \| false` | `"beryl"` | Built-in theme or `false` to disable |
+| `stylesheet` | `string` | `""` | Additional CSS file or inline CSS |
+| `document_title` | `string` | auto | PDF title (auto-detected from first heading) |
+| `code_block_style` | `string` | `"github"` | [highlight.js theme](https://highlightjs.org/examples) |
+| `outline` | `boolean` | `true` | Generate PDF bookmarks from headings |
+| `print_urls` | `boolean` | `false` | Append URLs after links when printed |
+| `pdf_options` | `object` | see below | Puppeteer PDF options |
+| `toc_options` | `object` | see below | Table of contents options |
+| `header` | `string \| object` | - | Header config (see Headers section) |
+| `footer` | `string \| object` | - | Footer config (see Footers section) |
 
-1. **Simplified config** (recommended) - use `header` and `footer` options
-2. **Raw HTML templates** - use `pdf_options.headerTemplate` and `pdf_options.footerTemplate`
+## PDF Options
 
-#### Simplified Headers and Footers
+Pass-through to [Puppeteer's page.pdf()](https://pptr.dev/api/puppeteer.pdfoptions):
 
-The simplest way to add a footer:
+```yaml
+pdf_options:
+  format: A4                    # or: Letter, Legal, Tabloid, A3, A5
+  landscape: false
+  printBackground: true
+  scale: 1                      # 0.1 to 2
+  margin:
+    top: 20mm
+    right: 20mm
+    bottom: 20mm
+    left: 20mm
+  pageRanges: "1-5"             # print specific pages
+```
+
+### Margin Shortcuts
+
+```yaml
+margin: "20mm"                    # all sides
+margin: "20mm 15mm"               # vertical, horizontal
+margin: "20mm 15mm 25mm 15mm"     # top, right, bottom, left
+```
+
+## Headers and Footers
+
+### Simple Footer
 
 ```yaml
 footer: "Page {page} of {pages}"
 ```
 
-This creates a centered footer. For more control, use a three-column layout:
+Creates a centered footer.
+
+### Three-Column Layout
 
 ```yaml
 header:
@@ -160,194 +155,204 @@ footer:
   right: "Confidential"
 ```
 
-You can omit any column (`left`, `center`, `right`) and it will be empty.
+### Variables
 
-#### Variables
+| Variable | Description | Example Output |
+|----------|-------------|----------------|
+| `{page}` | Current page number | 5 |
+| `{pages}` | Total page count | 12 |
+| `{title}` | Document title | My Document |
+| `{date}` | Current date (default locale) | December 30, 2024 |
+| `{date:locale}` | Date with specific locale | 30. desember 2024 |
+| `{url}` | Document URL | file:///path/to/doc.md |
 
-Use these placeholders in your header/footer text:
-
-| Variable | Description |
-|----------|-------------|
-| `{page}` | Current page number |
-| `{pages}` | Total page count |
-| `{title}` | Document title (from `document_title` config or first heading) |
-| `{date}` | Current date (browser's default locale) |
-| `{date:locale}` | Current date with specific locale (see below) |
-| `{url}` | Document URL |
-
-#### Date Formatting
-
-The `{date}` variable uses the browser's default locale. For specific formatting, use `{date:locale}`:
+### Localized Dates
 
 ```yaml
 header:
   left: "{date:nb-NO}"    # Norwegian: "30. desember 2024"
   right: "{date:en-US}"   # US English: "December 30, 2024"
-footer:
-  center: "{date:de-DE}"  # German: "30. Dezember 2024"
 ```
 
-Common locale codes: `en-US`, `en-GB`, `nb-NO`, `de-DE`, `fr-FR`, `es-ES`, `ja-JP`, `zh-CN`
+Common locales: `en-US`, `en-GB`, `nb-NO`, `de-DE`, `fr-FR`, `es-ES`, `ja-JP`, `zh-CN`
 
-#### Markdown in Headers/Footers
-
-You can use inline markdown:
+### Images
 
 ```yaml
 header:
-  left: "**CONFIDENTIAL**"
-  center: "*Draft Document*"
-  right: "[Company](https://example.com)"
-```
-
-Supported: `**bold**`, `*italic*`, `[links](url)`, `` `code` ``
-
-#### Images in Headers/Footers
-
-Use markdown image syntax. Images are automatically embedded as base64 data URIs:
-
-```yaml
-header:
-  left: "![Company Logo](logo.png)"
+  left: "![Logo](logo.png)"
   right: "Page {page}"
 ```
 
-Supported formats: PNG, JPG, GIF, SVG, WebP. Use small images (logos, icons) for best results.
+Images are embedded as base64 data URIs. Supported: PNG, JPG, GIF, SVG, WebP.
 
-#### File References
+### Background Images
 
-Load content from external files using `@filename`:
+For branded headers/footers with full-width background images:
 
 ```yaml
 header:
-  left: "@company-header.md"
+  background: "header-bg.svg"
+  right: "Page {page}/{pages}"
 footer:
-  center: "@legal-footer.md"
+  background: "footer-bg.svg"
 ```
 
-The file content is read and processed as markdown.
+Background images use `background-size: cover`. Headers anchor to bottom edge, footers to top edge.
 
-#### Styling
+### Skip First Page
 
-Headers and footers automatically inherit styling from your theme and custom stylesheets via CSS variables:
-
-- `--font-body` - Font family
-- `--font-size` - Base font size (headers/footers use 70% of this)
-- `--color-text` - Text color
-
-To customize header/footer appearance, add CSS targeting the `.hf` class:
-
-```css
-/* In your custom stylesheet */
-.hf {
-  font-size: 10px;
-  color: #666;
-}
-
-.hf.header {
-  border-bottom: 1px solid #ccc;
-}
-
-.hf.footer {
-  border-top: 1px solid #ccc;
-}
-
-.hf-left { /* left column */ }
-.hf-center { /* center column */ }
-.hf-right { /* right column */ }
-```
-
-#### Raw HTML Templates (Advanced)
-
-For complete control, use Puppeteer's native template options:
+Hide headers/footers on the first page (e.g., for a title page). Only works with text-only headers/footers (not with background images).
 
 ```yaml
-pdf_options:
-  displayHeaderFooter: true
-  headerTemplate: "@header.html"
-  footerTemplate: "@footer.html"
+header:
+  center: "{title}"
+  firstPage: false
+footer:
+  center: "Page {page}"
+  firstPage: false
 ```
 
-Your HTML template must be a complete HTML document. Puppeteer provides these CSS classes:
+## Table of Contents
 
-- `pageNumber` - current page number
-- `totalPages` - total pages
-- `title` - document title
-- `date` - current date
-- `url` - document URL
+Add `<!-- toc -->` marker where you want the TOC:
 
-Example `footer.html`:
+```markdown
+# My Document
 
-```html
-<html>
-<head>
-  <style>
-    .footer {
-      font-size: 10px;
-      width: 100%;
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-    }
-  </style>
-</head>
-<body>
-  <div class="footer">
-    <span>Company Name</span>
-    <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
-  </div>
-</body>
-</html>
+<!-- toc -->
+
+## Introduction
+
+Content...
+
+## Chapter 1
+
+More content...
 ```
 
-**Important notes for raw templates:**
+The TOC is generated from headings and inserted as a markdown list with anchor links.
 
-- Headers/footers render in an isolated context - external stylesheets won't load
-- Use inline styles or `<style>` tags
-- Images must be embedded as base64 data URIs
-- The template is rendered at the page margins, not in the main content area
-- `displayHeaderFooter: true` is required (auto-enabled when using simplified config)
+### TOC Options
 
-#### Precedence
+```yaml
+toc_options:
+  skip_first_h1: false    # skip first h1 (usually the document title)
+  maxdepth: 6             # maximum heading level (1-6)
+```
 
-If both simplified (`header`/`footer`) and raw templates (`headerTemplate`/`footerTemplate`) are specified, the raw templates take precedence.
+## Code Highlighting
+
+Syntax highlighting via highlight.js. Set the theme:
+
+```yaml
+code_block_style: github
+```
+
+See [highlight.js examples](https://highlightjs.org/examples) for available themes: `github`, `monokai`, `vs`, `atom-one-dark`, etc.
+
+## PDF Bookmarks
+
+PDF bookmarks (outline) are automatically generated from headings. Readers can navigate via the PDF viewer's bookmark panel.
+
+```yaml
+outline: true     # default
+outline: false    # disable bookmarks
+```
 
 ## Page Breaks
 
+HTML:
 ```html
 <div class="page-break"></div>
 ```
 
-Or use CSS:
-
+CSS:
 ```css
-h1 {
-  page-break-before: always;
-}
+h1 { page-break-before: always; }
+.no-break { page-break-inside: avoid; }
 ```
 
 ## Debugging
 
-Use `--as-html` to output HTML instead of PDF:
+Output HTML instead of PDF to inspect in browser:
 
 ```bash
 md-to-pdf --as-html document.md
 ```
-
-Generates three files when headers/footers are configured:
-- `document.html` - main content
-- `document-header.html` - header template
-- `document-footer.html` - footer template
-
-Open in browser dev tools to inspect selectors and styling.
 
 ## Programmatic API
 
 ```typescript
 import { mdToPdf } from "md-to-pdf";
 
+// From file
 const result = await mdToPdf({ path: "document.md" });
-// result.content is the PDF buffer
+
+// From string
+const result = await mdToPdf(
+  { content: "# Hello\n\nWorld" },
+  { theme: "tufte", pdf_options: { format: "Letter" } }
+);
+
+// result.content is Buffer (PDF) or string (HTML)
+// result.filename is the output path
+```
+
+## Example Configurations
+
+### Minimal
+
+```yaml
+theme: beryl
+```
+
+### Academic Paper
+
+```yaml
+theme: buttondown
+code_block_style: vs
+header:
+  left: "{title}"
+  right: "{date}"
+footer:
+  center: "{page}"
+pdf_options:
+  format: A4
+  margin: 25mm
+```
+
+### Company Report
+
+```yaml
+theme: beryl
+stylesheet: "@brand.css"
+header:
+  background: "header.svg"
+  right: "Page {page}/{pages}"
+footer:
+  background: "footer.svg"
+firstPageHeader: false
+firstPageFooter: false
+pdf_options:
+  format: A4
+```
+
+### Technical Documentation
+
+```yaml
+theme: pandoc
+code_block_style: monokai
+toc_options:
+  maxdepth: 3
+footer: "Page {page} of {pages}"
+pdf_options:
+  format: Letter
+  margin:
+    top: 20mm
+    bottom: 25mm
+    left: 20mm
+    right: 20mm
 ```
 
 ## License

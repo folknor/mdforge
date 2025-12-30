@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { MarkedExtension, MarkedOptions } from "marked";
+import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
 import type { TOCOptions } from "./toc.js";
 
@@ -13,7 +13,8 @@ export interface HeaderFooterColumn {
 	left?: string;
 	center?: string;
 	right?: string;
-	background?: string; // @file reference to image (SVG, PNG, etc.)
+	background?: string;
+	firstPage?: boolean; // show on first page (default: true, only works without background)
 }
 
 export type HeaderFooterValue = string | HeaderFooterColumn;
@@ -29,8 +30,7 @@ export const defaultConfig: Config = {
 	document_title: "",
 	body_class: [],
 	page_media_type: "screen",
-	highlight_style: "github",
-	marked_options: {},
+	code_block_style: "github",
 	pdf_options: {
 		printBackground: true,
 		format: "a4",
@@ -45,10 +45,8 @@ export const defaultConfig: Config = {
 	as_html: false,
 	marked_extensions: [],
 	toc_options: {
-		firsth1: true,
+		skip_first_h1: false,
 		maxdepth: 6,
-		bullets: ["-"],
-		indent: "  ",
 	},
 	outline: true,
 };
@@ -108,18 +106,11 @@ export interface Config {
 	page_media_type: "screen" | "print";
 
 	/**
-	 * Highlight.js stylesheet to use (without the .css extension).
+	 * Highlight.js stylesheet for code blocks (without the .css extension).
 	 *
-	 * @see https://github.com/isagalaev/highlight.js/tree/master/src/styles
+	 * @see https://highlightjs.org/examples
 	 */
-	highlight_style: string;
-
-	/**
-	 * Options for the Marked parser.
-	 *
-	 * @see https://marked.js.org/#/USING_ADVANCED.md
-	 */
-	marked_options: MarkedOptions;
+	code_block_style: string;
 
 	/**
 	 * PDF options for Puppeteer.
@@ -161,18 +152,6 @@ export interface Config {
 	 * Markdown is supported and will be converted to HTML.
 	 */
 	footer?: HeaderFooterValue;
-
-	/**
-	 * Show header on first page when using simplified header/footer config.
-	 * Default: true
-	 */
-	firstPageHeader?: boolean;
-
-	/**
-	 * Show footer on first page when using simplified header/footer config.
-	 * Default: true
-	 */
-	firstPageFooter?: boolean;
 
 	/**
 	 * Generate PDF bookmarks/outlines from document headings.

@@ -11,20 +11,10 @@ import { marked, type Token, type Tokens } from "marked";
 import { cleanForSlug } from "./slugger.js";
 
 export interface TOCOptions {
-	/** Include the first h1 heading in the TOC. Default: true */
-	firsth1?: boolean;
+	/** Skip the first h1 heading in the TOC (usually the document title). Default: false */
+	skip_first_h1?: boolean;
 	/** Maximum heading depth to include (1-6). Default: 6 */
 	maxdepth?: number;
-	/** Bullet characters for list items. Default: ['-'] */
-	bullets?: string[];
-	/** Indentation string. Default: '  ' */
-	indent?: string;
-	/** Filter function to exclude certain headings */
-	filter?: (
-		content: string,
-		token: HeadingToken,
-		tokens: HeadingToken[],
-	) => boolean;
 }
 
 export interface HeadingToken {
@@ -51,10 +41,8 @@ class MarkedAdapter {
 
 	constructor(options: TOCOptions = {}) {
 		this.options = {
-			firsth1: true,
+			skip_first_h1: false,
 			maxdepth: 6,
-			bullets: ["-"],
-			indent: "  ",
 			...options,
 		};
 	}
@@ -137,41 +125,27 @@ class MarkedAdapter {
 	}
 
 	private processHeadings(): void {
-		// Apply firsth1 option - skip first h1 if disabled
+		// Skip first h1 if enabled (usually the document title)
 		const firstHeading = this.headings[0];
-		if (!this.options.firsth1 && firstHeading && firstHeading.lvl === 1) {
+		if (this.options.skip_first_h1 && firstHeading && firstHeading.lvl === 1) {
 			this.headings = this.headings.slice(1);
-		}
-
-		// Apply filter function if provided
-		if (typeof this.options.filter === "function") {
-			this.headings = this.headings.filter((heading) => {
-				return this.options.filter?.(heading.content, heading, this.headings);
-			});
 		}
 	}
 
 	private generateTOCContent(): string {
 		const lines: string[] = [];
-		const bullets = this.options.bullets ?? ["-"];
-		const indent = this.options.indent ?? "  ";
 		const maxdepth = this.options.maxdepth ?? 6;
+		const highestLevel = this.getHighestLevel();
 
 		for (const heading of this.headings) {
 			if (heading.lvl > maxdepth) {
 				continue;
 			}
 
-			const bulletIndex = Math.min(heading.lvl - 1, bullets.length - 1);
-			const bullet = bullets[bulletIndex] || "-";
-
-			const highestLevel = this.getHighestLevel();
 			const indentLevel = Math.max(0, heading.lvl - highestLevel);
-			const indentation = indent.repeat(indentLevel);
+			const indentation = "  ".repeat(indentLevel);
 
-			lines.push(
-				`${indentation}${bullet} [${heading.content}](#${heading.slug})`,
-			);
+			lines.push(`${indentation}- [${heading.content}](#${heading.slug})`);
 		}
 
 		return lines.join("\n");

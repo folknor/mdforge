@@ -1,6 +1,5 @@
 theme: false
-stylesheet:
-  - "@03-three-column.css"
+stylesheet: "@03-three-column.css"
 script:
   - url: https://unpkg.com/pagedjs/dist/paged.polyfill.js
 pdf_options:

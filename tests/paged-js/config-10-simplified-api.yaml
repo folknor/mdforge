@@ -1,9 +1,8 @@
 theme: tufte
-paged_js: true
 header:
   left: "{title}"
   right: "{date}"
+  firstPage: false
 footer:
   left: "Page {page} of {pages}"
   right: "{chapter}"
-firstPageHeader: false

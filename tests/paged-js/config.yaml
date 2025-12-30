@@ -3,8 +3,7 @@
 
 theme: false
 
-stylesheet:
-  - "@paged-style.css"
+stylesheet: "@paged-style.css"
 
 # Load paged.js from CDN
 script:

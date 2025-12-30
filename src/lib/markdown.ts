@@ -1,5 +1,5 @@
 import hljs from "highlight.js";
-import type { MarkedExtension, MarkedOptions } from "marked";
+import type { MarkedExtension } from "marked";
 import { Marked } from "marked";
 import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
@@ -12,7 +12,7 @@ import { insertToc } from "./toc.js";
 /**
  * Create a configured Marked instance with syntax highlighting and extensions.
  */
-const getMarked = (options: MarkedOptions, extensions: MarkedExtension[]) => {
+const getMarked = (extensions: MarkedExtension[]) => {
 	const highlightExtension = markedHighlight({
 		langPrefix: "hljs language-",
 		highlight(code, lang) {
@@ -27,7 +27,12 @@ const getMarked = (options: MarkedOptions, extensions: MarkedExtension[]) => {
 		markedFootnote(),
 		markedLinkifyIt(),
 		...extensions,
-	).setOptions({ ...options });
+	).setOptions({
+		gfm: true,
+		breaks: false,
+		pedantic: false,
+		silent: false,
+	});
 };
 
 /**
@@ -39,7 +44,7 @@ export const getHtml = (md: string, config: Config) => {
 <html>
 	<head><title>${config.document_title}</title><meta charset="utf-8"></head>
 	<body class="${config.body_class.join(" ")}">
-		${getMarked(config.marked_options, config.marked_extensions).parse(mdWithToc)}
+		${getMarked(config.marked_extensions).parse(mdWithToc)}
 	</body>
 </html>
 `;

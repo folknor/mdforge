@@ -2,8 +2,7 @@
 # Verify: Do web fonts (not system fonts) work?
 # Expected: Headers should use "Abril Fatface" - a very distinctive decorative serif
 
-stylesheet:
-  - "@web-fonts.css"
+stylesheet: "@web-fonts.css"
 
 header:
   left: "Abril Fatface Font"

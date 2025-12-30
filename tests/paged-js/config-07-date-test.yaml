@@ -1,6 +1,5 @@
 theme: false
-stylesheet:
-  - "@07-date-test.css"
+stylesheet: "@07-date-test.css"
 script:
   - url: https://unpkg.com/pagedjs/dist/paged.polyfill.js
 pdf_options:
