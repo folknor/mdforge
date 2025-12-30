@@ -1,0 +1,17 @@
+# Paged.js test configuration
+# This tests CSS Paged Media features via paged.js polyfill
+
+theme: false
+
+stylesheet:
+  - "@paged-style.css"
+
+# Load paged.js from CDN
+script:
+  - url: "https://unpkg.com/pagedjs/dist/paged.polyfill.js"
+
+pdf_options:
+  format: A4
+  margin: 0mm  # paged.js handles margins via @page
+  printBackground: true
+  # No displayHeaderFooter - paged.js handles headers/footers

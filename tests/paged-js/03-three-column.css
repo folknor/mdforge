@@ -1,0 +1,60 @@
+/* Test 3: Three-column header/footer layout */
+:root {
+  --font-body: "Georgia", serif;
+  --font-size: 12pt;
+  --color-text: #333;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+h1 {
+  string-set: doctitle content(text);
+}
+
+@page {
+  size: A4;
+  margin: 25mm 20mm;
+
+  @top-left {
+    content: string(doctitle);
+    font-size: 10pt;
+    color: #666;
+  }
+
+  @top-center {
+    content: "DRAFT";
+    font-size: 10pt;
+    font-weight: bold;
+    color: #c00;
+  }
+
+  @top-right {
+    content: "Confidential";
+    font-size: 10pt;
+    font-style: italic;
+    color: #666;
+  }
+
+  @bottom-left {
+    content: "Company Name";
+    font-size: 9pt;
+    color: #999;
+  }
+
+  @bottom-center {
+    content: "Page " counter(page) " / " counter(pages);
+    font-size: 10pt;
+    color: #666;
+  }
+
+  @bottom-right {
+    content: "v1.0";
+    font-size: 9pt;
+    color: #999;
+  }
+}

@@ -44,13 +44,16 @@
 		"highlight.js": "^11.11.1",
 		"listr": "^0.14.3",
 		"marked": "^17.0.1",
+		"marked-footnote": "^1.4.0",
 		"marked-highlight": "^2.2.3",
+		"marked-linkify-it": "^3.1.14",
 		"marked-smartypants": "^1.1.11",
 		"puppeteer": "^24.34.0",
 		"yaml": "^2.8.2"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.10",
+		"@types/linkify-it": "^5.0.0",
 		"@types/listr": "0.14.10",
 		"typescript": "5.9.3"
 	}

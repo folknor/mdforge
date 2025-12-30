@@ -1,7 +1,9 @@
 import hljs from "highlight.js";
 import type { MarkedExtension, MarkedOptions } from "marked";
 import { Marked } from "marked";
+import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
+import markedLinkifyIt from "marked-linkify-it";
 import { markedSmartypants } from "marked-smartypants";
 import type { Config } from "./config.js";
 import { gfmHeadingId } from "./slugger.js";
@@ -22,6 +24,8 @@ const getMarked = (options: MarkedOptions, extensions: MarkedExtension[]) => {
 		highlightExtension,
 		gfmHeadingId(),
 		markedSmartypants(),
+		markedFootnote(),
+		markedLinkifyIt(),
 		...extensions,
 	).setOptions({ ...options });
 };

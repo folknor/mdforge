@@ -6,6 +6,7 @@ import { type Config, themes, themesDir } from "./config.js";
 import { generateOutput } from "./generate-output.js";
 import { buildHeaderFooterTemplate } from "./header-footer.js";
 import { getHtml } from "./markdown.js";
+import { generatePagedCss } from "./paged-css.js";
 import {
 	extractFirstHeading,
 	getMarginObject,
@@ -13,6 +14,8 @@ import {
 	parseFrontMatter,
 	resolveFileRefs,
 } from "./util.js";
+
+const PAGED_JS_URL = "https://unpkg.com/pagedjs/dist/paged.polyfill.js";
 
 type CliArgs = typeof import("../cli.js").cliFlags;
 
@@ -107,32 +110,67 @@ export const convertMdToPdf = async (
 		}
 		const allCss = cssContents.join("\n\n");
 
-		// Build header template if not already set via pdf_options
-		if (config.header && !config.pdf_options.headerTemplate) {
-			config.pdf_options.headerTemplate = await buildHeaderFooterTemplate(
-				config.header,
-				"header",
+		if (config.paged_js) {
+			// Paged.js mode: generate CSS @page rules
+			const pagedCss = await generatePagedCss(
+				{
+					header: config.header,
+					footer: config.footer,
+					firstPageHeader: config.firstPageHeader,
+					firstPageFooter: config.firstPageFooter,
+				},
 				allCss,
 				baseDir,
 			);
-		}
 
-		// Build footer template if not already set via pdf_options
-		if (config.footer && !config.pdf_options.footerTemplate) {
-			config.pdf_options.footerTemplate = await buildHeaderFooterTemplate(
-				config.footer,
-				"footer",
-				allCss,
-				baseDir,
+			// Prepend paged CSS to stylesheets (so theme + user styles are first)
+			config.stylesheet = [...config.stylesheet, pagedCss];
+
+			// Add paged.js script if not already present
+			const hasPagedJs = config.script.some(
+				(s) => s.url?.includes("pagedjs") || s.path?.includes("pagedjs"),
 			);
+			if (!hasPagedJs) {
+				config.script = [...config.script, { url: PAGED_JS_URL }];
+			}
+
+			// Paged.js handles margins, set Puppeteer margins to 0
+			config.pdf_options.margin = { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" };
+
+			// Disable Puppeteer's displayHeaderFooter (paged.js renders in content)
+			config.pdf_options.displayHeaderFooter = false;
+		} else {
+			// Puppeteer native mode: build HTML templates
+			// Build header template if not already set via pdf_options
+			if (config.header && !config.pdf_options.headerTemplate) {
+				config.pdf_options.headerTemplate = await buildHeaderFooterTemplate(
+					config.header,
+					"header",
+					allCss,
+					baseDir,
+				);
+			}
+
+			// Build footer template if not already set via pdf_options
+			if (config.footer && !config.pdf_options.footerTemplate) {
+				config.pdf_options.footerTemplate = await buildHeaderFooterTemplate(
+					config.footer,
+					"footer",
+					allCss,
+					baseDir,
+				);
+			}
 		}
 	}
 
 	// Auto-enable displayHeaderFooter if templates are set (either simplified or via pdf_options)
-	const { headerTemplate, footerTemplate, displayHeaderFooter } =
-		config.pdf_options;
-	if ((headerTemplate || footerTemplate) && displayHeaderFooter === undefined) {
-		config.pdf_options.displayHeaderFooter = true;
+	// Only applies to Puppeteer native mode (not paged.js)
+	if (!config.paged_js) {
+		const { headerTemplate, footerTemplate, displayHeaderFooter } =
+			config.pdf_options;
+		if ((headerTemplate || footerTemplate) && displayHeaderFooter === undefined) {
+			config.pdf_options.displayHeaderFooter = true;
+		}
 	}
 
 	// auto-detect document title from first heading if not set
