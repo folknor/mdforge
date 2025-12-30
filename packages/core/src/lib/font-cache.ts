@@ -116,13 +116,21 @@ async function saveCachedCss(cacheKey: string, css: string): Promise<void> {
 	await fs.writeFile(cssPath, css, "utf-8");
 }
 
+/** Result of font fetch with possible warnings */
+export interface FontFetchResult {
+	css: string | null;
+	warnings: string[];
+}
+
 /**
  * Download a font file and return as base64
  */
 async function downloadFontAsBase64(url: string): Promise<string | null> {
 	try {
 		const response = await fetch(url);
-		if (!response.ok) return null;
+		if (!response.ok) {
+			return null;
+		}
 
 		const buffer = await response.arrayBuffer();
 		return Buffer.from(buffer).toString("base64");
@@ -137,7 +145,9 @@ async function downloadFontAsBase64(url: string): Promise<string | null> {
 async function fetchAndEmbedFonts(
 	fontNames: string[],
 	weights: number[],
-): Promise<string | null> {
+): Promise<FontFetchResult> {
+	const warnings: string[] = [];
+
 	// Build Google Fonts URL
 	const families = fontNames
 		.map((name) => {
@@ -155,8 +165,8 @@ async function fetchAndEmbedFonts(
 		});
 
 		if (!response.ok) {
-			console.warn(`Failed to fetch Google Fonts: ${response.status}`);
-			return null;
+			warnings.push(`Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${response.status} ${response.statusText}`);
+			return { css: null, warnings };
 		}
 
 		let css = await response.text();
@@ -189,25 +199,27 @@ async function fetchAndEmbedFonts(
 			);
 		}
 
-		return css;
+		return { css, warnings };
 	} catch (error) {
 		const err = error as Error;
-		console.warn(`Error fetching Google Fonts: ${err.message}`);
-		return null;
+		warnings.push(`Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${err.message}`);
+		return { css: null, warnings };
 	}
 }
 
 /**
  * Get font CSS - uses system fonts when available, downloads from Google Fonts otherwise
  *
- * Returns CSS with @font-face rules. System fonts are referenced by name,
- * downloaded fonts are embedded as base64.
+ * Returns CSS with @font-face rules and any warnings.
+ * System fonts are referenced by name, downloaded fonts are embedded as base64.
  */
 export async function getGoogleFontsCss(
 	fontNames: string[],
 	weights: number[] = [400, 500, 600, 700],
-): Promise<string | null> {
-	if (fontNames.length === 0) return null;
+): Promise<FontFetchResult> {
+	if (fontNames.length === 0) return { css: null, warnings: [] };
+
+	const warnings: string[] = [];
 
 	// Separate system fonts from fonts that need downloading
 	const systemFonts: string[] = [];
@@ -238,7 +250,9 @@ export async function getGoogleFontsCss(
 
 		if (!downloadedCss) {
 			// Fetch and embed fonts
-			downloadedCss = await fetchAndEmbedFonts(fontsToDownload, weights);
+			const result = await fetchAndEmbedFonts(fontsToDownload, weights);
+			warnings.push(...result.warnings);
+			downloadedCss = result.css;
 			if (downloadedCss) {
 				await saveCachedCss(cacheKey, downloadedCss);
 			}
@@ -249,7 +263,10 @@ export async function getGoogleFontsCss(
 		}
 	}
 
-	return cssParts.length > 0 ? cssParts.join("\n\n") : null;
+	return {
+		css: cssParts.length > 0 ? cssParts.join("\n\n") : null,
+		warnings,
+	};
 }
 
 /**

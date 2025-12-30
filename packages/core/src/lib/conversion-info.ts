@@ -29,6 +29,7 @@ export interface ConversionInfo {
 		path: string;
 		pages?: number;
 	};
+	warnings: string[];
 }
 
 /**
@@ -37,6 +38,7 @@ export interface ConversionInfo {
 export function createConversionInfo(): ConversionInfo {
 	return {
 		fonts: {},
+		warnings: [],
 	};
 }
 

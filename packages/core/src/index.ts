@@ -6,6 +6,13 @@ import { getDir } from "./lib/util.js";
 // Re-export types and utilities for CLI and other consumers
 export { type Config, defaultConfig } from "./lib/config.js";
 export {
+	MdforgeError,
+	FileNotFoundError,
+	ConfigError,
+	GenerationError,
+	IncludeError,
+} from "./lib/errors.js";
+export {
 	type ConversionInfo,
 	formatConversionInfo,
 } from "./lib/conversion-info.js";

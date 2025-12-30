@@ -170,6 +170,14 @@ async function main(args: typeof cliFlags) {
 		if (files.length > 1) {
 			console.log(`\n${basename(file)}:`);
 		}
+
+		// Display any warnings
+		if (result.info.warnings?.length > 0) {
+			for (const warning of result.info.warnings) {
+				console.warn(warning);
+			}
+		}
+
 		const infoText = formatConversionInfo(result.info);
 		if (infoText) {
 			console.log(infoText);

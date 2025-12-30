@@ -56,6 +56,7 @@ async function regenerateExamples() {
 		console.log(`Found ${exampleDirs.length} example(s)\n`);
 
 		let totalGenerated = 0;
+		let totalFailed = 0;
 
 		for (const dir of exampleDirs) {
 			const examplePath = join(examplesDir, dir);
@@ -87,21 +88,22 @@ async function regenerateExamples() {
 					}
 					totalGenerated++;
 				} catch (error) {
-					console.error(`  ✗ Failed: ${name}`);
-					if (error.stderr) {
-						console.error(`    ${error.stderr.toString().trim()}`);
+					totalFailed++;
+					// Extract error message (format: "[time] → Error message") - may be in stdout or stderr
+					const output = (error.stdout?.toString() || '') + (error.stderr?.toString() || '');
+					const errorMatch = output.match(/\] → (.+)/);
+					if (errorMatch) {
+						console.log(`  ✗ ${name}: ${errorMatch[1]}`);
+					} else {
+						console.log(`  ✗ ${name}: conversion failed`);
 					}
-					if (error.stdout) {
-						console.error(`    ${error.stdout.toString().trim()}`);
-					}
-					process.exit(1);
 				}
 			}
 
 			console.log('');
 		}
 
-		console.log(`Done! Generated ${totalGenerated} PDF(s).`);
+		console.log(`Done! Generated ${totalGenerated} PDF(s), ${totalFailed} failed.`);
 	} catch (error) {
 		console.error('Error:', error.message);
 		process.exit(1);

@@ -7,10 +7,12 @@ import {
 	type ConversionInfo,
 	createConversionInfo,
 } from "./conversion-info.js";
+import { ConfigError, GenerationError, IncludeError } from "./errors.js";
 import { generateFontStylesheet } from "./fonts.js";
 import { generateOutput } from "./generate-output.js";
 import { processIcons } from "./icons.js";
 import { processIncludes } from "./includes.js";
+import { processXref } from "./xref.js";
 import { getHtml } from "./markdown.js";
 import {
 	buildPuppeteerTemplate,
@@ -91,7 +93,7 @@ export const convertMdToPdf = async (
 	// Validate merged config
 	const validationErrors = validateConfig(frontMatterConfig);
 	if (validationErrors.length > 0) {
-		console.warn(formatValidationErrors(validationErrors));
+		info.warnings.push(formatValidationErrors(validationErrors));
 	}
 
 	// Note: displayHeaderFooter auto-enable is handled after simplified header/footer processing below
@@ -148,7 +150,7 @@ export const convertMdToPdf = async (
 	if (config.theme !== false && config.theme !== undefined) {
 		const themeName = config.theme;
 		if (!themes.includes(themeName)) {
-			throw new Error(
+			throw new ConfigError(
 				`Unknown theme "${themeName}". Available themes: ${themes.join(", ")}`,
 			);
 		}
@@ -164,9 +166,12 @@ export const convertMdToPdf = async (
 	const fontResult = await generateFontStylesheet(effectiveFonts);
 	const fontCss = fontResult?.css;
 
-	// Track font resolution info
+	// Track font resolution info and warnings
 	if (fontResult?.info) {
 		info.fonts = fontResult.info;
+	}
+	if (fontResult?.warnings) {
+		info.warnings.push(...fontResult.warnings);
 	}
 
 	// Build stylesheet list: theme, fonts, user stylesheets
@@ -243,7 +248,7 @@ export const convertMdToPdf = async (
 						const css = await fs.readFile(stylesheet, "utf-8");
 						cssContents.push(css);
 					} catch {
-						// File not readable, skip
+						// Stylesheet already validated, this is unexpected
 					}
 				}
 			}
@@ -301,7 +306,7 @@ export const convertMdToPdf = async (
 		processedMd = await processIncludes(md, baseDir, config.templates);
 	} catch (error) {
 		const err = error as Error;
-		console.error(`Include error: ${err.message}`);
+		throw new IncludeError("", err.message);
 	}
 
 	// Process :icon[prefix:name] syntax - fetch and inline SVGs from Iconify
@@ -309,8 +314,11 @@ export const convertMdToPdf = async (
 		processedMd = await processIcons(processedMd);
 	} catch (error) {
 		const err = error as Error;
-		console.error(`Icon processing error: ${err.message}`);
+		info.warnings.push(`Icon processing failed: ${err.message} (continuing with placeholders)`);
 	}
+
+	// Process @see Section Name → [Section Name](#section-name)
+	processedMd = processXref(processedMd);
 
 	// auto-detect document title from first heading if not set
 	if (!config.document_title) {
@@ -344,15 +352,49 @@ export const convertMdToPdf = async (
 
 	config.stylesheet = [...new Set([...config.stylesheet, highlightStylesheet])];
 
+	// Validate stylesheets exist before passing to Puppeteer
+	const validatedStylesheets: string[] = [];
+	for (const stylesheet of config.stylesheet) {
+		// Skip if it's CSS content (from @file) or a URL
+		if (stylesheet.includes("\n") || stylesheet.includes("{") || stylesheet.startsWith("http")) {
+			validatedStylesheets.push(stylesheet);
+			continue;
+		}
+		// Check if file exists
+		try {
+			await fs.access(stylesheet);
+			validatedStylesheets.push(stylesheet);
+		} catch {
+			info.warnings.push(`Stylesheet not found: ${stylesheet}`);
+		}
+	}
+	config.stylesheet = validatedStylesheets;
+
 	const html = getHtml(processedMd, config);
 
 	const relativePath =
 		"path" in input ? relative(config.basedir, input.path) : ".";
 
-	const output = await generateOutput(html, relativePath, config, browser);
-
-	if (!output) {
-		throw new Error(`Failed to create ${config.as_html ? "HTML" : "PDF"}.`);
+	let output: Awaited<ReturnType<typeof generateOutput>>;
+	try {
+		output = await generateOutput(html, relativePath, config, browser);
+	} catch (error) {
+		const err = error as Error;
+		const outputType = config.as_html ? "HTML" : "PDF";
+		// Provide context about what failed
+		if (err.message.includes("Browser") || err.message.includes("browser")) {
+			throw new GenerationError(
+				`Failed to create ${outputType}: Could not launch browser. Is Puppeteer installed correctly?`,
+				err,
+			);
+		}
+		if (err.message.includes("timeout") || err.message.includes("Timeout")) {
+			throw new GenerationError(
+				`Failed to create ${outputType}: Page load timed out. Check for slow-loading resources.`,
+				err,
+			);
+		}
+		throw new GenerationError(`Failed to create ${outputType}: ${err.message}`, err);
 	}
 
 	if (output.filename) {

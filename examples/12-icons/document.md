@@ -1,5 +1,5 @@
 ---
-theme: beryl
+theme: buttondown
 ---
 
 # Icons with Iconify

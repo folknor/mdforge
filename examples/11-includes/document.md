@@ -1,5 +1,5 @@
 ---
-theme: beryl
+theme: tufte
 templates:
   approval: ./templates/approval-block.md
   legal: ./templates/legal-footer.md

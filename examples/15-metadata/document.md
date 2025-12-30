@@ -1,5 +1,5 @@
 ---
-theme: beryl
+theme: pandoc
 metadata:
   title: "Technical Specification v2.0"
   author: "Jane Smith"

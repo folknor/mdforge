@@ -98,12 +98,28 @@ toc_options:
   skip_first_h1: false    # skip first h1 in TOC (usually the document title)
   maxdepth: 6             # maximum heading depth to include (1-6)
 
-# header: { left, center, right } or "centered text"
-# footer: { left, center, right } or "centered text"
-# metadata: { title, author, subject, keywords }
-# fonts: "preset-name" or { heading, body, mono }
-# templates: { name: "path/to/template.md" }
-# page_numbers: { format, start }
+header:                   # page header, @see Headers and Footers
+  left: ""                # supports variables like {page}, {title}, {date}
+  center: ""
+  right: ""
+footer:                   # page footer, @see Headers and Footers
+  left: ""
+  center: ""
+  right: ""
+metadata:                 # @see PDF Metadata
+  title: ""               # auto-detected from first h1
+  author: ""
+  subject: ""
+  keywords: []
+fonts: beryl              # uses theme fonts by default, @see Fonts
+# fonts:                  # or specify each font directly
+#   heading: ""
+#   body: ""
+#   mono: ""
+templates: {}             # @see Includes and Templates
+page_numbers:             # @see Page Number Formats
+  format: arabic          # arabic, roman, roman-upper, alpha, alpha-upper
+  start: 1
 ```
 
 ## Configuration Options
@@ -385,6 +401,31 @@ Click :icon[mdi:home]{size=16} to go home.
 Icons are fetched from the Iconify API and cached locally in `~/.cache/mdforge/icons/`.
 
 Browse available icons at [icon-sets.iconify.design](https://icon-sets.iconify.design/).
+
+## Cross-References
+
+Link to headings by name with `@see`, or create custom anchor points with `@anchor`.
+
+### Linking to Headings
+
+```markdown
+See @see(Installation) for setup instructions.
+For details, refer to @see(Configuration Options).
+```
+
+The section name must match the heading text. Slugs are generated like heading IDs: lowercase, spaces to hyphens, special characters removed, unicode transliterated to ASCII.
+
+### Custom Anchors
+
+Create invisible link targets for non-heading content:
+
+```markdown
+@anchor(Important Note)
+
+This paragraph can now be linked to with @see(Important Note).
+```
+
+Place `@anchor(Name)` on its own line where you want the target.
 
 ## Table of Contents
 

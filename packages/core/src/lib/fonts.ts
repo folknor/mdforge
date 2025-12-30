@@ -242,6 +242,7 @@ export interface FontStylesheetResult {
 		body?: FontResolutionInfo;
 		mono?: FontResolutionInfo;
 	};
+	warnings: string[];
 }
 
 /**
@@ -268,15 +269,18 @@ export async function generateFontStylesheet(
 
 	if (!fontConfig) return undefined;
 
+	const warnings: string[] = [];
+
 	// Resolve fonts - checks system availability and determines what to download
 	const resolved = await resolveFonts(fontConfig);
 
 	// Get Google Fonts CSS for fonts that need downloading
 	let googleFontsCss = "";
 	if (resolved.fontsToDownload.length > 0) {
-		const cachedCss = await getGoogleFontsCss(resolved.fontsToDownload);
-		if (cachedCss) {
-			googleFontsCss = cachedCss;
+		const result = await getGoogleFontsCss(resolved.fontsToDownload);
+		warnings.push(...result.warnings);
+		if (result.css) {
+			googleFontsCss = result.css;
 		}
 	}
 
@@ -290,5 +294,6 @@ export async function generateFontStylesheet(
 	return {
 		css: parts.join("\n"),
 		info: resolved.info,
+		warnings,
 	};
 }
