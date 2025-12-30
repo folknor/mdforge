@@ -106,8 +106,8 @@ Margins are hardcoded at `25mm 20mm`. Should respect `pdf_options.margin` when u
 ### Markdown in Headers/Footers
 CSS `content` property can't render HTML, so markdown is stripped to plain text. Could potentially support bold/italic via Unicode mathematical symbols or webfonts.
 
-### Local paged.js
-Currently loads from unpkg CDN. Could bundle locally for offline use.
+### ~~Local paged.js~~ ✓
+~~Currently loads from unpkg CDN. Could bundle locally for offline use.~~ Done - now bundled locally.
 
 ---
 
