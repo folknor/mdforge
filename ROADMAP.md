@@ -96,6 +96,54 @@ Uses pdf-lib for post-processing after Puppeteer generates PDF.
   - macOS: `.app` bundle - configured
 - [ ] Auto-update (optional, lower priority)
 
+## 9. Page Number Formats
+
+- [ ] Roman numerals for front matter (i, ii, iii)
+- [ ] Restart numbering after front matter
+- [ ] Config: `page_numbers: { start: 1, format: "arabic" | "roman" }`
+
+---
+
+## Ideas (not yet confirmed)
+
+### Watch Mode
+
+Auto-regenerate PDF when source file changes.
+
+- [ ] `--watch` flag for CLI
+- [ ] Debounce rapid changes
+- [ ] Desktop app: optional auto-regenerate toggle
+
+### Multi-file / Book Mode
+
+Combine multiple .md files into a single PDF.
+
+- [ ] Config: `files: [chapter1.md, chapter2.md, ...]`
+- [ ] Shared TOC across all files
+- [ ] Page breaks between files
+
+### Cover Page
+
+First page template with title, author, date.
+
+- [ ] Config: `cover: { title, subtitle, author, date, image }`
+- [ ] Built-in cover templates
+- [ ] Or custom HTML/markdown for cover
+
+### VS Code Extension
+
+- [ ] "Generate PDF" button in editor
+- [ ] Status bar integration
+- [ ] Config file autocompletion
+
+### Watermarks
+
+Overlay text on pages.
+
+- [ ] Config: `watermark: "DRAFT"` or `watermark: { text, opacity, angle }`
+- [ ] Diagonal text across page
+- [ ] Optional: image watermarks
+
 ---
 
 ## Priority Order
@@ -108,3 +156,4 @@ Uses pdf-lib for post-processing after Puppeteer generates PDF.
 6. ~~Icons~~ ✓
 7. Themes
 8. ~~Desktop app~~ ✓
+9. Page number formats
