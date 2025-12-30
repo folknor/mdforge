@@ -2,7 +2,8 @@
 /* Using Abril Fatface - a very distinctive decorative serif font */
 @font-face {
 	font-family: "Abril Fatface";
-	src: url("/home/folk/.local/share/fonts/AbrilFatface-Regular.ttf") format("truetype");
+	src: url("/home/folk/.local/share/fonts/AbrilFatface-Regular.ttf")
+		format("truetype");
 	font-weight: normal;
 	font-style: normal;
 }

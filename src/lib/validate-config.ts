@@ -18,7 +18,7 @@ const CONFIG_SCHEMA: Record<
 	dest: { type: "string" },
 	theme: { type: "string|boolean", values: [...themes, "false"] },
 	print_urls: { type: "boolean" },
-	stylesheet: { type: "array" },
+	stylesheet: { type: "string|array" },
 	script: { type: "array" },
 	document_title: { type: "string" },
 	body_class: { type: "array" },
@@ -26,11 +26,9 @@ const CONFIG_SCHEMA: Record<
 	code_block_style: { type: "string" },
 	pdf_options: { type: "object" },
 	launch_options: { type: "object" },
-	marked_extensions: { type: "array" },
 	toc_options: { type: "object" },
 	header: { type: "string|object" },
 	footer: { type: "string|object" },
-	outline: { type: "boolean" },
 };
 
 /**
@@ -164,7 +162,13 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 	for (const field of ["header", "footer"] as const) {
 		const value = config[field];
 		if (value && typeof value === "object") {
-			const validKeys = new Set(["left", "center", "right", "background", "firstPage"]);
+			const validKeys = new Set([
+				"left",
+				"center",
+				"right",
+				"background",
+				"firstPage",
+			]);
 			for (const key of Object.keys(value)) {
 				if (!validKeys.has(key)) {
 					errors.push({

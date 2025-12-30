@@ -43,13 +43,13 @@ Later sources override earlier ones. Front-matter overrides config file.
 
 ```yaml
 theme: tufte
-stylesheet: "@custom.css"
+stylesheet: custom.css
 footer: "Page {page} of {pages}"
 pdf_options:
   format: Letter
 ```
 
-Use `@filename` syntax to load external file contents.
+Paths are resolved relative to the config file location.
 
 ### Front-matter
 
@@ -68,10 +68,9 @@ Content here.
 
 ```yaml
 theme: beryl              # beryl, tufte, buttondown, pandoc (or false to disable)
-stylesheet: ""            # CSS file path or inline CSS
+stylesheet: ""            # CSS file path (auto-detected if not specified)
 document_title: ""        # auto-detected from first heading if not specified
 code_block_style: github  # see https://highlightjs.org/examples
-outline: true             # generate PDF bookmarks from headings
 print_urls: false         # append URLs after links: [text](url) → "text (url)"
 
 pdf_options:
@@ -96,15 +95,27 @@ footer: null
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `theme` | `string \| false` | `"beryl"` | Built-in theme or `false` to disable |
-| `stylesheet` | `string` | `""` | Additional CSS file or inline CSS |
+| `stylesheet` | `string` | auto | CSS file path (auto-detects `{basename}.css` or `index.css`) |
 | `document_title` | `string` | auto | PDF title (auto-detected from first heading) |
 | `code_block_style` | `string` | `"github"` | [highlight.js theme](https://highlightjs.org/examples) |
-| `outline` | `boolean` | `true` | Generate PDF bookmarks from headings |
 | `print_urls` | `boolean` | `false` | Append URLs after links when printed |
 | `pdf_options` | `object` | see below | Puppeteer PDF options |
 | `toc_options` | `object` | see below | Table of contents options |
 | `header` | `string \| object` | - | Header config (see Headers section) |
 | `footer` | `string \| object` | - | Footer config (see Footers section) |
+
+## Stylesheets
+
+If no stylesheet is specified, md-to-pdf auto-detects a CSS file in the same directory as the markdown file:
+
+1. First looks for `{basename}.css` (e.g., `document.css` for `document.md`)
+2. Falls back to `index.css`
+
+To use a custom stylesheet:
+
+```yaml
+stylesheet: custom.css
+```
 
 ## PDF Options
 
@@ -253,12 +264,7 @@ See [highlight.js examples](https://highlightjs.org/examples) for available them
 
 ## PDF Bookmarks
 
-PDF bookmarks (outline) are automatically generated from headings. Readers can navigate via the PDF viewer's bookmark panel.
-
-```yaml
-outline: true     # default
-outline: false    # disable bookmarks
-```
+PDF bookmarks are automatically generated from headings, allowing navigation via the PDF viewer's bookmark panel.
 
 ## Page Breaks
 
@@ -299,6 +305,8 @@ const result = await mdToPdf(
 // result.filename is the output path
 ```
 
+The API also supports `marked_extensions` for custom [Marked extensions](https://marked.js.org/using_pro#extensions).
+
 ## Example Configurations
 
 ### Minimal
@@ -326,14 +334,12 @@ pdf_options:
 
 ```yaml
 theme: beryl
-stylesheet: "@brand.css"
+stylesheet: brand.css
 header:
-  background: "header.svg"
-  right: "Page {page}/{pages}"
+  background: header.svg
+  right: Page {page}/{pages}
 footer:
-  background: "footer.svg"
-firstPageHeader: false
-firstPageFooter: false
+  background: footer.svg
 pdf_options:
   format: A4
 ```

@@ -1,45 +1,46 @@
 /* Test 9: Base64 encoded image in header */
 :root {
-  --font-body: "Georgia", serif;
-  --font-size: 12pt;
-  --color-text: #333;
+	--font-body: "Georgia", serif;
+	--font-size: 12pt;
+	--color-text: #333;
 }
 
 body {
-  font-family: var(--font-body);
-  font-size: var(--font-size);
-  color: var(--color-text);
-  line-height: 1.6;
+	font-family: var(--font-body);
+	font-size: var(--font-size);
+	color: var(--color-text);
+	line-height: 1.6;
 }
 
 @page {
-  size: A4;
-  margin: 25mm 20mm;
+	size: A4;
+	margin: 25mm 20mm;
 
-  @top-left {
-    content: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzQyYjk4MyIvPgogIDx0ZXh0IHg9IjEyIiB5PSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5UPC90ZXh0Pgo8L3N2Zz4K") " Company Name";
-    font-size: 10pt;
-  }
+	@top-left {
+		content: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzQyYjk4MyIvPgogIDx0ZXh0IHg9IjEyIiB5PSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5UPC90ZXh0Pgo8L3N2Zz4K")
+			" Company Name";
+		font-size: 10pt;
+	}
 
-  @top-right {
-    content: "Page " counter(page);
-    font-size: 10pt;
-  }
+	@top-right {
+		content: "Page " counter(page);
+		font-size: 10pt;
+	}
 
-  @bottom-center {
-    content: "Base64 image test";
-    font-size: 10pt;
-    color: #666;
-  }
+	@bottom-center {
+		content: "Base64 image test";
+		font-size: 10pt;
+		color: #666;
+	}
 }
 
 /* Paged.js margin box alignment */
 .pagedjs_margin-content {
-  display: flex !important;
-  align-items: center !important;
+	display: flex !important;
+	align-items: center !important;
 }
 
 .pagedjs_margin-content img {
-  vertical-align: middle;
-  margin-right: 4px;
+	vertical-align: middle;
+	margin-right: 4px;
 }

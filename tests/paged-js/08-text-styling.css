@@ -2,53 +2,53 @@
 /* CSS can do font-weight and font-style, but not mixed inline like markdown */
 
 :root {
-  --font-body: "Georgia", serif;
-  --font-size: 12pt;
-  --color-text: #333;
+	--font-body: "Georgia", serif;
+	--font-size: 12pt;
+	--color-text: #333;
 }
 
 body {
-  font-family: var(--font-body);
-  font-size: var(--font-size);
-  color: var(--color-text);
-  line-height: 1.6;
+	font-family: var(--font-body);
+	font-size: var(--font-size);
+	color: var(--color-text);
+	line-height: 1.6;
 }
 
 @page {
-  size: A4;
-  margin: 25mm 20mm;
+	size: A4;
+	margin: 25mm 20mm;
 
-  @top-left {
-    content: "CONFIDENTIAL";
-    font-size: 10pt;
-    font-weight: bold;
-    color: #c00;
-  }
+	@top-left {
+		content: "CONFIDENTIAL";
+		font-size: 10pt;
+		font-weight: bold;
+		color: #c00;
+	}
 
-  @top-center {
-    content: "Draft Document";
-    font-size: 10pt;
-    font-style: italic;
-    color: #666;
-  }
+	@top-center {
+		content: "Draft Document";
+		font-size: 10pt;
+		font-style: italic;
+		color: #666;
+	}
 
-  @top-right {
-    content: "Page " counter(page);
-    font-size: 10pt;
-    color: #666;
-  }
+	@top-right {
+		content: "Page " counter(page);
+		font-size: 10pt;
+		color: #666;
+	}
 
-  @bottom-left {
-    content: "Internal Use Only";
-    font-size: 9pt;
-    font-weight: bold;
-    font-style: italic;
-    color: #999;
-  }
+	@bottom-left {
+		content: "Internal Use Only";
+		font-size: 9pt;
+		font-weight: bold;
+		font-style: italic;
+		color: #999;
+	}
 
-  @bottom-center {
-    content: "© 2024 Company";
-    font-size: 9pt;
-    color: #999;
-  }
+	@bottom-center {
+		content: "© 2024 Company";
+		font-size: 9pt;
+		color: #999;
+	}
 }

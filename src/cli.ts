@@ -31,13 +31,13 @@ const help = () =>
     $ md-to-pdf --as-html README.md
     $ md-to-pdf --config-file config.yaml docs/*.md
 
-  Config files use YAML format. Use @filename to reference external files:
+  Config files use YAML format:
 
-    pdf_options:
-      headerTemplate: "@header.html"
-      footerTemplate: "@footer.html"
-    stylesheet:
-      - "@style.css"
+    stylesheet: custom.css
+    header:
+      right: Page {page}/{pages}
+    footer:
+      center: "{title}"
 
   Front-matter in markdown files can override config settings.
 `);
@@ -110,8 +110,10 @@ async function main(args: typeof cliFlags) {
 				configFile.basedir = configDir;
 			}
 
-			// Resolve relative stylesheet paths to config directory
-			if (Array.isArray(configFile.stylesheet)) {
+			// Resolve relative stylesheet path to config directory
+			if (typeof configFile.stylesheet === "string") {
+				configFile.stylesheet = [resolve(configDir, configFile.stylesheet)];
+			} else if (Array.isArray(configFile.stylesheet)) {
 				configFile.stylesheet = configFile.stylesheet.map((s) =>
 					typeof s === "string" && !s.startsWith("/") && !s.includes("\n")
 						? resolve(configDir, s)

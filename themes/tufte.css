@@ -9,18 +9,18 @@
    ========================================================================== */
 
 :root {
-  --font-body: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --font-mono: Consolas, "Liberation Mono", Menlo, Courier, monospace;
-  --font-size: 14pt;
-  --line-height: 1.6;
+	--font-body: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+	--font-mono: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+	--font-size: 14pt;
+	--line-height: 1.6;
 
-  --color-text: #111;
-  --color-text-muted: #555;
-  --color-background: #fffff8;
-  --color-primary: #111;
-  --color-border: #ccc;
-  --color-border-light: #ddd;
-  --color-code-bg: #f8f8f8;
+	--color-text: #111;
+	--color-text-muted: #555;
+	--color-background: #fffff8;
+	--color-primary: #111;
+	--color-border: #ccc;
+	--color-border-light: #ddd;
+	--color-code-bg: #f8f8f8;
 }
 
 /* ==========================================================================
@@ -28,71 +28,76 @@
    ========================================================================== */
 
 @page {
-  size: a4;
-  margin: 20mm;
+	size: a4;
+	margin: 20mm;
 }
 
 html {
-  font-size: 100%;
+	font-size: 100%;
 }
 
 body {
-  font-family: var(--font-body);
-  font-size: var(--font-size);
-  line-height: var(--line-height);
-  color: var(--color-text);
-  background-color: var(--color-background);
+	font-family: var(--font-body);
+	font-size: var(--font-size);
+	line-height: var(--line-height);
+	color: var(--color-text);
+	background-color: var(--color-background);
 }
 
 /* ==========================================================================
    3. Headings
    ========================================================================== */
 
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 400;
-  line-height: 1.2;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-weight: 400;
+	line-height: 1.2;
 }
 
 h1 {
-  font-size: 2.5em;
-  margin-top: 2em;
-  margin-bottom: 0.5em;
+	font-size: 2.5em;
+	margin-top: 2em;
+	margin-bottom: 0.5em;
 }
 
 h2 {
-  font-size: 2em;
-  font-style: italic;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
+	font-size: 2em;
+	font-style: italic;
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
 }
 
 h3 {
-  font-size: 1.5em;
-  font-style: italic;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
+	font-size: 1.5em;
+	font-style: italic;
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
 }
 
 h4 {
-  font-size: 1.25em;
-  font-style: italic;
-  margin-top: 1.25em;
-  margin-bottom: 0.5em;
+	font-size: 1.25em;
+	font-style: italic;
+	margin-top: 1.25em;
+	margin-bottom: 0.5em;
 }
 
 h5 {
-  font-size: 1.1em;
-  font-weight: 600;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+	font-size: 1.1em;
+	font-weight: 600;
+	margin-top: 1em;
+	margin-bottom: 0.5em;
 }
 
 h6 {
-  font-size: 1em;
-  font-weight: 600;
-  font-variant: small-caps;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+	font-size: 1em;
+	font-weight: 600;
+	font-variant: small-caps;
+	margin-top: 1em;
+	margin-bottom: 0.5em;
 }
 
 /* ==========================================================================
@@ -100,68 +105,80 @@ h6 {
    ========================================================================== */
 
 p {
-  margin: 1em 0;
+	margin: 1em 0;
 }
 
 hr {
-  border: 0;
-  border-top: 1px solid var(--color-border);
-  margin: 2em 0;
+	border: 0;
+	border-top: 1px solid var(--color-border);
+	margin: 2em 0;
 }
 
 blockquote {
-  margin: 1.5em 0;
-  padding-left: 1.5em;
-  border-left: 3px solid var(--color-border);
-  font-style: italic;
-  break-inside: avoid;
+	margin: 1.5em 0;
+	padding-left: 1.5em;
+	border-left: 3px solid var(--color-border);
+	font-style: italic;
+	break-inside: avoid;
 }
 
-blockquote > p:first-child { margin-top: 0; }
-blockquote > p:last-child { margin-bottom: 0; }
+blockquote > p:first-child {
+	margin-top: 0;
+}
+blockquote > p:last-child {
+	margin-bottom: 0;
+}
 
 blockquote footer {
-  font-size: 0.9em;
-  font-style: normal;
-  text-align: right;
-  margin-top: 0.5em;
+	font-size: 0.9em;
+	font-style: normal;
+	text-align: right;
+	margin-top: 0.5em;
 }
 
 /* ==========================================================================
    5. Lists
    ========================================================================== */
 
-ul, ol {
-  margin: 1em 0;
-  padding-left: 2em;
+ul,
+ol {
+	margin: 1em 0;
+	padding-left: 2em;
 }
 
 li {
-  margin-top: 0.25em;
+	margin-top: 0.25em;
 }
 
-li > p:first-child { margin-top: 0; }
-li > p:last-child { margin-bottom: 0; }
+li > p:first-child {
+	margin-top: 0;
+}
+li > p:last-child {
+	margin-bottom: 0;
+}
 
-ul ul, ol ol, ul ol, ol ul {
-  margin: 0.25em 0;
+ul ul,
+ol ol,
+ul ol,
+ol ul {
+	margin: 0.25em 0;
 }
 
 dl {
-  margin: 1em 0;
+	margin: 1em 0;
 }
 
 dt {
-  font-weight: 600;
-  margin-top: 1em;
+	font-weight: 600;
+	margin-top: 1em;
 }
 
 dt:first-child {
-  margin-top: 0;
+	margin-top: 0;
 }
 
 dd {
-  margin: 0.25em 0 0.5em 2em;
+	margin: 0.25em 0 0.5em 2em;
 }
 
 /* ==========================================================================
@@ -169,49 +186,51 @@ dd {
    ========================================================================== */
 
 a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-thickness: 0.05em;
-  text-underline-offset: 0.1em;
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-thickness: 0.05em;
+	text-underline-offset: 0.1em;
 }
 
 /* ==========================================================================
    7. Code
    ========================================================================== */
 
-code, kbd, samp {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
+code,
+kbd,
+samp {
+	font-family: var(--font-mono);
+	font-size: 0.85em;
 }
 
 :not(pre) > code {
-  background-color: var(--color-code-bg);
-  padding: 0.1em 0.3em;
-  border-radius: 2px;
+	background-color: var(--color-code-bg);
+	padding: 0.1em 0.3em;
+	border-radius: 2px;
 }
 
 pre {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  background-color: var(--color-code-bg);
-  padding: 1em;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  break-inside: avoid;
+	font-family: var(--font-mono);
+	font-size: 0.85em;
+	background-color: var(--color-code-bg);
+	padding: 1em;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	break-inside: avoid;
 }
 
 pre > code {
-  background: none;
-  padding: 0;
-  font-size: inherit;
+	background: none;
+	padding: 0;
+	font-size: inherit;
 }
 
 kbd {
-  background-color: var(--color-code-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  padding: 0.1em 0.4em;
+	background-color: var(--color-code-bg);
+	border: 1px solid var(--color-border);
+	border-radius: 3px;
+	padding: 0.1em 0.4em;
 }
 
 /* ==========================================================================
@@ -219,25 +238,26 @@ kbd {
    ========================================================================== */
 
 table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.5em 0;
-  border-top: 2px solid var(--color-text);
-  border-bottom: 2px solid var(--color-text);
+	width: 100%;
+	border-collapse: collapse;
+	margin: 1.5em 0;
+	border-top: 2px solid var(--color-text);
+	border-bottom: 2px solid var(--color-text);
 }
 
-th, td {
-  padding: 0.5em 1em;
-  text-align: left;
-  vertical-align: baseline;
+th,
+td {
+	padding: 0.5em 1em;
+	text-align: left;
+	vertical-align: baseline;
 }
 
 thead {
-  border-bottom: 1px solid var(--color-text);
+	border-bottom: 1px solid var(--color-text);
 }
 
 th {
-  font-weight: 600;
+	font-weight: 600;
 }
 
 /* ==========================================================================
@@ -245,72 +265,80 @@ th {
    ========================================================================== */
 
 img {
-  max-width: 100%;
-  height: auto;
+	max-width: 100%;
+	height: auto;
 }
 
 figure {
-  margin: 1.5em 0;
+	margin: 1.5em 0;
 }
 
 figure img {
-  margin: 0;
+	margin: 0;
 }
 
 figcaption {
-  font-size: 0.9em;
-  color: var(--color-text-muted);
-  font-style: italic;
-  margin-top: 0.5em;
-  line-height: 1.4;
+	font-size: 0.9em;
+	color: var(--color-text-muted);
+	font-style: italic;
+	margin-top: 0.5em;
+	line-height: 1.4;
 }
 
 /* ==========================================================================
    10. Inline Elements
    ========================================================================== */
 
-strong, b {
-  font-weight: 600;
+strong,
+b {
+	font-weight: 600;
 }
 
-em, i, dfn {
-  font-style: italic;
+em,
+i,
+dfn {
+	font-style: italic;
 }
 
-sub, sup {
-  font-size: 75%;
-  line-height: 0;
-  position: relative;
-  vertical-align: baseline;
+sub,
+sup {
+	font-size: 75%;
+	line-height: 0;
+	position: relative;
+	vertical-align: baseline;
 }
 
-sup { top: -0.5em; }
-sub { bottom: -0.25em; }
+sup {
+	top: -0.5em;
+}
+sub {
+	bottom: -0.25em;
+}
 
 mark {
-  background-color: #ffffa0;
-  padding: 0.1em 0.2em;
+	background-color: #ffffa0;
+	padding: 0.1em 0.2em;
 }
 
 ins {
-  background-color: #e8f5e9;
-  text-decoration: none;
+	background-color: #e8f5e9;
+	text-decoration: none;
 }
 
 del {
-  color: var(--color-text-muted);
-  text-decoration: line-through;
+	color: var(--color-text-muted);
+	text-decoration: line-through;
 }
 
 abbr[title] {
-  text-decoration: underline dotted;
-  cursor: help;
+	text-decoration: underline dotted;
+	cursor: help;
 }
 
 /* Tufte-specific: small caps for new thoughts */
 .newthought {
-  font-variant: small-caps;
-  font-size: 1.1em;
+	font-variant: small-caps;
+	font-size: 1.1em;
 }
 
 /* ==========================================================================
@@ -318,23 +346,34 @@ abbr[title] {
    ========================================================================== */
 
 @media print {
-  h1, h2, h3, h4, h5, h6 {
-    page-break-after: avoid;
-  }
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		page-break-after: avoid;
+	}
 
-  pre, blockquote, table, figure, img {
-    page-break-inside: avoid;
-  }
+	pre,
+	blockquote,
+	table,
+	figure,
+	img {
+		page-break-inside: avoid;
+	}
 
-  p, h2, h3 {
-    orphans: 3;
-    widows: 3;
-  }
+	p,
+	h2,
+	h3 {
+		orphans: 3;
+		widows: 3;
+	}
 
-  /* Show URLs after links when print_urls is enabled */
-  .print-urls a[href^="http"]:after {
-    content: " (" attr(href) ")";
-    font-size: 85%;
-    color: var(--color-text-muted);
-  }
+	/* Show URLs after links when print_urls is enabled */
+	.print-urls a[href^="http"]:after {
+		content: " (" attr(href) ")";
+		font-size: 85%;
+		color: var(--color-text-muted);
+	}
 }

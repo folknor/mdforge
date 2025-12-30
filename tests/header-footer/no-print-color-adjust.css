@@ -12,7 +12,16 @@
 }
 
 /* Same colors as test 04 */
-.hf .hf-left { color: red; }
-.hf .hf-center { background-color: lightblue; padding: 2px 8px; }
-.hf .hf-right { color: green; }
-.hf.footer { color: purple; }
+.hf .hf-left {
+	color: red;
+}
+.hf .hf-center {
+	background-color: lightblue;
+	padding: 2px 8px;
+}
+.hf .hf-right {
+	color: green;
+}
+.hf.footer {
+	color: purple;
+}

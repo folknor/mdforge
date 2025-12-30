@@ -48,7 +48,6 @@ export const defaultConfig: Config = {
 		skip_first_h1: false,
 		maxdepth: 6,
 	},
-	outline: true,
 };
 
 export interface Config {
@@ -152,13 +151,6 @@ export interface Config {
 	 * Markdown is supported and will be converted to HTML.
 	 */
 	footer?: HeaderFooterValue;
-
-	/**
-	 * Generate PDF bookmarks/outlines from document headings.
-	 * Allows navigation via PDF viewer's bookmark panel.
-	 * Default: true
-	 */
-	outline?: boolean;
 }
 
 export type PuppeteerLaunchOptions = Parameters<typeof launch>[0];

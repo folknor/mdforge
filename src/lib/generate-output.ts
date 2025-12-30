@@ -90,7 +90,7 @@ export async function generateOutput(
 		await page.emulateMediaType(config.page_media_type);
 		const pdfOptions = {
 			...config.pdf_options,
-			outline: config.outline !== false,
+			outline: true,
 		};
 		outputFileContent = await page.pdf(pdfOptions);
 	}

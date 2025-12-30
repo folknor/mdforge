@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, relative, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 import type { Browser } from "puppeteer";
 import { type Config, themes, themesDir } from "./config.js";
 import { generateOutput } from "./generate-output.js";
@@ -82,6 +82,25 @@ export const convertMdToPdf = async (
 		if (!Array.isArray(config[option])) {
 			// biome-ignore lint/suspicious/noExplicitAny: dynamic config array sanitization
 			config[option] = [config[option]].filter(Boolean) as any;
+		}
+	}
+
+	// Auto-detect stylesheet if not specified
+	if (config.stylesheet.length === 0 && "path" in input) {
+		const mdBasename = basename(input.path, ".md");
+		const candidateCss = resolve(baseDir, `${mdBasename}.css`);
+		const indexCss = resolve(baseDir, "index.css");
+
+		try {
+			await fs.access(candidateCss);
+			config.stylesheet = [candidateCss];
+		} catch {
+			try {
+				await fs.access(indexCss);
+				config.stylesheet = [indexCss];
+			} catch {
+				// No stylesheet found, continue without
+			}
 		}
 	}
 

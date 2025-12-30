@@ -3,43 +3,43 @@
 /* Testing background-color instead */
 
 :root {
-  --font-body: "Georgia", serif;
-  --font-size: 12pt;
-  --color-text: #333;
+	--font-body: "Georgia", serif;
+	--font-size: 12pt;
+	--color-text: #333;
 }
 
 body {
-  font-family: var(--font-body);
-  font-size: var(--font-size);
-  color: var(--color-text);
-  line-height: 1.6;
+	font-family: var(--font-body);
+	font-size: var(--font-size);
+	color: var(--color-text);
+	line-height: 1.6;
 }
 
 @page {
-  size: A4;
-  margin: 25mm 20mm;
+	size: A4;
+	margin: 25mm 20mm;
 
-  @top-left {
-    content: "Company Name";
-    font-size: 10pt;
-    font-weight: bold;
-    color: #333;
-  }
+	@top-left {
+		content: "Company Name";
+		font-size: 10pt;
+		font-weight: bold;
+		color: #333;
+	}
 
-  @top-center {
-    content: "★ FEATURED ★";
-    font-size: 9pt;
-    color: #c90;
-  }
+	@top-center {
+		content: "★ FEATURED ★";
+		font-size: 9pt;
+		color: #c90;
+	}
 
-  @top-right {
-    content: "Page " counter(page);
-    font-size: 10pt;
-  }
+	@top-right {
+		content: "Page " counter(page);
+		font-size: 10pt;
+	}
 
-  @bottom-center {
-    content: "Background/styling test - no images";
-    font-size: 10pt;
-    color: #666;
-  }
+	@bottom-center {
+		content: "Background/styling test - no images";
+		font-size: 10pt;
+		color: #666;
+	}
 }
