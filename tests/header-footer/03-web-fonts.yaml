@@ -1,0 +1,16 @@
+# Test 3: Web fonts in headers/footers
+# Verify: Do web fonts (not system fonts) work?
+# Expected: Headers should use "Abril Fatface" - a very distinctive decorative serif
+
+stylesheet:
+  - "@web-fonts.css"
+
+header:
+  left: "Abril Fatface Font"
+  right: "Page {page}"
+footer:
+  center: "This should be in Abril Fatface (decorative serif)"
+
+pdf_options:
+  format: A4
+  margin: 20mm

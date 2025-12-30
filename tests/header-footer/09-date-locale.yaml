@@ -1,0 +1,13 @@
+# Test 9: Date locale formatting
+# Verify: {date:locale} syntax works for custom date formatting
+# Check: Left should show Norwegian date, Right should show US date
+
+header:
+  left: "NO: {date:nb-NO}"
+  right: "US: {date:en-US}"
+footer:
+  center: "Default: {date}"
+
+pdf_options:
+  format: A4
+  margin: 20mm

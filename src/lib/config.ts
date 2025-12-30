@@ -6,11 +6,25 @@ import type { TOCOptions } from "./toc.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
+export const themes = ["beryl", "tufte", "buttondown", "pandoc"] as const;
+export type Theme = (typeof themes)[number];
+
+export interface HeaderFooterColumn {
+	left?: string;
+	center?: string;
+	right?: string;
+}
+
+export type HeaderFooterValue = string | HeaderFooterColumn;
+
+export const themesDir = resolve(__dirname, "..", "..", "themes");
+
 export const defaultConfig: Config = {
 	basedir: process.cwd(),
-	stylesheet: [resolve(__dirname, "..", "..", "markdown.css")],
+	theme: "beryl",
+	print_urls: false,
+	stylesheet: [],
 	script: [],
-	css: "",
 	document_title: "",
 	body_class: [],
 	page_media_type: "screen",
@@ -20,9 +34,9 @@ export const defaultConfig: Config = {
 		printBackground: true,
 		format: "a4",
 		margin: {
-			top: "30mm",
-			right: "40mm",
-			bottom: "30mm",
+			top: "20mm",
+			right: "20mm",
+			bottom: "20mm",
 			left: "20mm",
 		},
 	},
@@ -53,16 +67,21 @@ export interface Config {
 	dest?: string;
 
 	/**
-	 * List of css files to use for styling.
-	 *
-	 * @todo change to `FrameAddStyleTagOptions` (will be a breaking change)
+	 * Built-in theme to use. Available: "beryl", "tufte", "buttondown", "pandoc".
+	 * Default: "beryl". Set to false to disable built-in themes.
 	 */
-	stylesheet: string[];
+	theme?: Theme | false;
 
 	/**
-	 * Custom css styles.
+	 * If true, show URLs in parentheses after external links when printing.
+	 * Default: false.
 	 */
-	css: string;
+	print_urls: boolean;
+
+	/**
+	 * List of css files to use for styling (in addition to or instead of theme).
+	 */
+	stylesheet: string[];
 
 	/**
 	 * List of scripts to load into the page.
@@ -126,6 +145,20 @@ export interface Config {
 	 * TOC is generated when <!-- toc --> markers are present in the markdown.
 	 */
 	toc_options?: TOCOptions;
+
+	/**
+	 * Simplified header template. Supports placeholders: {title}, {date}, {page}, {pages}, {url}
+	 * Can be a simple string (centered) or object with left/center/right columns.
+	 * Markdown is supported and will be converted to HTML.
+	 */
+	header?: HeaderFooterValue;
+
+	/**
+	 * Simplified footer template. Supports placeholders: {title}, {date}, {page}, {pages}, {url}
+	 * Can be a simple string (centered) or object with left/center/right columns.
+	 * Markdown is supported and will be converted to HTML.
+	 */
+	footer?: HeaderFooterValue;
 }
 
 export type PuppeteerLaunchOptions = Parameters<typeof launch>[0];

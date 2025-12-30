@@ -86,6 +86,14 @@ export async function resolveFileRefs<T>(
 }
 
 /**
+ * Extract the first heading (h1 or h2) from markdown content.
+ */
+export function extractFirstHeading(md: string): string | null {
+	const match = /^#{1,2}\s+(.+)$/m.exec(md);
+	return match?.[1]?.trim() ?? null;
+}
+
+/**
  * Parse YAML front-matter from markdown content.
  */
 export function parseFrontMatter(content: string): { data: Record<string, unknown>; content: string } {

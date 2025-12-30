@@ -1,0 +1,17 @@
+# Test 5: Custom font via @font-face
+# Verify: Can we use a custom TTF font in headers/footers?
+# Using Abel font - should look distinctly different from system fonts
+# NOTE: Font affects both body AND headers/footers (this is expected - --font-body cascades)
+
+stylesheet:
+  - "@custom-font.css"
+
+header:
+  left: "Abel Font Test"
+  right: "Page {page}"
+footer:
+  center: "This should be in Abel font if @font-face works"
+
+pdf_options:
+  format: A4
+  margin: 20mm

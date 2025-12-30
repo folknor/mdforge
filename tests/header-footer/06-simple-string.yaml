@@ -1,0 +1,9 @@
+# Test 6: Simple string (auto-centered)
+# Verify: A simple string without left/center/right should be centered
+
+header: "Simple Header String"
+footer: "Page {page} of {pages}"
+
+pdf_options:
+  format: A4
+  margin: 20mm

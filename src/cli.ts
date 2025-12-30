@@ -18,6 +18,7 @@ const help = () => console.log(`
 
     -h, --help              Output usage information
     -v, --version           Output version
+    -o, --output <path>     Output file path (only for single file)
     --as-html               Output as HTML instead of PDF
     --config-file <path>    Path to a YAML configuration file
 
@@ -46,12 +47,14 @@ const help = () => console.log(`
 export const cliFlags = arg({
 	"--help": Boolean,
 	"--version": Boolean,
+	"--output": String,
 	"--as-html": Boolean,
 	"--config-file": String,
 
 	// aliases
 	"-h": "--help",
 	"-v": "--version",
+	"-o": "--output",
 });
 
 // --
@@ -84,6 +87,11 @@ async function main(args: typeof cliFlags) {
 		return help();
 	}
 
+	if (args["--output"] && files.length > 1) {
+		console.error("Error: --output can only be used with a single input file");
+		process.exit(1);
+	}
+
 	let config: Config = { ...defaultConfig };
 
 	if (args["--config-file"]) {
@@ -104,6 +112,11 @@ async function main(args: typeof cliFlags) {
 			console.warn(`Warning: couldn't read config file: ${resolve(args["--config-file"])}`);
 			console.warn(error instanceof Error ? error.message : error);
 		}
+	}
+
+	// CLI --output flag overrides config dest
+	if (args["--output"]) {
+		config.dest = resolve(args["--output"]);
 	}
 
 	const getListrTask = (file: string) => ({

@@ -12,6 +12,8 @@ export interface PdfOutput extends BasicOutput {
 
 export interface HtmlOutput extends BasicOutput {
 	content: string;
+	headerTemplate?: string;
+	footerTemplate?: string;
 }
 
 interface BasicOutput {
@@ -71,10 +73,6 @@ export async function generateOutput(
 		);
 	}
 
-	if (config.css) {
-		await page.addStyleTag({ content: config.css });
-	}
-
 	for (const scriptTagOptions of config.script) {
 		await page.addScriptTag(scriptTagOptions);
 	}
@@ -93,7 +91,14 @@ export async function generateOutput(
 
 	await page.close();
 
-	return config.as_html
-		? { filename: config.dest, content: outputFileContent as string }
-		: { filename: config.dest, content: outputFileContent as Buffer | Uint8Array };
+	if (config.as_html) {
+		return {
+			filename: config.dest,
+			content: outputFileContent as string,
+			headerTemplate: config.pdf_options.headerTemplate,
+			footerTemplate: config.pdf_options.footerTemplate,
+		};
+	}
+
+	return { filename: config.dest, content: outputFileContent as Buffer | Uint8Array };
 }

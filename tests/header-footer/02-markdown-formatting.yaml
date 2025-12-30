@@ -1,0 +1,14 @@
+# Test 2: Markdown formatting
+# Verify: **bold**, *italic*, and [links](url) render correctly
+
+header:
+  left: "**CONFIDENTIAL**"
+  center: "*Draft Document*"
+  right: "Version 1.0"
+footer:
+  left: "**Bold** and *italic*"
+  right: "[Example Link](https://example.com)"
+
+pdf_options:
+  format: A4
+  margin: 20mm

@@ -2,10 +2,12 @@ import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, relative, resolve } from "node:path";
 import type { Browser } from "puppeteer";
-import type { Config } from "./config.js";
+import { type Config, themes, themesDir } from "./config.js";
 import { generateOutput } from "./generate-output.js";
+import { buildHeaderFooterTemplate } from "./header-footer.js";
 import { getHtml } from "./markdown.js";
 import {
+	extractFirstHeading,
 	getMarginObject,
 	getOutputFilePath,
 	parseFrontMatter,
@@ -52,12 +54,7 @@ export const convertMdToPdf = async (
 		},
 	};
 
-	const { headerTemplate, footerTemplate, displayHeaderFooter } =
-		config.pdf_options;
-
-	if ((headerTemplate || footerTemplate) && displayHeaderFooter === undefined) {
-		config.pdf_options.displayHeaderFooter = true;
-	}
+	// Note: displayHeaderFooter auto-enable is handled after simplified header/footer processing below
 
 	const arrayOptions = ["body_class", "script", "stylesheet"] as const;
 
@@ -67,6 +64,80 @@ export const convertMdToPdf = async (
 			// biome-ignore lint/suspicious/noExplicitAny: dynamic config array sanitization
 			config[option] = [config[option]].filter(Boolean) as any;
 		}
+	}
+
+	// resolve theme to stylesheet path
+	if (config.theme !== false && config.theme !== undefined) {
+		const themeName = config.theme;
+		if (!themes.includes(themeName)) {
+			throw new Error(
+				`Unknown theme "${themeName}". Available themes: ${themes.join(", ")}`,
+			);
+		}
+		const themeStylesheet = resolve(themesDir, `${themeName}.css`);
+		// prepend theme stylesheet so user stylesheets can override
+		config.stylesheet = [themeStylesheet, ...config.stylesheet];
+	}
+
+	// add print-urls body class if enabled
+	if (config.print_urls) {
+		config.body_class = [...config.body_class, "print-urls"];
+	}
+
+	// process simplified header/footer config
+	if (config.header || config.footer) {
+		// Collect all CSS for header/footer styling
+		const cssContents: string[] = [];
+		for (const stylesheet of config.stylesheet) {
+			// Skip highlight.js stylesheets
+			if (stylesheet.includes("highlight.js")) continue;
+
+			// If it's already CSS content (from @file), use directly
+			if (stylesheet.includes("\n") || stylesheet.includes("{")) {
+				cssContents.push(stylesheet);
+			} else {
+				// Try to read the file
+				try {
+					const css = await fs.readFile(stylesheet, "utf-8");
+					cssContents.push(css);
+				} catch {
+					// File not readable, skip
+				}
+			}
+		}
+		const allCss = cssContents.join("\n\n");
+
+		// Build header template if not already set via pdf_options
+		if (config.header && !config.pdf_options.headerTemplate) {
+			config.pdf_options.headerTemplate = await buildHeaderFooterTemplate(
+				config.header,
+				"header",
+				allCss,
+				baseDir,
+			);
+		}
+
+		// Build footer template if not already set via pdf_options
+		if (config.footer && !config.pdf_options.footerTemplate) {
+			config.pdf_options.footerTemplate = await buildHeaderFooterTemplate(
+				config.footer,
+				"footer",
+				allCss,
+				baseDir,
+			);
+		}
+	}
+
+	// Auto-enable displayHeaderFooter if templates are set (either simplified or via pdf_options)
+	const { headerTemplate, footerTemplate, displayHeaderFooter } =
+		config.pdf_options;
+	if ((headerTemplate || footerTemplate) && displayHeaderFooter === undefined) {
+		config.pdf_options.displayHeaderFooter = true;
+	}
+
+	// auto-detect document title from first heading if not set
+	if (!config.document_title) {
+		config.document_title = extractFirstHeading(md) ?? "";
 	}
 
 	// merge --as-html from CLI args
@@ -113,6 +184,17 @@ export const convertMdToPdf = async (
 			process.stdout.write(output.content);
 		} else {
 			await fs.writeFile(output.filename, output.content);
+
+			// Write header/footer template files when generating HTML
+			if (config.as_html) {
+				const baseName = output.filename.replace(/\.html$/, "");
+				if ("headerTemplate" in output && output.headerTemplate) {
+					await fs.writeFile(`${baseName}-header.html`, output.headerTemplate);
+				}
+				if ("footerTemplate" in output && output.footerTemplate) {
+					await fs.writeFile(`${baseName}-footer.html`, output.footerTemplate);
+				}
+			}
 		}
 	}
 

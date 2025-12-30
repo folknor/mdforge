@@ -1,0 +1,19 @@
+# Test 4: Colors and backgrounds
+# Verify: Does -webkit-print-color-adjust: exact work?
+# Check: Header left=RED text, center=BLUE background, right=GREEN text
+# Check: Footer text should be PURPLE
+
+stylesheet:
+  - "@colors.css"
+
+header:
+  left: "RED TEXT"
+  center: "BLUE BG"
+  right: "GREEN TEXT"
+footer:
+  center: "Page {page} - colored footer"
+
+pdf_options:
+  format: A4
+  margin: 20mm
+  printBackground: true

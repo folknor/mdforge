@@ -1,0 +1,14 @@
+# Test 7: Theme inheritance (Tufte)
+# Verify: Headers/footers inherit Tufte theme styling (ET Book font, colors)
+
+theme: tufte
+
+header:
+  left: "{title}"
+  right: "Tufte Theme"
+footer:
+  center: "Page {page} - should use ET Book font"
+
+pdf_options:
+  format: A4
+  margin: 20mm

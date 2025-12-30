@@ -1,0 +1,17 @@
+/* Custom font via @font-face */
+@font-face {
+	font-family: "Abel";
+	src: url("/home/folk/.local/share/fonts/Abel-Regular.ttf") format("truetype");
+	font-weight: normal;
+	font-style: normal;
+}
+
+:root {
+	--font-body: "Abel", sans-serif;
+	--font-size: 14pt;
+	--color-text: #333;
+}
+
+body {
+	font-family: var(--font-body);
+}

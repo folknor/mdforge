@@ -10,6 +10,7 @@ fullmakt
 /coverage
 /src/test/**/*.pdf
 /src/test/**/*.html
+/tests/**/output/
 
 node_modules/
 dist/

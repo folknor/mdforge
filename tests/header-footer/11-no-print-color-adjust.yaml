@@ -1,0 +1,19 @@
+# Test 11: Without -webkit-print-color-adjust
+# RESULT: Background colors do NOT work without -webkit-print-color-adjust: exact
+# Text colors (red, green, purple) still work, but blue background disappears
+# CONCLUSION: Keep -webkit-print-color-adjust: exact in the template
+
+stylesheet:
+  - "@no-print-color-adjust.css"
+
+header:
+  left: "RED TEXT"
+  center: "BLUE BG"
+  right: "GREEN TEXT"
+footer:
+  center: "Compare with test 04 - colors should still work?"
+
+pdf_options:
+  format: A4
+  margin: 20mm
+  printBackground: true
