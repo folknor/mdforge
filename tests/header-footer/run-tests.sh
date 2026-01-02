@@ -1,6 +1,6 @@
 #!/bin/bash
 # Generate all header/footer test PDFs
-# Run from md-to-pdf root: ./tests/header-footer/run-tests.sh
+# Run from mdforge root: ./tests/header-footer/run-tests.sh
 
 set -e
 
@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUT_DIR="$SCRIPT_DIR/output"
 
 # Build first
-echo "Building md-to-pdf..."
+echo "Building mdforge..."
 cd "$ROOT_DIR"
 pnpm build
 

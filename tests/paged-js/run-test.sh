@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test paged.js integration
-# Run from md-to-pdf root: ./tests/paged-js/run-test.sh
+# Run from mdforge root: ./tests/paged-js/run-test.sh
 
 set -e
 
@@ -11,7 +11,7 @@ OUT_DIR="$SCRIPT_DIR/output"
 cd "$ROOT_DIR"
 
 # Build first
-echo "Building md-to-pdf..."
+echo "Building mdforge..."
 pnpm build
 
 # Create output directory

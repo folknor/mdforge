@@ -3,7 +3,7 @@
 ## 1. Rebrand to mdforge ✓
 
 - [x] Rename package to `mdforge` in package.json (first npm publish)
-- [x] CLI commands: `mdforge` primary, `md-to-pdf` as backwards-compat alias
+- [x] CLI commands: `mdforge` primary
 - [ ] Logo: anvil + "mdforge" text
 - [x] Update README, all docs, examples
 - [ ] Update GitHub repo name (user will do this)

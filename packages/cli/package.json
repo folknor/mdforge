@@ -5,8 +5,7 @@
 	"type": "module",
 	"main": "dist/cli.js",
 	"bin": {
-		"mdforge": "dist/cli.js",
-		"md-to-pdf": "dist/cli.js"
+		"mdforge": "dist/cli.js"
 	},
 	"files": [
 		"/dist"
