@@ -18,9 +18,8 @@ footer: Page {page} of {pages}
 
 - `{page}` - Current page number
 - `{pages}` - Total page count
-- `{title}` - Document title
+- `{title}` - Document title (from first h1)
 - `{date}` - Current date
-- `{url}` - Document URL
 
 ## More Content
 

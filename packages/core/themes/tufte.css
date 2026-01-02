@@ -29,6 +29,7 @@
 @page {
 	size: a4;
 	margin: 20mm;
+	background-color: var(--color-background);
 }
 
 html {

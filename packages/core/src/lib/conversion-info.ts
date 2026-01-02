@@ -22,7 +22,7 @@ export interface ConversionInfo {
 		path?: string;
 	};
 	headerFooter?: {
-		type: "paged.js" | "puppeteer" | "none";
+		type: "css @page" | "puppeteer" | "none";
 		header?: string;
 		footer?: string;
 	};

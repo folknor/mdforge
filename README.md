@@ -178,6 +178,24 @@ stylesheet: my-overrides.css
 
 Your `my-overrides.css` will override any theme styles you want to change while keeping the rest.
 
+### Page Background Color
+
+When using custom CSS, set background colors on both `body` and `@page` to ensure the color extends to page margins:
+
+```css
+:root {
+  --color-background: #fffff8;
+}
+
+body {
+  background-color: var(--color-background);
+}
+
+@page {
+  background-color: var(--color-background);
+}
+```
+
 ## PDF Options
 
 Pass-through to [Puppeteer's page.pdf()](https://pptr.dev/api/puppeteer.pdfoptions):
@@ -233,10 +251,9 @@ footer:
 |----------|-------------|----------------|
 | `{page}` | Current page number | 5 |
 | `{pages}` | Total page count | 12 |
-| `{title}` | Document title | My Document |
+| `{title}` | Document title (from first h1) | My Document |
 | `{date}` | Current date (default locale) | December 30, 2024 |
 | `{date:locale}` | Date with specific locale | 30. desember 2024 |
-| `{url}` | Document URL | file:///path/to/doc.md |
 
 ### Localized Dates
 

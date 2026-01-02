@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
+
+const require = createRequire(import.meta.url);
 import type { Browser } from "puppeteer";
 import { type Config, themes, themesDir } from "./config.js";
 import {
@@ -29,13 +31,7 @@ import {
 import { formatValidationErrors, validateConfig } from "./validate-config.js";
 import { processXref } from "./xref.js";
 
-const require = createRequire(import.meta.url);
-const PAGED_JS_PATH = resolve(
-	dirname(require.resolve("pagedjs")),
-	"..",
-	"dist",
-	"paged.polyfill.js",
-);
+// Chrome 131+ supports @page margin boxes natively, no paged.js polyfill needed
 
 /** Options that can be passed from CLI or other callers */
 interface ConvertOptions {
@@ -72,6 +68,9 @@ export const convertMdToPdf = async (
 			: await fs.readFile(input.path, { encoding: "utf-8" });
 
 	const { content: md, data: rawFrontMatter } = parseFrontMatter(mdFileContent);
+
+	// Extract title early for header/footer {title} variable
+	const docTitle = extractFirstHeading(md) ?? "";
 
 	// resolve @filename references in front-matter relative to markdown file
 	const baseDir =
@@ -210,6 +209,7 @@ export const convertMdToPdf = async (
 			header: config.header,
 			footer: config.footer,
 			page_numbers: config.page_numbers,
+			title: docTitle,
 		};
 
 		// Helper to summarize header/footer config
@@ -273,18 +273,11 @@ export const convertMdToPdf = async (
 				baseDir,
 			);
 
-			// Add paged CSS to stylesheets
+			// Add paged CSS to stylesheets (uses native Chrome @page margin boxes)
 			config.stylesheet = [...config.stylesheet, pagedCss];
 
-			// Add paged.js script if not already present
-			const hasPagedJs = config.script.some(
-				(s) => s.url?.includes("pagedjs") || s.path?.includes("pagedjs"),
-			);
-			if (!hasPagedJs) {
-				config.script = [...config.script, { path: PAGED_JS_PATH }];
-			}
-
-			// Paged.js handles margins, set Puppeteer margins to 0
+			// Chrome 131+ supports @page margin boxes natively, no paged.js needed
+			// Set Puppeteer margins to 0 - the @page rule handles margins
 			config.pdf_options.margin = {
 				top: "0mm",
 				right: "0mm",
@@ -292,11 +285,11 @@ export const convertMdToPdf = async (
 				left: "0mm",
 			};
 
-			// Disable Puppeteer's displayHeaderFooter (paged.js renders in content)
+			// Disable Puppeteer's displayHeaderFooter (native @page renders in margins)
 			config.pdf_options.displayHeaderFooter = false;
 
 			info.headerFooter = {
-				type: "paged.js",
+				type: "css @page",
 				header: summarize(config.header),
 				footer: summarize(config.footer),
 			};

@@ -179,11 +179,8 @@ function variablesToCss(text: string, pageFormat?: PageNumberFormat): string {
 			// Page counters with format
 			.replace(/\{page\}/g, `" ${pageCounter} "`)
 			.replace(/\{pages\}/g, `" ${pagesCounter} "`)
-			// Title and chapter use string-set
-			.replace(/\{title\}/g, '" string(doctitle) "')
-			.replace(/\{chapter\}/g, '" string(chaptertitle) "')
-			// URL
-			.replace(/\{url\}/g, '" string(docurl) "')
+			// Title uses CSS variable (injected at build time from first h1)
+			.replace(/\{title\}/g, '" var(--doc-title) "')
 	);
 }
 
@@ -283,6 +280,8 @@ export interface PagedCssConfig {
 	header?: HeaderFooterValue;
 	footer?: HeaderFooterValue;
 	page_numbers?: PageNumbersConfig;
+	/** Document title for {title} variable */
+	title?: string;
 }
 
 /**
@@ -468,14 +467,20 @@ export async function generatePagedCss(
 			? `\n  counter-reset: page ${pageStart - 1};`
 			: "";
 
+	// Escape title for CSS string
+	const escapedTitle = config.title
+		? config.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+		: "";
+
 	// Build the CSS
 	const css = `
 /* Theme CSS */
 ${processedCss}
 
-/* String-set for running headers */
-h1 { string-set: doctitle content(text); }
-h2 { string-set: chaptertitle content(text); }
+/* Document variables for header/footer content */
+:root {
+  --doc-title: "${escapedTitle}";
+}
 
 /* Page setup */
 @page {
