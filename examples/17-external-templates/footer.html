@@ -1,0 +1,58 @@
+<html>
+<head>
+  <style>
+    #footer { padding: 0 !important; }
+    .footer-container {
+      width: 100%;
+      padding: 8px 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 8px;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 2px solid #1e3a5f;
+      -webkit-print-color-adjust: exact;
+    }
+    .confidential {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #c9302c;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .lock-icon {
+      width: 10px;
+      height: 10px;
+    }
+    .page-info {
+      background: #1e3a5f;
+      color: white;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .date-info {
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="footer-container">
+    <div class="date-info">
+      Generated: <span class="date"></span>
+    </div>
+    <div class="confidential">
+      <svg class="lock-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4z"/>
+      </svg>
+      Confidential
+    </div>
+    <div class="page-info">
+      <span class="pageNumber"></span> / <span class="totalPages"></span>
+    </div>
+  </div>
+</body>
+</html>

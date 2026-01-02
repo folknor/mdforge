@@ -1,8 +1,0 @@
-theme: false
-stylesheet: "@04-custom-fonts-colors.css"
-script:
-  - url: https://unpkg.com/pagedjs/dist/paged.polyfill.js
-pdf_options:
-  format: A4
-  margin: 0mm
-  printBackground: true

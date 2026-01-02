@@ -1,0 +1,53 @@
+<html>
+<head>
+  <style>
+    #header { padding: 0 !important; }
+    .header-container {
+      width: 100%;
+      padding: 8px 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 9px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+      -webkit-print-color-adjust: exact;
+    }
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo {
+      width: 20px;
+      height: 20px;
+    }
+    .company-name {
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    .doc-info {
+      text-align: right;
+      opacity: 0.9;
+    }
+    .doc-title {
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-container">
+    <div class="logo-section">
+      <svg class="logo" viewBox="0 0 24 24" fill="white">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+      <span class="company-name">ACME CORP</span>
+    </div>
+    <div class="doc-info">
+      <span class="doc-title title"></span>
+    </div>
+  </div>
+</body>
+</html>

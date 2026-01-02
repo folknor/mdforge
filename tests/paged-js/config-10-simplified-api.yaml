@@ -1,8 +1,0 @@
-theme: tufte
-header:
-  left: "{title}"
-  right: "{date}"
-  firstPage: false
-footer:
-  left: "Page {page} of {pages}"
-  right: "{chapter}"

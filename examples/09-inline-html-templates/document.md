@@ -55,9 +55,9 @@ pdf_options:
     bottom: 25mm
 ---
 
-# Custom Header/Footer Templates
+# Inline HTML Templates
 
-This example uses raw Puppeteer templates for full HTML control over headers and footers.
+This example embeds raw HTML templates directly in the frontmatter for full control over headers and footers. For larger templates, see example 17 which loads HTML from external files.
 
 ## When to Use This
 

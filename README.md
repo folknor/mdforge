@@ -161,7 +161,14 @@ Stylesheets are loaded in this order (later styles override earlier ones via the
 2. **Fonts** - font-family declarations from font presets
 3. **Your stylesheet** - custom styles that override the above
 
-This means you can use a theme as a foundation and add customizations on top:
+To use only your own CSS with no theme or fonts, set `theme: false`:
+
+```yaml
+theme: false
+stylesheet: my-styles.css
+```
+
+To extend a theme with customizations:
 
 ```yaml
 theme: tufte

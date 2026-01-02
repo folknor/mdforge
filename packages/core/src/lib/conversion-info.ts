@@ -66,6 +66,8 @@ export function formatConversionInfo(info: ConversionInfo): string {
 	}
 	if (fontParts.length > 0) {
 		lines.push(`  fonts: ${fontParts.join(", ")}`);
+	} else if (info.theme === false) {
+		lines.push("  fonts: none");
 	}
 
 	// Stylesheet

@@ -1,6 +1,0 @@
-theme: pandoc
-paged_js: true
-header:
-  right: "{date:nb-NO}"
-footer:
-  center: "{page} / {pages}"
