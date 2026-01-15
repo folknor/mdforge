@@ -90,6 +90,7 @@ function toAlpha(num: number): string {
  * Format a number according to the specified format.
  */
 function formatNumber(num: number, format: HeadingNumberFormat): string {
+	// biome-ignore lint/nursery/noUnnecessaryConditions: switch on union type is valid
 	switch (format) {
 		case "roman":
 			return toRoman(num);

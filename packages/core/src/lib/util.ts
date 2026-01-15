@@ -107,8 +107,7 @@ export function parseFrontMatter(content: string): {
 			data: YAML.parse(match[1] ?? "") || {},
 			content: match[2] ?? "",
 		};
-	} catch (error) {
-		console.warn("Warning: front-matter could not be parsed:", error);
+	} catch {
 		return { data: {}, content };
 	}
 }

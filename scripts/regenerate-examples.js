@@ -98,9 +98,9 @@ async function regenerateExamples() {
 				} catch (error) {
 					totalFailed++;
 					// Extract error message (format: "[time] → Error message") - may be in stdout or stderr
-					const output =
+					const errorOutput =
 						(error.stdout?.toString() || "") + (error.stderr?.toString() || "");
-					const errorMatch = output.match(/\] → (.+)/);
+					const errorMatch = errorOutput.match(/\] → (.+)/);
 					if (errorMatch) {
 						console.log(`  ✗ ${name}: ${errorMatch[1]}`);
 					} else {
@@ -121,4 +121,7 @@ async function regenerateExamples() {
 	}
 }
 
-regenerateExamples();
+regenerateExamples().catch((error) => {
+	console.error("Unexpected error:", error);
+	process.exit(1);
+});

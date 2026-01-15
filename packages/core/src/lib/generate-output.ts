@@ -41,6 +41,7 @@ export async function generateOutput(
 	browserRef?: Browser,
 ): Promise<Output> {
 	async function getBrowser() {
+		// biome-ignore lint/nursery/noUnnecessaryConditions: browserRef is an optional param that may be undefined
 		if (browserRef) {
 			return browserRef;
 		}

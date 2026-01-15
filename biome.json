@@ -82,5 +82,30 @@
 			"!packages/core/src/data/*.json",
 			"!docs"
 		]
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["packages/cli/**", "scripts/**", "**/scripts/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"packages/core/src/index.ts",
+				"packages/core/src/browser.ts"
+			],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noBarrelFile": "off"
+					}
+				}
+			}
+		}
+	]
 }

@@ -78,16 +78,12 @@ async function fetchIcon(prefix: string, name: string): Promise<string | null> {
 	try {
 		const response = await fetch(url);
 		if (!response.ok) {
-			console.warn(
-				`Failed to fetch icon ${prefix}:${name}: ${response.status}`,
-			);
 			return null;
 		}
 		const svg = await response.text();
 
 		// Validate it's actually SVG
 		if (!svg.includes("<svg")) {
-			console.warn(`Invalid SVG response for icon ${prefix}:${name}`);
 			return null;
 		}
 
@@ -95,9 +91,7 @@ async function fetchIcon(prefix: string, name: string): Promise<string | null> {
 		await saveToCache(prefix, name, svg);
 
 		return svg;
-	} catch (error) {
-		const err = error as Error;
-		console.warn(`Error fetching icon ${prefix}:${name}: ${err.message}`);
+	} catch {
 		return null;
 	}
 }
@@ -147,11 +141,14 @@ function findIconReferences(
 	}> = [];
 	const seen = new Set<string>();
 
-	let match: RegExpExecArray | null;
 	// Reset regex lastIndex
 	ICON_REGEX.lastIndex = 0;
 
-	while ((match = ICON_REGEX.exec(content)) !== null) {
+	for (
+		let match = ICON_REGEX.exec(content);
+		match !== null;
+		match = ICON_REGEX.exec(content)
+	) {
 		const fullMatch = match[0];
 		const prefix = match[1];
 		const name = match[2];

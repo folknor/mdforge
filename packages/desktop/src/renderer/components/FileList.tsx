@@ -45,9 +45,9 @@ export default function FileList({ files, onRemove, onClear }: FileListProps) {
 									/>
 								</div>
 							)}
-							{file.error && (
+							{file.error ? (
 								<p className="text-xs text-red-600 mt-1">{file.error}</p>
-							)}
+							) : null}
 						</div>
 
 						<button

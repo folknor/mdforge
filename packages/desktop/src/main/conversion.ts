@@ -5,7 +5,7 @@ import type { ConversionConfig, ConversionResult } from "../types";
 let browser: Browser | null = null;
 
 export async function getBrowser(): Promise<Browser> {
-	if (!(browser && browser.connected)) {
+	if (!browser?.connected) {
 		browser = await puppeteer.launch({
 			headless: true,
 			args: ["--disable-gpu", "--no-sandbox"],
