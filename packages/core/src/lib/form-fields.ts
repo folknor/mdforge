@@ -100,7 +100,7 @@ export function formFields(): MarkedExtension {
 							modifiers: parseModifiers(typeStr),
 						};
 					}
-					return undefined;
+					return;
 				},
 				renderer() {
 					// Actual rendering happens when we see the list
@@ -113,19 +113,19 @@ export function formFields(): MarkedExtension {
 				name: "formFieldList",
 				level: "block",
 				start(src) {
-					if (!pendingListConsumer) return undefined;
+					if (!pendingListConsumer) return;
 					// Check if this starts with a list
 					const match = src.match(/^(\s*[-*+]|\s*\d+\.)\s/m);
 					return match?.index;
 				},
 				tokenizer(src) {
-					if (!pendingListConsumer) return undefined;
+					if (!pendingListConsumer) return;
 
 					// Match the list using marked's default list pattern
 					const listMatch = src.match(
 						/^(([ \t]*[-*+][ \t]+.+(?:\n|$))+|([ \t]*\d+\.[ \t]+.+(?:\n|$))+)/,
 					);
-					if (!listMatch) return undefined;
+					if (!listMatch) return;
 
 					const consumer = pendingListConsumer;
 					pendingListConsumer = null;
@@ -142,7 +142,10 @@ export function formFields(): MarkedExtension {
 						// Check for quoted value
 						const valueMatch = text.match(/^(.+?)\s+"([^"]+)"$/);
 						if (valueMatch?.[1] && valueMatch[2]) {
-							options.push({ text: valueMatch[1].trim(), value: valueMatch[2] });
+							options.push({
+								text: valueMatch[1].trim(),
+								value: valueMatch[2],
+							});
 						} else {
 							options.push({ text, value: text });
 						}
@@ -159,13 +162,14 @@ export function formFields(): MarkedExtension {
 					};
 				},
 				renderer(token) {
-					const { fieldType, name, label, modifiers, options } = token as unknown as {
-						fieldType: FieldType;
-						name: string;
-						label: string;
-						modifiers: FieldModifiers;
-						options: Array<{ text: string; value: string }>;
-					};
+					const { fieldType, name, label, modifiers, options } =
+						token as unknown as {
+							fieldType: FieldType;
+							name: string;
+							label: string;
+							modifiers: FieldModifiers;
+							options: Array<{ text: string; value: string }>;
+						};
 
 					const required = modifiers.required ? "required" : undefined;
 
@@ -215,12 +219,12 @@ ${itemsHtml}
 				tokenizer(src) {
 					// Text input: [Label ??](name) or [??](name)
 					// Textarea: [Label ???](name)
-					const match =
-						/^\[([^\]]*?)(\?{2,3}[*HM]*)\]\(([^)]*)\)/.exec(src);
+					const match = /^\[([^\]]*?)(\?{2,3}[*HM]*)\]\(([^)]*)\)/.exec(src);
 					if (match) {
 						const label = match[1]?.trim() ?? "";
 						const typeStr = match[2] ?? "??";
-						const name = match[3]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
+						const name =
+							match[3]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
 
 						const isTextarea = typeStr.startsWith("???");
 						const modifiers = parseModifiers(typeStr);
@@ -234,7 +238,7 @@ ${itemsHtml}
 							modifiers,
 						};
 					}
-					return undefined;
+					return;
 				},
 				renderer(token) {
 					const { fieldType, name, label, modifiers } = token as unknown as {

@@ -3,6 +3,7 @@
 import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { join, resolve } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = resolve(fileURLToPath(import.meta.url), "..");

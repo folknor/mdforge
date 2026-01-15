@@ -1,0 +1,11 @@
+[project]
+name = "mdforge-docs"
+version = "0.1.0"
+description = "Documentation for mdforge"
+requires-python = ">=3.11"
+dependencies = [
+    "zensical>=0.0.15",
+]
+
+[dependency-groups]
+dev = []

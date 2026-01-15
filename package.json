@@ -11,8 +11,8 @@
 		"dev": "pnpm -r run dev",
 		"build": "pnpm -r run build",
 		"clean": "pnpm -r run clean",
-		"lint": "pnpm exec biome check",
-		"check": "pnpm exec biome check",
+		"lint": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
+		"check": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
 		"regenerate-examples": "node scripts/regenerate-examples.js"
 	},
 	"author": {
@@ -29,6 +29,6 @@
 	"repository": "folknor/mdforge",
 	"homepage": "https://github.com/folknor/mdforge",
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.10"
+		"@biomejs/biome": "^2.3.11"
 	}
 }

@@ -127,7 +127,7 @@ async function resolveFonts(config: FontPairingConfig): Promise<ResolvedFonts> {
 		preferred: string | undefined,
 		fallback: string | undefined,
 	): Promise<{ name: string; info: FontResolutionInfo } | undefined> {
-		if (!preferred) return undefined;
+		if (!preferred) return;
 
 		// Check if preferred font is installed locally
 		if (await isSystemFont(preferred)) {
@@ -272,7 +272,7 @@ export async function generateFontStylesheet(
 		fontConfig = fonts;
 	}
 
-	if (!fontConfig) return undefined;
+	if (!fontConfig) return;
 
 	const warnings: string[] = [];
 

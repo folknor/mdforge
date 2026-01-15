@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";

@@ -3,6 +3,7 @@
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, resolve } from "node:path";
+import process from "node:process";
 import {
 	type Config,
 	type ConvertResult,

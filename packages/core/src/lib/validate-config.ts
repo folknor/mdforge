@@ -340,7 +340,8 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 				errors.push({
 					path: `heading_numbers.${key}`,
 					message: `Unknown heading_numbers key "${key}". Use: format, start_depth, max_depth, separator, skip_first_h1`,
-					value: config.heading_numbers[key as keyof typeof config.heading_numbers],
+					value:
+						config.heading_numbers[key as keyof typeof config.heading_numbers],
 				});
 			}
 		}

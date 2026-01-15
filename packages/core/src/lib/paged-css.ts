@@ -404,9 +404,10 @@ function transformCssSelectors(css: string): string {
 	for (const [selector, pagedSelector] of Object.entries(selectorMap)) {
 		// Match: .header-left { ... }
 		const regex = new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`, "g");
-		transformed = transformed.replace(regex, (_, content) => {
-			return `${pagedSelector} {${content}}`;
-		});
+		transformed = transformed.replace(
+			regex,
+			(_, content) => `${pagedSelector} {${content}}`,
+		);
 	}
 	return transformed;
 }

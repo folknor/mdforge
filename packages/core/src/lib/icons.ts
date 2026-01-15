@@ -157,7 +157,7 @@ function findIconReferences(
 		const name = match[2];
 		const sizeStr = match[3];
 
-		if (!prefix || !name) continue;
+		if (!(prefix && name)) continue;
 
 		const key = `${prefix}:${name}`;
 

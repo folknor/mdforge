@@ -1,3 +1,4 @@
+import process from "node:process";
 import puppeteer from "puppeteer";
 import { type Config, defaultConfig } from "./lib/config.js";
 import { type ConvertResult, convertMdToPdf } from "./lib/convert.js";

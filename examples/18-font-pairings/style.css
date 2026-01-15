@@ -1,0 +1,185 @@
+/* Google Fonts imports */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Poppins:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&family=DM+Sans:wght@400;600;700&family=Cormorant+Garamond:wght@400;600;700&family=Fira+Code:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Noto+Sans:wght@400;600;700&family=EB+Garamond:wght@400;600;700&family=Inconsolata:wght@400;500&family=Gelasio:wght@400;700&display=swap');
+
+/* Base styles */
+body {
+  font-size: 12pt;
+  line-height: 1.6;
+  color: #333;
+  max-width: 100%;
+}
+
+h1 {
+  font-size: 28pt;
+  margin-bottom: 0.5em;
+  color: #111;
+}
+
+h2 {
+  font-size: 20pt;
+  margin-top: 0;
+  margin-bottom: 0.3em;
+  color: #222;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 0.3em;
+}
+
+h3 {
+  font-size: 14pt;
+  margin-top: 1em;
+  color: #333;
+}
+
+p {
+  margin: 0.8em 0;
+}
+
+code {
+  background: #f5f5f5;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+pre {
+  background: #f8f8f8;
+  padding: 1em;
+  border-radius: 4px;
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+section {
+  padding: 0;
+}
+
+.page-break {
+  page-break-after: always;
+}
+
+/* modern-professional: Inter / Inter / Fira Code */
+.modern-professional,
+.modern-professional h2,
+.modern-professional h3 {
+  font-family: 'Inter', sans-serif;
+}
+.modern-professional code,
+.modern-professional pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* classic-elegant: Playfair Display / Libre Baskerville / Fira Code */
+.classic-elegant {
+  font-family: 'Libre Baskerville', serif;
+}
+.classic-elegant h2,
+.classic-elegant h3 {
+  font-family: 'Playfair Display', serif;
+}
+.classic-elegant code,
+.classic-elegant pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* modern-geometric: Poppins / Open Sans / Fira Code */
+.modern-geometric {
+  font-family: 'Open Sans', sans-serif;
+}
+.modern-geometric h2,
+.modern-geometric h3 {
+  font-family: 'Poppins', sans-serif;
+}
+.modern-geometric code,
+.modern-geometric pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* tech-minimal: Space Grotesk / DM Sans / JetBrains Mono */
+.tech-minimal {
+  font-family: 'DM Sans', sans-serif;
+}
+.tech-minimal h2,
+.tech-minimal h3 {
+  font-family: 'Space Grotesk', sans-serif;
+}
+.tech-minimal code,
+.tech-minimal pre {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* editorial: Cormorant Garamond / Libre Baskerville / Fira Code */
+.editorial {
+  font-family: 'Libre Baskerville', serif;
+}
+.editorial h2,
+.editorial h3 {
+  font-family: 'Cormorant Garamond', serif;
+}
+.editorial code,
+.editorial pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* clean-sans: DM Sans / Inter / Fira Code */
+.clean-sans {
+  font-family: 'Inter', sans-serif;
+}
+.clean-sans h2,
+.clean-sans h3 {
+  font-family: 'DM Sans', sans-serif;
+}
+.clean-sans code,
+.clean-sans pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* Theme: beryl - Noto Sans / Fira Code */
+.theme-beryl,
+.theme-beryl h2,
+.theme-beryl h3 {
+  font-family: 'Noto Sans', sans-serif;
+}
+.theme-beryl code,
+.theme-beryl pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* Theme: tufte - EB Garamond / Inconsolata */
+.theme-tufte,
+.theme-tufte h2,
+.theme-tufte h3 {
+  font-family: 'EB Garamond', serif;
+}
+.theme-tufte code,
+.theme-tufte pre {
+  font-family: 'Inconsolata', monospace;
+}
+
+/* Theme: buttondown - Inter / Gelasio / Fira Code */
+.theme-buttondown {
+  font-family: 'Gelasio', serif;
+}
+.theme-buttondown h2,
+.theme-buttondown h3 {
+  font-family: 'Inter', sans-serif;
+}
+.theme-buttondown code,
+.theme-buttondown pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* Theme: pandoc - Libre Baskerville / Fira Code */
+.theme-pandoc,
+.theme-pandoc h2,
+.theme-pandoc h3 {
+  font-family: 'Libre Baskerville', serif;
+}
+.theme-pandoc code,
+.theme-pandoc pre {
+  font-family: 'Fira Code', monospace;
+}

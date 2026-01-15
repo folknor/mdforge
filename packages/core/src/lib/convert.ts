@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
 
 const require = createRequire(import.meta.url);
+
+import process from "node:process";
 import type { Browser } from "puppeteer";
 import { type Config, themes, themesDir } from "./config.js";
 import {
@@ -218,7 +220,7 @@ export const convertMdToPdf = async (
 
 		// Helper to summarize header/footer config
 		const summarize = (cfg: typeof config.header): string | undefined => {
-			if (!cfg) return undefined;
+			if (!cfg) return;
 			if (typeof cfg === "string") return cfg;
 			const parts = [cfg.left, cfg.center, cfg.right].filter(Boolean);
 			return parts.join(" | ") || undefined;
