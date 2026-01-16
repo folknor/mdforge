@@ -1,6 +1,6 @@
 appId: com.mdforge.desktop
 productName: mdforge
-electronVersion: 39.2.7
+electronVersion: 40.0.0
 
 directories:
   output: release
