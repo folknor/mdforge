@@ -158,11 +158,11 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 								.map((o) => `<option value="${o.value}">${o.text}</option>`)
 								.join("\n");
 							const dataAttrs = `data-form-field data-field-name="${name}" data-field-type="select"`;
+							const selectHtml = `<select name="${name}">\n${optionsHtml}\n</select>`;
+							const wrappedSelect = wrapWithMarker(selectHtml, name, "select");
 							return `<label class="form-field form-select" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
-<select name="${name}">
-${optionsHtml}
-</select>
+${wrappedSelect}
 </label>\n`;
 						}
 						// Default mode: render as radio buttons (static dropdowns are useless)
@@ -190,8 +190,10 @@ ${itemsHtml}
 									const optionDataAttrs = fillable
 										? `data-form-field data-field-name="${name}" data-field-type="${inputType}" data-field-value="${o.value}"`
 										: "";
+									const inputHtml = `<input type="${inputType}" name="${name}" value="${o.value}">`;
+									const wrappedInput = fillable ? wrapWithMarker(inputHtml, name, inputType, o.value) : inputHtml;
 									return `<label class="form-option" ${optionDataAttrs}>
-<input type="${inputType}" name="${name}" value="${o.value}">
+${wrappedInput}
 <span>${o.text}</span>
 </label>`;
 								},
@@ -258,16 +260,20 @@ ${itemsHtml}
 						// Each line is approximately 1.5em (line-height) + padding
 						const lines = lineCount ?? 4;
 						const heightStyle = `style="height: ${lines * 1.5}em"`;
+						const textareaHtml = `<textarea name="${name}" ${heightStyle}></textarea>`;
+						const wrappedTextarea = fillable ? wrapWithMarker(textareaHtml, name, "textarea") : textareaHtml;
 						return `<label class="form-field form-textarea" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
-<textarea name="${name}" ${heightStyle}></textarea>
+${wrappedTextarea}
 </label>`;
 					}
 
 					// Text input
+					const inputHtml = `<input type="text" name="${name}">`;
+					const wrappedInput = fillable ? wrapWithMarker(inputHtml, name, "text") : inputHtml;
 					return `<label class="form-field form-text" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
-<input type="text" name="${name}">
+${wrappedInput}
 </label>`;
 				},
 			},
@@ -276,9 +282,55 @@ ${label ? `<span class="form-label">${label}</span>` : ""}
 }
 
 /**
+ * Marker URL prefix used to identify form field markers in PDF link annotations.
+ * The URL format is: https://mdforge.marker/{name}?type={type}&value={value}
+ */
+export const MARKER_URL_PREFIX = "https://mdforge.marker/";
+
+/**
+ * Generate a marker wrapper for fillable mode.
+ * The marker link overlays the input element to capture its full dimensions
+ * as a PDF link annotation rectangle.
+ */
+function wrapWithMarker(inputHtml: string, name: string, type: string, value?: string): string {
+	const params = new URLSearchParams({ type });
+	if (value) params.set("value", value);
+	const markerUrl = `${MARKER_URL_PREFIX}${encodeURIComponent(name)}?${params}`;
+	return `<span class="form-input-wrapper">
+<a href="${markerUrl}" class="form-marker"></a>
+${inputHtml}
+</span>`;
+}
+
+/**
  * CSS for form fields - provides both screen and print styles.
  */
 export const formFieldsCss = `
+/* Form input wrapper - contains the marker overlay and the actual input */
+.form-input-wrapper {
+  position: relative;
+  display: block;
+}
+
+/* Form field marker - invisible link that overlays the input */
+.form-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* For checkbox/radio, the wrapper is inline */
+.form-option .form-input-wrapper {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
 /* Form fields base */
 .form-field {
   display: block;

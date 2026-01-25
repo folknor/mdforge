@@ -1,13 +1,7 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import puppeteer, { type Browser } from "puppeteer";
-import {
-	type FieldPosition,
-	addAcroFormFields,
-	extractFieldPositionsScript,
-	getMarginMm,
-	getPdfContentDimensions,
-} from "./acroform.js";
+import { addAcroFormFields } from "./acroform.js";
 import type { Config } from "./config.js";
 import { injectPdfMetadata } from "./pdf-metadata.js";
 import { isHttpUrl } from "./util.js";
@@ -93,18 +87,29 @@ export async function generateOutput(
 	// Wait for network to be idle
 	await page.waitForNetworkIdle();
 
-	// Extract field positions if fillable mode is enabled
-	let fieldPositions: FieldPosition[] = [];
+	// Extract select options if fillable mode is enabled
+	// (Select options are not encoded in marker URLs, so we need to extract them from DOM)
+	let selectOptions: Map<string, string[]> | undefined;
 	if (config.fillable && !config.as_html) {
-		// Set viewport to match PDF content area for accurate position extraction
-		const pdfDimensions = getPdfContentDimensions(config.pdf_options);
-		await page.setViewport({
-			width: Math.round(pdfDimensions.width),
-			height: Math.round(pdfDimensions.height),
+		const selectData = await page.evaluate(() => {
+			const selects = document.querySelectorAll("[data-form-field][data-field-type='select'] select");
+			const result: Array<{ name: string; options: string[] }> = [];
+			for (let i = 0; i < selects.length; i++) {
+				const select = selects[i];
+				if (!select) continue;
+				const wrapper = select.closest("[data-form-field]");
+				const name = wrapper?.getAttribute("data-field-name");
+				if (!name) continue;
+				const options = Array.from((select as HTMLSelectElement).options).map(
+					(opt) => opt.value || opt.text
+				);
+				result.push({ name, options });
+			}
+			return result;
 		});
-		// Wait for layout to settle after viewport change
-		await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-		fieldPositions = await page.evaluate(extractFieldPositionsScript);
+		if (selectData.length > 0) {
+			selectOptions = new Map(selectData.map((s) => [s.name, s.options]));
+		}
 	}
 
 	let outputFileContent: string | Buffer | Uint8Array;
@@ -152,13 +157,11 @@ export async function generateOutput(
 		}
 	}
 
-	// Add AcroForm fields if fillable mode is enabled and we have field positions
-	if (config.fillable && fieldPositions.length > 0) {
-		const marginMm = getMarginMm(config.pdf_options.margin);
-		const pdfDimensions = getPdfContentDimensions(config.pdf_options);
-		pdfContent = await addAcroFormFields(Buffer.from(pdfContent), fieldPositions, {
-			marginMm,
-			contentHeightPx: pdfDimensions.height,
+	// Add AcroForm fields if fillable mode is enabled
+	// The marker-based approach reads field positions from PDF link annotations
+	if (config.fillable) {
+		pdfContent = await addAcroFormFields(Buffer.from(pdfContent), {
+			selectOptions,
 		});
 	}
 

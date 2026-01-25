@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument } from "@folknor/pdf-lib";
 
 /**
  * PDF metadata configuration

@@ -3,12 +3,19 @@
  *
  * This module post-processes Puppeteer-generated PDFs to add real
  * AcroForm fields, making them fillable in PDF readers.
+ *
+ * The approach uses marker-based positioning:
+ * 1. Form fields include invisible link markers in HTML
+ * 2. These links become PDF link annotations with exact page + coordinates
+ * 3. We read the annotations, add AcroForm fields at those positions
+ * 4. Remove the marker annotations
  */
 
-import { type PDFPage, PDFDocument, rgb } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName } from "@folknor/pdf-lib";
+import { MARKER_URL_PREFIX } from "./form-fields.js";
 
 /**
- * Position information for a form field extracted from the DOM.
+ * Position information for a form field extracted from marker annotations.
  */
 export interface FieldPosition {
 	name: string;
@@ -17,6 +24,8 @@ export interface FieldPosition {
 	y: number;
 	width: number;
 	height: number;
+	/** Page index (0-based) */
+	pageIndex: number;
 	/** For select fields: list of options */
 	options?: string[];
 	/** For checkbox/radio fields: the value attribute */
@@ -24,73 +33,155 @@ export interface FieldPosition {
 }
 
 /**
- * PDF page dimensions.
- */
-export interface PdfPageInfo {
-	width: number;
-	height: number;
-}
-
-/**
  * Configuration for AcroForm field generation.
  */
 export interface AcroFormConfig {
-	/** PDF margins in mm (used for coordinate mapping) */
-	marginMm?: number;
-	/** Content area height in pixels (for multi-page support) */
-	contentHeightPx?: number;
+	/** For select fields: map of field name to list of options */
+	selectOptions?: Map<string, string[]>;
 }
 
 /**
- * Add AcroForm fields to a PDF at the specified positions.
+ * Parse a marker URL to extract field information.
+ * URL format: https://mdforge.marker/{name}?type={type}&value={value}
+ */
+function parseMarkerUrl(url: string): { name: string; type: string; value?: string } | null {
+	if (!url.startsWith(MARKER_URL_PREFIX)) return null;
+
+	try {
+		const urlObj = new URL(url);
+		const name = decodeURIComponent(urlObj.pathname.slice(1)); // Remove leading /
+		const type = urlObj.searchParams.get("type");
+		const value = urlObj.searchParams.get("value") || undefined;
+
+		if (!name || !type) return null;
+		return { name, type, value };
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Extract marker annotations from a PDF and convert to field positions.
+ * Also removes the marker annotations from the PDF.
+ */
+function extractAndRemoveMarkers(pdfDoc: PDFDocument): FieldPosition[] {
+	const fields: FieldPosition[] = [];
+	const pages = pdfDoc.getPages();
+
+	for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+		const page = pages[pageIndex];
+		if (!page) continue;
+
+		const annotsRef = page.node.get(PDFName.of("Annots"));
+		if (!annotsRef) continue;
+
+		const annots = page.node.context.lookup(annotsRef);
+		if (!annots || !(annots instanceof PDFArray)) continue;
+
+		// Collect indices of marker annotations to remove
+		const toRemove: number[] = [];
+
+		for (let j = 0; j < annots.size(); j++) {
+			const annotRef = annots.get(j);
+			const annotObj = page.node.context.lookup(annotRef);
+			if (!annotObj || !(annotObj instanceof PDFDict)) continue;
+			const annot = annotObj;
+
+			// Check if it's a Link annotation
+			const subtype = annot.get(PDFName.of("Subtype"));
+			if (subtype?.toString() !== "/Link") continue;
+
+			// Get the action to extract URL
+			const actionRef = annot.get(PDFName.of("A"));
+			if (!actionRef) continue;
+
+			const actionObj = page.node.context.lookup(actionRef);
+			if (!actionObj || !(actionObj instanceof PDFDict)) continue;
+			const action = actionObj;
+
+			const uriObj = action.get(PDFName.of("URI"));
+			if (!uriObj) continue;
+
+			// Extract URL string (it's in format "(url)")
+			const urlRaw = uriObj.toString();
+			const url = urlRaw.startsWith("(") && urlRaw.endsWith(")")
+				? urlRaw.slice(1, -1)
+				: urlRaw;
+
+			// Check if it's a marker URL
+			const markerInfo = parseMarkerUrl(url);
+			if (!markerInfo) continue;
+
+			// Get the rectangle [llx, lly, urx, ury]
+			const rectObj = annot.get(PDFName.of("Rect"));
+			if (!rectObj || !(rectObj instanceof PDFArray)) continue;
+
+			const rect = rectObj.asArray().map(n => {
+				const num = n.toString();
+				return Number.parseFloat(num);
+			});
+
+			if (rect.length !== 4) continue;
+
+			const [llx, lly, urx, ury] = rect;
+			if (llx === undefined || lly === undefined || urx === undefined || ury === undefined) continue;
+
+			fields.push({
+				name: markerInfo.name,
+				type: markerInfo.type as FieldPosition["type"],
+				x: llx,
+				y: lly,
+				width: urx - llx,
+				height: ury - lly,
+				pageIndex,
+				value: markerInfo.value,
+			});
+
+			toRemove.push(j);
+		}
+
+		// Remove marker annotations (in reverse order to preserve indices)
+		for (let i = toRemove.length - 1; i >= 0; i--) {
+			const idx = toRemove[i];
+			if (idx !== undefined) {
+				annots.remove(idx);
+			}
+		}
+	}
+
+	return fields;
+}
+
+/**
+ * Add AcroForm fields to a PDF using marker-based positioning.
+ *
+ * This function:
+ * 1. Reads marker link annotations from the PDF
+ * 2. Extracts field positions from the annotation rectangles
+ * 3. Adds AcroForm fields at those exact positions
+ * 4. Removes the marker annotations
  *
  * @param pdfBuffer - The PDF buffer to modify
- * @param fields - Array of field positions extracted from the DOM
- * @param config - Optional configuration
+ * @param config - Optional configuration (e.g., select options)
  * @returns Modified PDF buffer with AcroForm fields
  */
 export async function addAcroFormFields(
 	pdfBuffer: Buffer | Uint8Array,
-	fields: FieldPosition[],
 	config: AcroFormConfig = {},
 ): Promise<Uint8Array> {
-	const { marginMm = 20, contentHeightPx } = config;
-
 	const pdfDoc = await PDFDocument.load(pdfBuffer);
 	const pages = pdfDoc.getPages();
 	if (pages.length === 0) {
-		// No pages in PDF, return unchanged
 		return pdfDoc.save();
 	}
-	const firstPage = pages[0];
-	if (!firstPage) {
+
+	// Extract marker annotations and get field positions
+	const fields = extractAndRemoveMarkers(pdfDoc);
+	if (fields.length === 0) {
 		return pdfDoc.save();
 	}
-	const { height: pdfHeight } = firstPage.getSize();
+
 	const form = pdfDoc.getForm();
-
-	// Convert margin from mm to points (72 points per inch, 25.4 mm per inch)
-	const marginPt = marginMm * (72 / 25.4);
-
-	// HTML uses 96 DPI, PDF uses 72 DPI
-	const scale = 72 / 96;
-
-	// Calculate page height in pixels for multi-page support
-	// If contentHeightPx is provided, use it to determine page breaks
-	const pageHeightPx = contentHeightPx || (pdfHeight - 2 * marginPt) / scale;
-
-	/**
-	 * Get the PDF page and Y coordinate for a field based on its DOM Y position.
-	 */
-	function getPageAndY(domY: number, domHeight: number): { page: PDFPage; pdfY: number } | null {
-		const pageIndex = Math.floor(domY / pageHeightPx);
-		const yOnPage = domY - pageIndex * pageHeightPx;
-		const page = pages[pageIndex];
-		if (!page) return null;
-		// Convert to PDF coordinates (bottom-left origin)
-		const pdfY = pdfHeight - marginPt - (yOnPage + domHeight) * scale;
-		return { page, pdfY };
-	}
 
 	// Group checkbox/radio fields by name for proper handling
 	const radioGroups = new Map<string, FieldPosition[]>();
@@ -114,48 +205,47 @@ export async function addAcroFormFields(
 
 	// Add simple fields (text, textarea, select, single checkboxes)
 	for (const field of simpleFields) {
-		const pageInfo = getPageAndY(field.y, field.height);
-		if (!pageInfo) continue;
-
-		const pdfX = marginPt + field.x * scale;
-		const pdfW = field.width * scale;
-		const pdfH = field.height * scale;
+		const page = pages[field.pageIndex];
+		if (!page) continue;
 
 		try {
 			if (field.type === "text" || field.type === "textarea") {
 				const textField = form.createTextField(field.name);
-				textField.addToPage(pageInfo.page, {
-					x: pdfX,
-					y: pageInfo.pdfY,
-					width: pdfW,
-					height: pdfH,
-					borderColor: rgb(0.6, 0.6, 0.6),
+				textField.addToPage(page, {
+					x: field.x,
+					y: field.y,
+					width: field.width,
+					height: field.height,
 					borderWidth: 0,
+					backgroundColor: undefined, // Transparent - show HTML styling through
 				});
 				if (field.type === "textarea") {
 					textField.enableMultiline();
 				}
-			} else if (field.type === "select" && field.options) {
+			} else if (field.type === "select") {
 				const dropdown = form.createDropdown(field.name);
-				dropdown.addOptions(field.options);
-				dropdown.addToPage(pageInfo.page, {
-					x: pdfX,
-					y: pageInfo.pdfY,
-					width: pdfW,
-					height: pdfH,
-					borderColor: rgb(0.6, 0.6, 0.6),
+				const options = config.selectOptions?.get(field.name);
+				if (options) {
+					dropdown.addOptions(options);
+				}
+				dropdown.addToPage(page, {
+					x: field.x,
+					y: field.y,
+					width: field.width,
+					height: field.height,
 					borderWidth: 0,
+					backgroundColor: undefined, // Transparent
 				});
 			} else if (field.type === "checkbox") {
-				const size = Math.min(pdfW, pdfH);
+				const size = Math.min(field.width, field.height);
 				const checkbox = form.createCheckBox(field.name);
-				checkbox.addToPage(pageInfo.page, {
-					x: pdfX,
-					y: pageInfo.pdfY,
+				checkbox.addToPage(page, {
+					x: field.x,
+					y: field.y,
 					width: size,
 					height: size,
-					borderColor: rgb(0.6, 0.6, 0.6),
 					borderWidth: 0,
+					backgroundColor: undefined, // Transparent
 				});
 			}
 		} catch {
@@ -168,19 +258,17 @@ export async function addAcroFormFields(
 		try {
 			const radioGroup = form.createRadioGroup(name);
 			for (const opt of options) {
-				const pageInfo = getPageAndY(opt.y, opt.height);
-				if (!pageInfo) continue;
+				const page = pages[opt.pageIndex];
+				if (!page) continue;
 
-				const pdfX = marginPt + opt.x * scale;
-				const size = Math.min(opt.width, opt.height) * scale;
-
-				radioGroup.addOptionToPage(opt.value || opt.name, pageInfo.page, {
-					x: pdfX,
-					y: pageInfo.pdfY,
+				const size = Math.min(opt.width, opt.height);
+				radioGroup.addOptionToPage(opt.value || opt.name, page, {
+					x: opt.x,
+					y: opt.y,
 					width: size,
 					height: size,
-					borderColor: rgb(0.6, 0.6, 0.6),
 					borderWidth: 0,
+					backgroundColor: undefined, // Transparent
 				});
 			}
 		} catch {
@@ -191,21 +279,19 @@ export async function addAcroFormFields(
 	// Add checkbox groups (each checkbox needs unique name)
 	for (const [name, options] of checkboxGroups) {
 		for (const opt of options) {
-			const pageInfo = getPageAndY(opt.y, opt.height);
-			if (!pageInfo) continue;
+			const page = pages[opt.pageIndex];
+			if (!page) continue;
 
 			try {
-				const pdfX = marginPt + opt.x * scale;
-				const size = Math.min(opt.width, opt.height) * scale;
-
+				const size = Math.min(opt.width, opt.height);
 				const checkbox = form.createCheckBox(`${name}_${opt.value}`);
-				checkbox.addToPage(pageInfo.page, {
-					x: pdfX,
-					y: pageInfo.pdfY,
+				checkbox.addToPage(page, {
+					x: opt.x,
+					y: opt.y,
 					width: size,
 					height: size,
-					borderColor: rgb(0.6, 0.6, 0.6),
 					borderWidth: 0,
+					backgroundColor: undefined, // Transparent
 				});
 			} catch {
 				// Checkbox creation may fail - skip silently
@@ -213,224 +299,17 @@ export async function addAcroFormFields(
 		}
 	}
 
-	return pdfDoc.save();
-}
-
-/**
- * JavaScript code to inject into the page for extracting field positions.
- * Returns an array of FieldPosition objects.
- *
- * Note: This function is serialized and executed in the browser context via page.evaluate().
- * The return type annotation is for documentation - the actual function runs in the browser.
- */
-export function extractFieldPositionsScript(): FieldPosition[] {
-	const fields = document.querySelectorAll("[data-form-field]");
-	const positions: Array<{
-		name: string;
-		type: "text" | "textarea" | "select" | "checkbox" | "radio";
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-		options?: string[];
-		value?: string;
-	}> = [];
-
-	for (let i = 0; i < fields.length; i++) {
-		const field = fields[i];
-		if (!field) continue;
-
-		const name = field.getAttribute("data-field-name");
-		const type = field.getAttribute("data-field-type") as
-			| "text"
-			| "textarea"
-			| "select"
-			| "checkbox"
-			| "radio";
-		const value = field.getAttribute("data-field-value") || undefined;
-
-		if (!name || !type) continue;
-
-		// Find the actual input element for positioning
-		const input = field.querySelector("input, textarea, select");
-		if (!input) continue;
-
-		const rect = input.getBoundingClientRect();
-
-		// For select fields, extract options
-		let options: string[] | undefined;
-		if (type === "select") {
-			const selectEl = input as HTMLSelectElement;
-			options = Array.from(selectEl.options).map((opt) => opt.value || opt.text);
+	// Remove background colors from all form field widgets
+	// This is needed because some field types (radio buttons) always set a default
+	for (const field of form.getFields()) {
+		const widgets = field.acroField.getWidgets();
+		for (const widget of widgets) {
+			const mk = widget.dict.get(PDFName.of("MK"));
+			if (mk && mk instanceof PDFDict) {
+				mk.delete(PDFName.of("BG"));
+			}
 		}
-
-		positions.push({
-			name,
-			type,
-			x: rect.x,
-			y: rect.y,
-			width: rect.width,
-			height: rect.height,
-			options,
-			value,
-		});
 	}
 
-	return positions;
-}
-
-/**
- * Standard PDF page sizes in mm.
- */
-const PDF_PAGE_SIZES: Record<string, { width: number; height: number }> = {
-	letter: { width: 215.9, height: 279.4 },
-	legal: { width: 215.9, height: 355.6 },
-	tabloid: { width: 279.4, height: 431.8 },
-	ledger: { width: 431.8, height: 279.4 },
-	a0: { width: 841, height: 1189 },
-	a1: { width: 594, height: 841 },
-	a2: { width: 420, height: 594 },
-	a3: { width: 297, height: 420 },
-	a4: { width: 210, height: 297 },
-	a5: { width: 148, height: 210 },
-	a6: { width: 105, height: 148 },
-};
-
-/**
- * Get PDF content area dimensions in pixels at 96 DPI.
- * This is used to set the viewport for accurate position extraction.
- */
-export function getPdfContentDimensions(pdfOptions: {
-	format?: string;
-	width?: string | number;
-	height?: string | number;
-	margin?: { top?: string | number; right?: string | number; bottom?: string | number; left?: string | number } | string | number;
-	landscape?: boolean;
-}): { width: number; height: number } {
-	// Get page size in mm
-	let pageWidthMm: number;
-	let pageHeightMm: number;
-
-	if (pdfOptions.width && pdfOptions.height) {
-		pageWidthMm = parseLengthToMm(pdfOptions.width);
-		pageHeightMm = parseLengthToMm(pdfOptions.height);
-	} else {
-		const format = (pdfOptions.format || "a4").toLowerCase();
-		const size = PDF_PAGE_SIZES[format] ?? { width: 210, height: 297 }; // Default to A4
-		pageWidthMm = size.width;
-		pageHeightMm = size.height;
-	}
-
-	// Handle landscape
-	if (pdfOptions.landscape) {
-		[pageWidthMm, pageHeightMm] = [pageHeightMm, pageWidthMm];
-	}
-
-	// Get margins
-	const marginMm = getMarginMm(pdfOptions.margin);
-
-	// Calculate content area in mm
-	const contentWidthMm = pageWidthMm - 2 * marginMm;
-	const contentHeightMm = pageHeightMm - 2 * marginMm;
-
-	// Convert to pixels at 96 DPI
-	const mmToPixels = 96 / 25.4;
-	return {
-		width: contentWidthMm * mmToPixels,
-		height: contentHeightMm * mmToPixels,
-	};
-}
-
-/**
- * Parse a length value to mm.
- */
-function parseLengthToMm(value: string | number): number {
-	if (typeof value === "number") {
-		// Assume pixels, convert to mm
-		return value * (25.4 / 96);
-	}
-
-	const mmMatch = value.match(/^(\d+(?:\.\d+)?)\s*mm$/i);
-	if (mmMatch?.[1]) return Number.parseFloat(mmMatch[1]);
-
-	const cmMatch = value.match(/^(\d+(?:\.\d+)?)\s*cm$/i);
-	if (cmMatch?.[1]) return Number.parseFloat(cmMatch[1]) * 10;
-
-	const inMatch = value.match(/^(\d+(?:\.\d+)?)\s*in$/i);
-	if (inMatch?.[1]) return Number.parseFloat(inMatch[1]) * 25.4;
-
-	const pxMatch = value.match(/^(\d+(?:\.\d+)?)\s*px$/i);
-	if (pxMatch?.[1]) return Number.parseFloat(pxMatch[1]) * (25.4 / 96);
-
-	return 210; // Default to A4 width
-}
-
-/**
- * Get the margin in mm from Puppeteer PDF options.
- */
-export function getMarginMm(
-	margin:
-		| { top?: string | number; right?: string | number; bottom?: string | number; left?: string | number }
-		| string
-		| number
-		| undefined,
-): number {
-	if (!margin) return 20; // Default 20mm
-
-	// If it's a number, assume pixels and convert (96 DPI -> mm)
-	if (typeof margin === "number") {
-		return margin * (25.4 / 96);
-	}
-
-	// If it's a string, parse it
-	if (typeof margin === "string") {
-		return parseMarginValue(margin);
-	}
-
-	// If it's an object, use top margin as reference
-	const topMargin = margin.top;
-	if (topMargin === undefined) return 20;
-
-	if (typeof topMargin === "number") {
-		return topMargin * (25.4 / 96);
-	}
-
-	return parseMarginValue(topMargin);
-}
-
-/**
- * Parse a margin value string (e.g., "20mm", "1in", "72pt") to mm.
- */
-function parseMarginValue(value: string): number {
-	// Try mm
-	const mmMatch = value.match(/^(\d+(?:\.\d+)?)\s*mm$/i);
-	if (mmMatch?.[1]) {
-		return Number.parseFloat(mmMatch[1]);
-	}
-
-	// Try inches
-	const inMatch = value.match(/^(\d+(?:\.\d+)?)\s*in$/i);
-	if (inMatch?.[1]) {
-		return Number.parseFloat(inMatch[1]) * 25.4;
-	}
-
-	// Try points
-	const ptMatch = value.match(/^(\d+(?:\.\d+)?)\s*pt$/i);
-	if (ptMatch?.[1]) {
-		return Number.parseFloat(ptMatch[1]) * (25.4 / 72);
-	}
-
-	// Try cm
-	const cmMatch = value.match(/^(\d+(?:\.\d+)?)\s*cm$/i);
-	if (cmMatch?.[1]) {
-		return Number.parseFloat(cmMatch[1]) * 10;
-	}
-
-	// Try px (assume 96 DPI)
-	const pxMatch = value.match(/^(\d+(?:\.\d+)?)\s*px$/i);
-	if (pxMatch?.[1]) {
-		return Number.parseFloat(pxMatch[1]) * (25.4 / 96);
-	}
-
-	return 20; // Default fallback
+	return pdfDoc.save();
 }
