@@ -1,6 +1,7 @@
 .vscode
 node_modules
 fullmakt
+.plans
 
 # generated
 /dist/*
@@ -23,3 +24,6 @@ package-lock.json
 # Electron build artifacts
 packages/desktop/release/
 packages/desktop/out/
+
+# Temporary/scratch files
+tmp/

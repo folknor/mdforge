@@ -218,6 +218,14 @@ export interface Config {
 	 * Automatically numbers headings in the document (e.g., 1., 1.1., 1.2.).
 	 */
 	heading_numbers?: HeadingNumbersConfig;
+
+	/**
+	 * If true, generate fillable PDF forms with real AcroForm fields.
+	 * Form fields rendered by marked-forms will become interactive in PDF readers.
+	 * Default: false (renders print-friendly static forms).
+	 * Note: Ignored when as_html is true.
+	 */
+	fillable?: boolean;
 }
 
 export type PuppeteerLaunchOptions = Parameters<typeof launch>[0];

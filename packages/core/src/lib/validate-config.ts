@@ -36,6 +36,7 @@ const CONFIG_SCHEMA: Record<
 	templates: { type: "object" },
 	page_numbers: { type: "object" },
 	heading_numbers: { type: "object" },
+	fillable: { type: "boolean" },
 };
 
 /**

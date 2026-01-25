@@ -1,6 +1,12 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import puppeteer, { type Browser } from "puppeteer";
+import {
+	type FieldPosition,
+	addAcroFormFields,
+	extractFieldPositionsScript,
+	getMarginMm,
+} from "./acroform.js";
 import type { Config } from "./config.js";
 import { injectPdfMetadata } from "./pdf-metadata.js";
 import { isHttpUrl } from "./util.js";
@@ -86,6 +92,12 @@ export async function generateOutput(
 	// Wait for network to be idle
 	await page.waitForNetworkIdle();
 
+	// Extract field positions if fillable mode is enabled
+	let fieldPositions: FieldPosition[] = [];
+	if (config.fillable && !config.as_html) {
+		fieldPositions = await page.evaluate(extractFieldPositionsScript);
+	}
+
 	let outputFileContent: string | Buffer | Uint8Array;
 
 	if (config.as_html) {
@@ -129,6 +141,14 @@ export async function generateOutput(
 		) {
 			pdfContent = await injectPdfMetadata(Buffer.from(pdfContent), metadata);
 		}
+	}
+
+	// Add AcroForm fields if fillable mode is enabled and we have field positions
+	if (config.fillable && fieldPositions.length > 0) {
+		const marginMm = getMarginMm(config.pdf_options.margin);
+		pdfContent = await addAcroFormFields(Buffer.from(pdfContent), fieldPositions, {
+			marginMm,
+		});
 	}
 
 	return {

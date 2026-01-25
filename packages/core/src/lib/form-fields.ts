@@ -33,6 +33,17 @@ function attrs(obj: Record<string, string | boolean | undefined>): string {
 }
 
 /**
+ * Options for form fields extension.
+ */
+export interface FormFieldsOptions {
+	/**
+	 * If true, add data attributes for AcroForm field extraction.
+	 * Used by fillable PDF generation to locate fields for post-processing.
+	 */
+	fillable?: boolean;
+}
+
+/**
  * Marked extension for form fields using marked-forms syntax.
  *
  * Syntax:
@@ -49,7 +60,8 @@ function attrs(obj: Record<string, string | boolean | undefined>): string {
  *
  * @see https://github.com/jldec/marked-forms
  */
-export function formFields(): MarkedExtension {
+export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
+	const { fillable = false } = options;
 	// Track pending list consumers (select, checklist, radiolist)
 	let pendingListConsumer: {
 		type: FieldType;
@@ -177,7 +189,10 @@ export function formFields(): MarkedExtension {
 						const optionsHtml = options
 							.map((o) => `<option value="${o.value}">${o.text}</option>`)
 							.join("\n");
-						return `<label class="form-field form-select">
+						const dataAttrs = fillable
+							? `data-form-field data-field-name="${name}" data-field-type="select"`
+							: "";
+						return `<label class="form-field form-select" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
 <select name="${name}" ${attrs({ required })}>
 ${optionsHtml}
@@ -189,10 +204,15 @@ ${optionsHtml}
 						const inputType = fieldType === "checklist" ? "checkbox" : "radio";
 						const itemsHtml = options
 							.map(
-								(o, i) => `<label class="form-option">
+								(o, i) => {
+									const optionDataAttrs = fillable
+										? `data-form-field data-field-name="${name}" data-field-type="${inputType}" data-field-value="${o.value}"`
+										: "";
+									return `<label class="form-option" ${optionDataAttrs}>
 <input type="${inputType}" name="${name}" value="${o.value}" ${attrs({ required: i === 0 ? required : undefined })}>
 <span>${o.text}</span>
-</label>`,
+</label>`;
+								},
 							)
 							.join("\n");
 
@@ -250,16 +270,19 @@ ${itemsHtml}
 
 					const required = modifiers.required ? "required" : undefined;
 					const hidden = modifiers.hidden ? "hidden" : undefined;
+					const dataAttrs = fillable
+						? `data-form-field data-field-name="${name}" data-field-type="${fieldType}"`
+						: "";
 
 					if (fieldType === "textarea") {
-						return `<label class="form-field form-textarea">
+						return `<label class="form-field form-textarea" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
 <textarea name="${name}" ${attrs({ required, hidden })}></textarea>
 </label>`;
 					}
 
 					// Text input
-					return `<label class="form-field form-text">
+					return `<label class="form-field form-text" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
 <input type="text" name="${name}" ${attrs({ required, hidden })}>
 </label>`;

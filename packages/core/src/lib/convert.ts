@@ -40,6 +40,7 @@ import { processXref } from "./xref.js";
 /** Options that can be passed from CLI or other callers */
 interface ConvertOptions {
 	"--as-html"?: boolean;
+	"--fillable"?: boolean;
 }
 
 /** Output from convertMdToPdf */
@@ -343,6 +344,11 @@ export const convertMdToPdf = async (
 	// merge --as-html from CLI args
 	if (args["--as-html"]) {
 		config.as_html = true;
+	}
+
+	// merge --fillable from CLI args
+	if (args["--fillable"]) {
+		config.fillable = true;
 	}
 
 	// sanitize the margin in pdf_options

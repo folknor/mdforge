@@ -4,7 +4,22 @@ theme: beryl
 
 # Form Fields
 
-mdforge supports interactive form fields for creating fillable PDF documents.
+mdforge supports form fields for creating fillable PDF documents using marked-forms syntax.
+
+## Syntax Reference
+
+| Type | Syntax | Description |
+|------|--------|-------------|
+| Text | `[Label ??](name)` | Single-line text input |
+| Textarea | `[Label ???](name)` | Multi-line text area |
+| Select | `[?select? Label](name)` + list | Dropdown menu |
+| Radio | `[?radiolist? Label](name)` + list | Single choice |
+| Checkbox | `[?checklist? Label](name)` + list | Multiple choices |
+
+**Modifiers** (append to `??`):
+- `*` = required field
+- `H` = hidden field
+- `M` = modern format (wraps list in `<ul>`)
 
 ## Text Inputs
 
@@ -12,7 +27,7 @@ Basic text input with a label:
 
 [Full Name ??](fullName)
 
-Text input marked as required (asterisk modifier):
+Required field (asterisk modifier):
 
 [Email ??*](email)
 
@@ -26,6 +41,10 @@ Use three question marks for multi-line text areas:
 
 [Comments ???](comments)
 
+Required textarea:
+
+[Description ???*](description)
+
 ## Select Dropdown
 
 Create a dropdown by following the field declaration with a list:
@@ -37,14 +56,29 @@ Create a dropdown by following the field declaration with a list:
 - Australia
 - Other
 
+Required select with modern format:
+
+[?select?*M Preferred Language](language)
+- English
+- Spanish
+- French
+- German
+
 ## Radio Buttons
 
-Radio buttons work the same way, using `?radiolist?`:
+Radio buttons for single-choice selections:
 
 [?radiolist? Payment Method](payment)
 - Credit Card
 - PayPal
 - Bank Transfer
+
+Required radio group:
+
+[?radiolist?* Shipping Speed](shipping)
+- Standard (5-7 days)
+- Express (2-3 days)
+- Overnight
 
 ## Checkboxes
 
@@ -56,9 +90,16 @@ Checkboxes allow multiple selections:
 - Business
 - Marketing
 
+With modern format (wrapped in `<ul>`):
+
+[?checklist?M Features](features)
+- Dark Mode
+- Notifications
+- Auto-save
+
 ## Custom Values
 
-List items can have display text and a separate value:
+List items can have display text and a separate value in quotes:
 
 [?select? Size](size)
 - Small "S"
@@ -66,9 +107,15 @@ List items can have display text and a separate value:
 - Large "L"
 - Extra Large "XL"
 
-## Practical Example: Registration Form
+[?radiolist? Priority](priority)
+- Low Priority "low"
+- Normal Priority "normal"
+- High Priority "high"
+- Urgent "urgent"
 
-### Personal Information
+## Complete Example: Event Registration
+
+### Attendee Information
 
 [First Name ??*](firstName)
 
@@ -76,20 +123,42 @@ List items can have display text and a separate value:
 
 [Email Address ??*](emailAddress)
 
-[Phone ??](phone)
+[Company ??](company)
 
-### Preferences
+[Job Title ??](jobTitle)
 
-[?radiolist? Contact Preference](contactPref)
-- Email
-- Phone
-- No contact
+### Event Preferences
 
-[?checklist? Newsletter Topics](topics)
-- Product Updates
-- Tips & Tutorials
-- Company News
+[?radiolist?* Ticket Type](ticketType)
+- General Admission "$99"
+- VIP Access "$199"
+- Virtual Only "$49"
 
-### Additional Notes
+[?select? T-Shirt Size](tshirtSize)
+- Small "S"
+- Medium "M"
+- Large "L"
+- X-Large "XL"
+- XX-Large "XXL"
 
-[Any questions or comments? ???](notes)
+[?checklist? Sessions of Interest](sessions)
+- Keynote Presentations
+- Technical Workshops
+- Networking Events
+- Panel Discussions
+
+[?radiolist? Dietary Requirements](dietary)
+- No restrictions
+- Vegetarian
+- Vegan
+- Gluten-free
+- Other (specify below)
+
+### Additional Information
+
+[Special requests or accessibility needs ???](specialRequests)
+
+[?checklist? Communication Preferences](commPrefs)
+- Email updates about this event
+- Future event announcements
+- Partner offers

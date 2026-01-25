@@ -27,6 +27,7 @@ const help = (): void =>
     -v, --version           Output version
     -o, --output <path>     Output file path (only for single file)
     --as-html               Output as HTML instead of PDF
+    --fillable              Generate fillable PDF with AcroForm fields
     --config-file <path>    Path to a YAML configuration file
 
   Examples:
@@ -56,6 +57,7 @@ const cliSpec = {
 	"--version": Boolean,
 	"--output": String,
 	"--as-html": Boolean,
+	"--fillable": Boolean,
 	"--config-file": String,
 
 	// aliases

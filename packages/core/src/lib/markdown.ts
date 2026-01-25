@@ -33,7 +33,7 @@ const getMarked = (config: Config): Marked => {
 		highlightExtension,
 		headingExtension,
 		admonitions(),
-		formFields(),
+		formFields({ fillable: config.fillable }),
 		markedSmartypants(),
 		markedFootnote(),
 		markedLinkifyIt(),
