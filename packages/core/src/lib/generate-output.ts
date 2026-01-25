@@ -6,6 +6,7 @@ import {
 	addAcroFormFields,
 	extractFieldPositionsScript,
 	getMarginMm,
+	getPdfContentDimensions,
 } from "./acroform.js";
 import type { Config } from "./config.js";
 import { injectPdfMetadata } from "./pdf-metadata.js";
@@ -95,6 +96,14 @@ export async function generateOutput(
 	// Extract field positions if fillable mode is enabled
 	let fieldPositions: FieldPosition[] = [];
 	if (config.fillable && !config.as_html) {
+		// Set viewport to match PDF content area for accurate position extraction
+		const pdfDimensions = getPdfContentDimensions(config.pdf_options);
+		await page.setViewport({
+			width: Math.round(pdfDimensions.width),
+			height: Math.round(pdfDimensions.height),
+		});
+		// Wait for layout to settle after viewport change
+		await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 		fieldPositions = await page.evaluate(extractFieldPositionsScript);
 	}
 
@@ -146,8 +155,10 @@ export async function generateOutput(
 	// Add AcroForm fields if fillable mode is enabled and we have field positions
 	if (config.fillable && fieldPositions.length > 0) {
 		const marginMm = getMarginMm(config.pdf_options.margin);
+		const pdfDimensions = getPdfContentDimensions(config.pdf_options);
 		pdfContent = await addAcroFormFields(Buffer.from(pdfContent), fieldPositions, {
 			marginMm,
+			contentHeightPx: pdfDimensions.height,
 		});
 	}
 

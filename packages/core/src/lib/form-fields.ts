@@ -5,33 +5,6 @@ import type { MarkedExtension, Tokens } from "marked";
  */
 type FieldType = "text" | "select" | "checklist" | "radiolist" | "textarea";
 
-interface FieldModifiers {
-	required: boolean;
-	hidden: boolean;
-	modern: boolean; // wraps in ul
-}
-
-/**
- * Parse modifiers from the field type string (e.g., "??*" or "?select?M")
- */
-function parseModifiers(typeStr: string): FieldModifiers {
-	return {
-		required: typeStr.includes("*"),
-		hidden: typeStr.includes("H"),
-		modern: typeStr.includes("M"),
-	};
-}
-
-/**
- * Generate HTML attributes string
- */
-function attrs(obj: Record<string, string | boolean | undefined>): string {
-	return Object.entries(obj)
-		.filter(([, v]) => v !== undefined && v !== false)
-		.map(([k, v]) => (v === true ? k : `${k}="${v}"`))
-		.join(" ");
-}
-
 /**
  * Options for form fields extension.
  */
@@ -67,7 +40,6 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 		type: FieldType;
 		name: string;
 		label: string;
-		modifiers: FieldModifiers;
 	} | null = null;
 
 	return {
@@ -78,13 +50,13 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 				level: "block",
 				start(src: string): number | undefined {
 					const match = src.match(
-						/^\[(\?(?:select|checklist|radiolist)\?[*HM]*)\s*([^\]]*)\]\(([^)]*)\)/m,
+						/^\[\?(?:select|checklist|radiolist)\?\s*([^\]]*)\]\(([^)]*)\)/m,
 					);
 					return match?.index;
 				},
 				tokenizer(src: string): Tokens.Generic | undefined {
 					const match =
-						/^\[(\?(?:select|checklist|radiolist)\?[*HM]*)\s*([^\]]*)\]\(([^)]*)\)\n?/.exec(
+						/^\[(\?(?:select|checklist|radiolist)\?)\s*([^\]]*)\]\(([^)]*)\)\n?/.exec(
 							src,
 						);
 					if (match) {
@@ -100,7 +72,6 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 							type,
 							name,
 							label,
-							modifiers: parseModifiers(typeStr),
 						};
 
 						return {
@@ -109,7 +80,6 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 							fieldType: type,
 							name,
 							label,
-							modifiers: parseModifiers(typeStr),
 						};
 					}
 					return;
@@ -169,59 +139,70 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 						fieldType: consumer.type,
 						name: consumer.name,
 						label: consumer.label,
-						modifiers: consumer.modifiers,
 						options,
 					};
 				},
 				renderer(token: Tokens.Generic): string {
-					const { fieldType, name, label, modifiers, options } =
+					const { fieldType, name, label, options } =
 						token as unknown as {
 							fieldType: FieldType;
 							name: string;
 							label: string;
-							modifiers: FieldModifiers;
 							options: Array<{ text: string; value: string }>;
 						};
 
-					const required = modifiers.required ? "required" : undefined;
-
 					if (fieldType === "select") {
-						const optionsHtml = options
-							.map((o) => `<option value="${o.value}">${o.text}</option>`)
-							.join("\n");
-						const dataAttrs = fillable
-							? `data-form-field data-field-name="${name}" data-field-type="select"`
-							: "";
-						return `<label class="form-field form-select" ${dataAttrs}>
+						if (fillable) {
+							// Fillable mode: render as actual select (AcroForm dropdown will work)
+							const optionsHtml = options
+								.map((o) => `<option value="${o.value}">${o.text}</option>`)
+								.join("\n");
+							const dataAttrs = `data-form-field data-field-name="${name}" data-field-type="select"`;
+							return `<label class="form-field form-select" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
-<select name="${name}" ${attrs({ required })}>
+<select name="${name}">
 ${optionsHtml}
 </select>
 </label>\n`;
+						}
+						// Default mode: render as radio buttons (static dropdowns are useless)
+						const itemsHtml = options
+							.map(
+								(o) => `<label class="form-option">
+<input type="radio" name="${name}" value="${o.value}">
+<span>${o.text}</span>
+</label>`,
+							)
+							.join("\n");
+						return `<fieldset class="form-field form-radiolist form-select-as-radio">
+${label ? `<legend class="form-label">${label}</legend>` : ""}
+<div class="form-options">
+${itemsHtml}
+</div>
+</fieldset>\n`;
 					}
 
 					if (fieldType === "checklist" || fieldType === "radiolist") {
 						const inputType = fieldType === "checklist" ? "checkbox" : "radio";
 						const itemsHtml = options
 							.map(
-								(o, i) => {
+								(o) => {
 									const optionDataAttrs = fillable
 										? `data-form-field data-field-name="${name}" data-field-type="${inputType}" data-field-value="${o.value}"`
 										: "";
 									return `<label class="form-option" ${optionDataAttrs}>
-<input type="${inputType}" name="${name}" value="${o.value}" ${attrs({ required: i === 0 ? required : undefined })}>
+<input type="${inputType}" name="${name}" value="${o.value}">
 <span>${o.text}</span>
 </label>`;
 								},
 							)
 							.join("\n");
 
-						const wrapper = modifiers.modern ? "ul" : "div";
 						return `<fieldset class="form-field form-${fieldType}">
 ${label ? `<legend class="form-label">${label}</legend>` : ""}
-<${wrapper} class="form-options">
+<div class="form-options">
 ${itemsHtml}
-</${wrapper}>
+</div>
 </fieldset>\n`;
 					}
 
@@ -238,16 +219,16 @@ ${itemsHtml}
 				},
 				tokenizer(src: string): Tokens.Generic | undefined {
 					// Text input: [Label ??](name) or [??](name)
-					// Textarea: [Label ???](name)
-					const match = /^\[([^\]]*?)(\?{2,3}[*HM]*)\]\(([^)]*)\)/.exec(src);
+					// Textarea: [Label ???](name) or [Label ???6](name) for 6 lines
+					const match = /^\[([^\]]*?)(\?{2,3})(\d*)\]\(([^)]*)\)/.exec(src);
 					if (match) {
 						const label = match[1]?.trim() ?? "";
-						const typeStr = match[2] ?? "??";
+						const questionMarks = match[2] ?? "??";
+						const lineCount = match[3] ? Number.parseInt(match[3], 10) : undefined;
 						const name =
-							match[3]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
+							match[4]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
 
-						const isTextarea = typeStr.startsWith("???");
-						const modifiers = parseModifiers(typeStr);
+						const isTextarea = questionMarks === "???";
 
 						return {
 							type: "formFieldInline",
@@ -255,36 +236,38 @@ ${itemsHtml}
 							fieldType: isTextarea ? "textarea" : "text",
 							name,
 							label,
-							modifiers,
+							lineCount,
 						};
 					}
 					return;
 				},
 				renderer(token: Tokens.Generic): string {
-					const { fieldType, name, label, modifiers } = token as unknown as {
+					const { fieldType, name, label, lineCount } = token as unknown as {
 						fieldType: FieldType;
 						name: string;
 						label: string;
-						modifiers: FieldModifiers;
+						lineCount?: number;
 					};
 
-					const required = modifiers.required ? "required" : undefined;
-					const hidden = modifiers.hidden ? "hidden" : undefined;
 					const dataAttrs = fillable
 						? `data-form-field data-field-name="${name}" data-field-type="${fieldType}"`
 						: "";
 
 					if (fieldType === "textarea") {
+						// Calculate height: default 4 lines, or use lineCount if specified
+						// Each line is approximately 1.5em (line-height) + padding
+						const lines = lineCount ?? 4;
+						const heightStyle = `style="height: ${lines * 1.5}em"`;
 						return `<label class="form-field form-textarea" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
-<textarea name="${name}" ${attrs({ required, hidden })}></textarea>
+<textarea name="${name}" ${heightStyle}></textarea>
 </label>`;
 					}
 
 					// Text input
 					return `<label class="form-field form-text" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
-<input type="text" name="${name}" ${attrs({ required, hidden })}>
+<input type="text" name="${name}">
 </label>`;
 				},
 			},
@@ -300,6 +283,7 @@ export const formFieldsCss = `
 .form-field {
   display: block;
   margin: 0.75em 0;
+  break-inside: avoid;
 }
 
 .form-label {
@@ -317,11 +301,12 @@ export const formFieldsCss = `
   border: 1px solid var(--color-border, #ccc);
   border-radius: 3px;
   font: inherit;
+  box-sizing: border-box;
 }
 
 .form-textarea textarea {
   min-height: 4em;
-  resize: vertical;
+  resize: none;
 }
 
 /* Select dropdowns */
@@ -341,6 +326,7 @@ export const formFieldsCss = `
   border: none;
   padding: 0;
   margin: 0.75em 0;
+  break-inside: avoid;
 }
 
 .form-checklist legend,

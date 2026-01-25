@@ -5,7 +5,7 @@
  * AcroForm fields, making them fillable in PDF readers.
  */
 
-import { PDFDocument, rgb } from "pdf-lib";
+import { type PDFPage, PDFDocument, rgb } from "pdf-lib";
 
 /**
  * Position information for a form field extracted from the DOM.
@@ -37,6 +37,8 @@ export interface PdfPageInfo {
 export interface AcroFormConfig {
 	/** PDF margins in mm (used for coordinate mapping) */
 	marginMm?: number;
+	/** Content area height in pixels (for multi-page support) */
+	contentHeightPx?: number;
 }
 
 /**
@@ -52,13 +54,16 @@ export async function addAcroFormFields(
 	fields: FieldPosition[],
 	config: AcroFormConfig = {},
 ): Promise<Uint8Array> {
-	const { marginMm = 20 } = config;
+	const { marginMm = 20, contentHeightPx } = config;
 
 	const pdfDoc = await PDFDocument.load(pdfBuffer);
 	const pages = pdfDoc.getPages();
+	if (pages.length === 0) {
+		// No pages in PDF, return unchanged
+		return pdfDoc.save();
+	}
 	const firstPage = pages[0];
 	if (!firstPage) {
-		// No pages in PDF, return unchanged
 		return pdfDoc.save();
 	}
 	const { height: pdfHeight } = firstPage.getSize();
@@ -69,6 +74,23 @@ export async function addAcroFormFields(
 
 	// HTML uses 96 DPI, PDF uses 72 DPI
 	const scale = 72 / 96;
+
+	// Calculate page height in pixels for multi-page support
+	// If contentHeightPx is provided, use it to determine page breaks
+	const pageHeightPx = contentHeightPx || (pdfHeight - 2 * marginPt) / scale;
+
+	/**
+	 * Get the PDF page and Y coordinate for a field based on its DOM Y position.
+	 */
+	function getPageAndY(domY: number, domHeight: number): { page: PDFPage; pdfY: number } | null {
+		const pageIndex = Math.floor(domY / pageHeightPx);
+		const yOnPage = domY - pageIndex * pageHeightPx;
+		const page = pages[pageIndex];
+		if (!page) return null;
+		// Convert to PDF coordinates (bottom-left origin)
+		const pdfY = pdfHeight - marginPt - (yOnPage + domHeight) * scale;
+		return { page, pdfY };
+	}
 
 	// Group checkbox/radio fields by name for proper handling
 	const radioGroups = new Map<string, FieldPosition[]>();
@@ -92,17 +114,19 @@ export async function addAcroFormFields(
 
 	// Add simple fields (text, textarea, select, single checkboxes)
 	for (const field of simpleFields) {
+		const pageInfo = getPageAndY(field.y, field.height);
+		if (!pageInfo) continue;
+
 		const pdfX = marginPt + field.x * scale;
-		const pdfY = pdfHeight - marginPt - (field.y + field.height) * scale;
 		const pdfW = field.width * scale;
 		const pdfH = field.height * scale;
 
 		try {
 			if (field.type === "text" || field.type === "textarea") {
 				const textField = form.createTextField(field.name);
-				textField.addToPage(firstPage, {
+				textField.addToPage(pageInfo.page, {
 					x: pdfX,
-					y: pdfY,
+					y: pageInfo.pdfY,
 					width: pdfW,
 					height: pdfH,
 					borderColor: rgb(0.6, 0.6, 0.6),
@@ -114,9 +138,9 @@ export async function addAcroFormFields(
 			} else if (field.type === "select" && field.options) {
 				const dropdown = form.createDropdown(field.name);
 				dropdown.addOptions(field.options);
-				dropdown.addToPage(firstPage, {
+				dropdown.addToPage(pageInfo.page, {
 					x: pdfX,
-					y: pdfY,
+					y: pageInfo.pdfY,
 					width: pdfW,
 					height: pdfH,
 					borderColor: rgb(0.6, 0.6, 0.6),
@@ -125,9 +149,9 @@ export async function addAcroFormFields(
 			} else if (field.type === "checkbox") {
 				const size = Math.min(pdfW, pdfH);
 				const checkbox = form.createCheckBox(field.name);
-				checkbox.addToPage(firstPage, {
+				checkbox.addToPage(pageInfo.page, {
 					x: pdfX,
-					y: pdfY,
+					y: pageInfo.pdfY,
 					width: size,
 					height: size,
 					borderColor: rgb(0.6, 0.6, 0.6),
@@ -144,13 +168,15 @@ export async function addAcroFormFields(
 		try {
 			const radioGroup = form.createRadioGroup(name);
 			for (const opt of options) {
+				const pageInfo = getPageAndY(opt.y, opt.height);
+				if (!pageInfo) continue;
+
 				const pdfX = marginPt + opt.x * scale;
-				const pdfY = pdfHeight - marginPt - (opt.y + opt.height) * scale;
 				const size = Math.min(opt.width, opt.height) * scale;
 
-				radioGroup.addOptionToPage(opt.value || opt.name, firstPage, {
+				radioGroup.addOptionToPage(opt.value || opt.name, pageInfo.page, {
 					x: pdfX,
-					y: pdfY,
+					y: pageInfo.pdfY,
 					width: size,
 					height: size,
 					borderColor: rgb(0.6, 0.6, 0.6),
@@ -165,15 +191,17 @@ export async function addAcroFormFields(
 	// Add checkbox groups (each checkbox needs unique name)
 	for (const [name, options] of checkboxGroups) {
 		for (const opt of options) {
+			const pageInfo = getPageAndY(opt.y, opt.height);
+			if (!pageInfo) continue;
+
 			try {
 				const pdfX = marginPt + opt.x * scale;
-				const pdfY = pdfHeight - marginPt - (opt.y + opt.height) * scale;
 				const size = Math.min(opt.width, opt.height) * scale;
 
 				const checkbox = form.createCheckBox(`${name}_${opt.value}`);
-				checkbox.addToPage(firstPage, {
+				checkbox.addToPage(pageInfo.page, {
 					x: pdfX,
-					y: pdfY,
+					y: pageInfo.pdfY,
 					width: size,
 					height: size,
 					borderColor: rgb(0.6, 0.6, 0.6),
@@ -249,6 +277,92 @@ export function extractFieldPositionsScript(): FieldPosition[] {
 	}
 
 	return positions;
+}
+
+/**
+ * Standard PDF page sizes in mm.
+ */
+const PDF_PAGE_SIZES: Record<string, { width: number; height: number }> = {
+	letter: { width: 215.9, height: 279.4 },
+	legal: { width: 215.9, height: 355.6 },
+	tabloid: { width: 279.4, height: 431.8 },
+	ledger: { width: 431.8, height: 279.4 },
+	a0: { width: 841, height: 1189 },
+	a1: { width: 594, height: 841 },
+	a2: { width: 420, height: 594 },
+	a3: { width: 297, height: 420 },
+	a4: { width: 210, height: 297 },
+	a5: { width: 148, height: 210 },
+	a6: { width: 105, height: 148 },
+};
+
+/**
+ * Get PDF content area dimensions in pixels at 96 DPI.
+ * This is used to set the viewport for accurate position extraction.
+ */
+export function getPdfContentDimensions(pdfOptions: {
+	format?: string;
+	width?: string | number;
+	height?: string | number;
+	margin?: { top?: string | number; right?: string | number; bottom?: string | number; left?: string | number } | string | number;
+	landscape?: boolean;
+}): { width: number; height: number } {
+	// Get page size in mm
+	let pageWidthMm: number;
+	let pageHeightMm: number;
+
+	if (pdfOptions.width && pdfOptions.height) {
+		pageWidthMm = parseLengthToMm(pdfOptions.width);
+		pageHeightMm = parseLengthToMm(pdfOptions.height);
+	} else {
+		const format = (pdfOptions.format || "a4").toLowerCase();
+		const size = PDF_PAGE_SIZES[format] ?? { width: 210, height: 297 }; // Default to A4
+		pageWidthMm = size.width;
+		pageHeightMm = size.height;
+	}
+
+	// Handle landscape
+	if (pdfOptions.landscape) {
+		[pageWidthMm, pageHeightMm] = [pageHeightMm, pageWidthMm];
+	}
+
+	// Get margins
+	const marginMm = getMarginMm(pdfOptions.margin);
+
+	// Calculate content area in mm
+	const contentWidthMm = pageWidthMm - 2 * marginMm;
+	const contentHeightMm = pageHeightMm - 2 * marginMm;
+
+	// Convert to pixels at 96 DPI
+	const mmToPixels = 96 / 25.4;
+	return {
+		width: contentWidthMm * mmToPixels,
+		height: contentHeightMm * mmToPixels,
+	};
+}
+
+/**
+ * Parse a length value to mm.
+ */
+function parseLengthToMm(value: string | number): number {
+	if (typeof value === "number") {
+		// Assume pixels, convert to mm
+		return value * (25.4 / 96);
+	}
+
+	const mmMatch = value.match(/^(\d+(?:\.\d+)?)\s*mm$/i);
+	if (mmMatch?.[1]) return Number.parseFloat(mmMatch[1]);
+
+	const cmMatch = value.match(/^(\d+(?:\.\d+)?)\s*cm$/i);
+	if (cmMatch?.[1]) return Number.parseFloat(cmMatch[1]) * 10;
+
+	const inMatch = value.match(/^(\d+(?:\.\d+)?)\s*in$/i);
+	if (inMatch?.[1]) return Number.parseFloat(inMatch[1]) * 25.4;
+
+	const pxMatch = value.match(/^(\d+(?:\.\d+)?)\s*px$/i);
+	if (pxMatch?.[1]) return Number.parseFloat(pxMatch[1]) * (25.4 / 96);
+
+	return 210; // Default to A4 width
 }
 
 /**

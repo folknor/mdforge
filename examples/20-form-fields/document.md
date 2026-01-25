@@ -11,25 +11,18 @@ mdforge supports form fields for creating fillable PDF documents using marked-fo
 | Type | Syntax | Description |
 |------|--------|-------------|
 | Text | `[Label ??](name)` | Single-line text input |
-| Textarea | `[Label ???](name)` | Multi-line text area |
-| Select | `[?select? Label](name)` + list | Dropdown menu |
+| Textarea | `[Label ???](name)` | Multi-line text area (4 lines default) |
+| Textarea | `[Label ???6](name)` | Multi-line text area (6 lines) |
+| Select | `[?select? Label](name)` + list | Dropdown (fillable) or radio (default) |
 | Radio | `[?radiolist? Label](name)` + list | Single choice |
 | Checkbox | `[?checklist? Label](name)` + list | Multiple choices |
 
-**Modifiers** (append to `??`):
-- `*` = required field
-- `H` = hidden field
-- `M` = modern format (wraps list in `<ul>`)
 
 ## Text Inputs
 
 Basic text input with a label:
 
 [Full Name ??](fullName)
-
-Required field (asterisk modifier):
-
-[Email ??*](email)
 
 Text input without a label:
 
@@ -41,13 +34,13 @@ Use three question marks for multi-line text areas:
 
 [Comments ???](comments)
 
-Required textarea:
+Textarea with specific line count (6 lines):
 
-[Description ???*](description)
+[Bio ???6](bio)
 
 ## Select Dropdown
 
-Create a dropdown by following the field declaration with a list:
+Create a dropdown by following the field declaration with a list. In default mode, selects render as radio buttons since static dropdowns aren't interactive. In fillable mode (`--fillable`), they become real dropdown menus:
 
 [?select? Country](country)
 - United States
@@ -56,9 +49,9 @@ Create a dropdown by following the field declaration with a list:
 - Australia
 - Other
 
-Required select with modern format:
+Another select example:
 
-[?select?*M Preferred Language](language)
+[?select? Preferred Language](language)
 - English
 - Spanish
 - French
@@ -73,9 +66,9 @@ Radio buttons for single-choice selections:
 - PayPal
 - Bank Transfer
 
-Required radio group:
+Another radio example:
 
-[?radiolist?* Shipping Speed](shipping)
+[?radiolist? Shipping Speed](shipping)
 - Standard (5-7 days)
 - Express (2-3 days)
 - Overnight
@@ -90,9 +83,9 @@ Checkboxes allow multiple selections:
 - Business
 - Marketing
 
-With modern format (wrapped in `<ul>`):
+Another checkbox example:
 
-[?checklist?M Features](features)
+[?checklist? Features](features)
 - Dark Mode
 - Notifications
 - Auto-save
@@ -117,11 +110,11 @@ List items can have display text and a separate value in quotes:
 
 ### Attendee Information
 
-[First Name ??*](firstName)
+[First Name ??](firstName)
 
-[Last Name ??*](lastName)
+[Last Name ??](lastName)
 
-[Email Address ??*](emailAddress)
+[Email Address ??](emailAddress)
 
 [Company ??](company)
 
@@ -129,7 +122,7 @@ List items can have display text and a separate value in quotes:
 
 ### Event Preferences
 
-[?radiolist?* Ticket Type](ticketType)
+[?radiolist? Ticket Type](ticketType)
 - General Admission "$99"
 - VIP Access "$199"
 - Virtual Only "$49"
