@@ -1,32 +1,32 @@
 {
-  "name": "@mdforge/renderer-puppeteer",
-  "version": "1.0.0",
+  "dependencies": {
+    "@mdforge/core": "workspace:*",
+    "@mdforge/pdf": "workspace:*",
+    "puppeteer": "^25.1.0"
+  },
   "description": "Puppeteer-based renderer for mdforge",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "typescript": "6.0.3"
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "files": [
     "/dist"
   ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "name": "@mdforge/renderer-puppeteer",
   "scripts": {
-    "dev": "tsc --watch",
     "build": "tsc",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "dev": "tsc --watch"
   },
-  "dependencies": {
-    "@mdforge/core": "workspace:*",
-    "@mdforge/pdf": "workspace:*",
-    "puppeteer": "^24.36.1"
-  },
-  "devDependencies": {
-    "@types/node": "^25.2.0",
-    "typescript": "5.9.3"
-  },
-  "license": "MIT"
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "version": "1.0.0"
 }

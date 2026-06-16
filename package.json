@@ -1,20 +1,4 @@
 {
-  "name": "mdforge-workspace",
-  "private": true,
-  "description": "Convert Markdown to beautifully styled PDFs.",
-  "type": "module",
-  "engines": {
-    "node": ">=24.0",
-    "pnpm": ">=10.0"
-  },
-  "scripts": {
-    "dev": "pnpm -r run dev",
-    "build": "pnpm -r run build",
-    "clean": "pnpm -r run clean",
-    "lint": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
-    "check": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
-    "regenerate-examples": "node scripts/regenerate-examples.js"
-  },
   "author": {
     "name": "folknor",
     "url": "https://github.com/folknor"
@@ -25,10 +9,26 @@
       "url": "https://github.com/simonhaenisch"
     }
   ],
-  "license": "MIT",
-  "repository": "folknor/mdforge",
-  "homepage": "https://github.com/folknor/mdforge",
+  "description": "Convert Markdown to beautifully styled PDFs.",
   "devDependencies": {
-    "@biomejs/biome": "^2.3.14"
-  }
+    "@biomejs/biome": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=24.0",
+    "pnpm": ">=10.0"
+  },
+  "homepage": "https://github.com/folknor/mdforge",
+  "license": "MIT",
+  "name": "mdforge-workspace",
+  "private": true,
+  "repository": "folknor/mdforge",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "check": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
+    "clean": "pnpm -r run clean",
+    "dev": "pnpm -r run dev",
+    "lint": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
+    "regenerate-examples": "node scripts/regenerate-examples.js"
+  },
+  "type": "module"
 }

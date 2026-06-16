@@ -1,42 +1,57 @@
 {
-  "name": "@mdforge/core",
-  "version": "1.0.0",
+  "dependencies": {
+    "@mdforge/pdf": "workspace:*",
+    "font-list": "^2.1.0",
+    "github-slugger": "^2.0.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.5",
+    "marked-footnote": "^1.4.0",
+    "marked-highlight": "^2.2.4",
+    "marked-linkify-it": "^3.1.15",
+    "marked-smartypants": "^1.1.12",
+    "postcss": "^8.5.15",
+    "transliteration": "^2.6.1",
+    "yaml": "^2.9.0"
+  },
   "description": "Core library for mdforge - Convert Markdown to PDF",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "devDependencies": {
+    "@types/linkify-it": "^5.0.0",
+    "google-font-metadata": "^6.0.8",
+    "puppeteer": "^25.1.0",
+    "typescript": "6.0.3"
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
     "./browser": {
-      "types": "./dist/browser.d.ts",
-      "default": "./dist/browser.js"
-    },
-    "./prepare": {
-      "types": "./dist/lib/prepare.d.ts",
-      "default": "./dist/lib/prepare.js"
-    },
-    "./errors": {
-      "types": "./dist/lib/errors.d.ts",
-      "default": "./dist/lib/errors.js"
+      "default": "./dist/browser.js",
+      "types": "./dist/browser.d.ts"
     },
     "./conversion-info": {
-      "types": "./dist/lib/conversion-info.d.ts",
-      "default": "./dist/lib/conversion-info.js"
+      "default": "./dist/lib/conversion-info.js",
+      "types": "./dist/lib/conversion-info.d.ts"
+    },
+    "./errors": {
+      "default": "./dist/lib/errors.js",
+      "types": "./dist/lib/errors.d.ts"
     },
     "./fonts": {
-      "types": "./dist/lib/fonts.d.ts",
-      "default": "./dist/lib/fonts.js"
+      "default": "./dist/lib/fonts.js",
+      "types": "./dist/lib/fonts.d.ts"
     },
     "./includes": {
-      "types": "./dist/lib/includes.d.ts",
-      "default": "./dist/lib/includes.js"
+      "default": "./dist/lib/includes.js",
+      "types": "./dist/lib/includes.d.ts"
+    },
+    "./prepare": {
+      "default": "./dist/lib/prepare.js",
+      "types": "./dist/lib/prepare.d.ts"
     },
     "./util": {
-      "types": "./dist/lib/util.d.ts",
-      "default": "./dist/lib/util.js"
+      "default": "./dist/lib/util.js",
+      "types": "./dist/lib/util.d.ts"
     }
   },
   "files": [
@@ -44,32 +59,17 @@
     "/themes",
     "/src/data"
   ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "name": "@mdforge/core",
   "scripts": {
-    "dev": "tsc --watch",
-    "prebuild": "node scripts/generate-google-fonts-list.js",
     "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "tsc --watch",
     "postbuild": "cp -r src/data dist/",
-    "clean": "rm -rf dist"
+    "prebuild": "node scripts/generate-google-fonts-list.js"
   },
-  "dependencies": {
-    "@mdforge/pdf": "workspace:*",
-    "font-list": "^2.0.2",
-    "github-slugger": "^2.0.0",
-    "highlight.js": "^11.11.1",
-    "marked": "^17.0.1",
-    "marked-footnote": "^1.4.0",
-    "marked-highlight": "^2.2.3",
-    "marked-linkify-it": "^3.1.14",
-    "marked-smartypants": "^1.1.11",
-    "postcss": "^8.5.6",
-    "transliteration": "^2.6.1",
-    "yaml": "^2.8.2"
-  },
-  "devDependencies": {
-    "@types/linkify-it": "^5.0.0",
-    "google-font-metadata": "^6.0.8",
-    "puppeteer": "^24.36.1",
-    "typescript": "5.9.3"
-  },
-  "license": "MIT"
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "version": "1.0.0"
 }

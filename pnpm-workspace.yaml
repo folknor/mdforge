@@ -1,6 +1,12 @@
 packages:
   - packages/*
 
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  puppeteer: true
+
 onlyBuiltDependencies:
   - core-js
   - electron
