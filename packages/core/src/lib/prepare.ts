@@ -464,9 +464,14 @@ export async function prepareConversion(
 
   const html = getHtml(processedMd, config);
 
-  const relativePath =
-    "path" in input ? relative(config.basedir, input.path) : ".";
-  const baseUrl = `file://${resolve(config.basedir, relativePath)}/`;
+  // The <base href> must point at the directory containing the document, not
+  // at the document itself — otherwise a relative image resolves to
+  // "…/doc.md/image.jpg" and fails to load.
+  const baseDirForUrl =
+    "path" in input
+      ? dirname(resolve(config.basedir, relative(config.basedir, input.path)))
+      : resolve(config.basedir);
+  const baseUrl = `file://${baseDirForUrl}/`;
 
   return {
     html,

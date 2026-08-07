@@ -6,6 +6,9 @@
 
 import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import type { PreparedConversion } from "@mdforge/core/prepare";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
@@ -104,7 +107,28 @@ export async function render(
     "<head>",
     `<head><base href="${prepared.baseUrl}">`,
   );
-  await page.setContent(htmlWithBase, { waitUntil: "domcontentloaded" });
+
+  // Load the page from a real file:// URL rather than via setContent. A page
+  // populated by setContent has an about:blank origin, and Chromium refuses to
+  // load file:// subresources from it — so every relative <img>, and any local
+  // font or asset, silently fails to render. Writing the HTML into the
+  // document's own directory gives the page a file:// origin and makes those
+  // relative paths resolve naturally. Falls back to setContent if the
+  // directory is not writable.
+  const baseDir = fileURLToPath(prepared.baseUrl);
+  let tempHtmlPath: string | undefined = join(
+    baseDir,
+    `.mdforge-${process.pid}-${Date.now()}.html`,
+  );
+  try {
+    await fs.writeFile(tempHtmlPath, htmlWithBase, "utf-8");
+    await page.goto(pathToFileURL(tempHtmlPath).href, {
+      waitUntil: "domcontentloaded",
+    });
+  } catch {
+    tempHtmlPath = undefined;
+    await page.setContent(htmlWithBase, { waitUntil: "domcontentloaded" });
+  }
 
   // Add stylesheets
   for (const stylesheet of prepared.stylesheets) {
@@ -124,6 +148,11 @@ export async function render(
 
   // Wait for network to be idle
   await page.waitForNetworkIdle();
+
+  // The page is fully loaded; the scratch HTML is no longer needed.
+  if (tempHtmlPath) {
+    await fs.rm(tempHtmlPath, { force: true });
+  }
 
   // Extract form field info if fillable mode is enabled
   let selectOptions: Map<string, string[]> | undefined;
