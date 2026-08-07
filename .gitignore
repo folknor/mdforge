@@ -27,3 +27,6 @@ packages/desktop/out/
 
 # Temporary/scratch files
 tmp/
+
+# Client-specific themes (proprietary fonts, kept out of the public repo)
+client-themes/
