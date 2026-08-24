@@ -37,6 +37,9 @@ const CONFIG_SCHEMA: Record<
   page_numbers: { type: "object" },
   heading_numbers: { type: "object" },
   fillable: { type: "boolean" },
+  constants: { type: "object" },
+  constants_locale: { type: "string" },
+  constants_precision: { type: "number" },
 };
 
 /**
@@ -411,6 +414,26 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
         message: "skip_first_h1 must be a boolean",
         value: config.heading_numbers.skip_first_h1,
       });
+    }
+  }
+
+  // Validate constants are flat name → number|string pairs
+  if (config.constants && typeof config.constants === "object") {
+    for (const [key, value] of Object.entries(config.constants)) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+        errors.push({
+          path: `constants.${key}`,
+          message:
+            "Constant names must start with a letter or underscore and contain only letters, digits and underscores",
+        });
+      }
+      if (typeof value !== "number" && typeof value !== "string") {
+        errors.push({
+          path: `constants.${key}`,
+          message: "Constants must be a number or a string",
+          value,
+        });
+      }
     }
   }
 

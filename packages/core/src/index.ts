@@ -15,6 +15,8 @@ export {
   type Theme,
   themes,
 } from "./lib/config.js";
+// Document constants
+export type { ConstantValue } from "./lib/constants.js";
 // Conversion info for CLI output
 export {
   type ConversionInfo,

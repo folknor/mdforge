@@ -18,7 +18,8 @@ nav = [
     "guides/themes.md",
     "guides/headers-footers.md",
     "guides/fonts.md",
-    "guides/includes.md"
+    "guides/includes.md",
+    "guides/constants.md"
   ]},
   {"Reference" = [
     "reference/configuration.md",

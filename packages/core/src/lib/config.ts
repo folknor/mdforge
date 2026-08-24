@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
+import type { ConstantValue } from "./constants.js";
 import type { FontConfig } from "./fonts.js";
 import type { HeadingNumbersConfig } from "./heading-numbers.js";
 import type { TemplatesConfig } from "./includes.js";
@@ -226,6 +227,23 @@ export interface Config {
    * Note: Ignored when as_html is true.
    */
   fillable?: boolean;
+
+  /**
+   * Named values substituted into `{{ ... }}` placeholders in the document.
+   * Numeric constants can also be combined arithmetically: `{{ rate * 1.5 }}`.
+   */
+  constants?: Record<string, ConstantValue>;
+
+  /**
+   * BCP 47 locale used to format numeric `{{ ... }}` results, e.g. "nb-NO"
+   * renders 15000 as `15 000`. Default: unformatted.
+   */
+  constants_locale?: string;
+
+  /**
+   * Maximum fraction digits in a `{{ ... }}` result. Default: 2.
+   */
+  constants_precision?: number;
 
   /**
    * Iconify API endpoint for fetching icons.

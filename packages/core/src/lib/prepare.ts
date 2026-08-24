@@ -10,6 +10,7 @@ import process from "node:process";
 import type { FrameAddScriptTagOptions, PDFOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
 import { type Config, themes, themesDir } from "./config.js";
+import { processConstants } from "./constants.js";
 import {
   type ConversionInfo,
   createConversionInfo,
@@ -367,6 +368,17 @@ export async function prepareConversion(
   } catch (error) {
     const err = error as Error;
     throw new IncludeError("", err.message);
+  }
+
+  // Substitute {{ constant }} / {{ constant * 1.5 }} placeholders.
+  // Runs after includes so included files see the same constants.
+  const constants = processConstants(processedMd, config.constants, {
+    locale: config.constants_locale,
+    precision: config.constants_precision,
+  });
+  processedMd = constants.content;
+  for (const warning of constants.warnings) {
+    info.warnings.push(`Constant: ${warning}`);
   }
 
   // Process :icon[prefix:name] syntax - fetch and inline SVGs from Iconify

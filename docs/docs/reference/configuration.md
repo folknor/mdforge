@@ -90,6 +90,9 @@ heading_numbers: false
 | `templates` | `object` | - | Named templates for @include |
 | `page_numbers` | `object` | - | Page number format |
 | `heading_numbers` | `object` | - | Heading numbering options |
+| `constants` | `object` | - | Named values for `{{ ... }}` placeholders |
+| `constants_locale` | `string` | - | Locale for grouping numeric results |
+| `constants_precision` | `number` | `2` | Maximum fraction digits in a result |
 
 ## PDF Options
 
