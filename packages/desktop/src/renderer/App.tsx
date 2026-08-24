@@ -109,10 +109,8 @@ export default function App(): React.ReactElement {
 
     return (): void => {
       unsubscribe();
-      if (watchedFileRef.current) {
-        void window.electron.unwatchFile(watchedFileRef.current);
-        watchedFileRef.current = null;
-      }
+      void window.electron.unwatchFile(watchedFile);
+      watchedFileRef.current = null;
     };
   }, [selectedFile, generatePreview]);
 
