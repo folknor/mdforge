@@ -15,6 +15,7 @@ mdforge [options] <files...>
 | `-o, --output <path>` | Output file path (single file only) |
 | `--as-html` | Output HTML instead of PDF |
 | `--config-file <path>` | Path to YAML configuration file |
+| `-w, --watch` | Re-render when an input file or its stylesheet changes |
 
 ## Examples
 
@@ -35,9 +36,22 @@ mdforge document.md --config-file config.yaml
 # Output HTML for debugging
 mdforge --as-html document.md
 
+# Re-render on every save (ctrl-c to stop)
+mdforge --watch document.md
+
 # Pipe from stdin
 cat document.md | mdforge > output.pdf
 ```
+
+## Watch mode
+
+`--watch` renders once, then re-renders whenever an input changes. Alongside the
+Markdown itself it watches the stylesheet the document resolved to and the
+`--config-file`, so a theme edit retriggers the render too. The browser stays open
+between runs, which makes each re-render considerably faster than a cold start.
+
+Saves are debounced, so the burst of writes an editor makes on save produces a
+single render. Press ctrl-c to stop.
 
 ## Programmatic API
 

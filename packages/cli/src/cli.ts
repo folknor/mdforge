@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { promises as fs } from "node:fs";
+import { existsSync, type FSWatcher, promises as fs, watch } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
@@ -29,6 +29,7 @@ const help = (): void =>
     --as-html               Output as HTML instead of PDF
     --fillable              Generate fillable PDF with AcroForm fields
     --config-file <path>    Path to a YAML configuration file
+    -w, --watch             Re-render when an input file or its stylesheet changes
 
   Examples:
 
@@ -37,6 +38,7 @@ const help = (): void =>
     $ mdforge *.md
     $ mdforge --as-html README.md
     $ mdforge --config-file config.yaml docs/*.md
+    $ mdforge --watch doc.md
 
   Config files use YAML format:
 
@@ -59,11 +61,13 @@ const cliSpec = {
   "--as-html": Boolean,
   "--fillable": Boolean,
   "--config-file": String,
+  "--watch": Boolean,
 
   // aliases
   "-h": "--help",
   "-v": "--version",
   "-o": "--output",
+  "-w": "--watch",
 } as const;
 
 export const cliFlags: arg.Result<typeof cliSpec> = arg(cliSpec);
@@ -149,46 +153,173 @@ async function main(args: typeof cliFlags): Promise<void> {
     config.dest = resolve(args["--output"]);
   }
 
-  // Store results for info display
-  const results: Map<string, ConvertResult> = new Map();
+  const render = async (
+    targets: string[],
+  ): Promise<Map<string, ConvertResult>> => {
+    // Store results for info display
+    const results: Map<string, ConvertResult> = new Map();
 
-  const getListrTask = (file: string): Listr.ListrTask => ({
-    title: `generating ${args["--as-html"] ? "HTML" : "PDF"} from ${basename(file)}`,
-    task: async (): Promise<ConvertResult> => {
-      const result = await convertMdToPdf({ path: file }, config, { args });
-      results.set(file, result);
-      return result;
-    },
-  });
-
-  await new Listr(files.map(getListrTask), {
-    concurrent: true,
-    exitOnError: false,
-  })
-    .run()
-    .finally(async () => {
-      await closeBrowser();
+    const getListrTask = (file: string): Listr.ListrTask => ({
+      title: `generating ${args["--as-html"] ? "HTML" : "PDF"} from ${basename(file)}`,
+      task: async (): Promise<ConvertResult> => {
+        const result = await convertMdToPdf({ path: file }, config, { args });
+        results.set(file, result);
+        return result;
+      },
     });
 
-  // Display conversion info for each file
-  for (const [file, result] of results) {
-    if (files.length > 1) {
-      console.log(`\n${basename(file)}:`);
-    }
+    await new Listr(targets.map(getListrTask), {
+      concurrent: true,
+      exitOnError: false,
+    }).run();
 
-    // Display any warnings
-    if (result.info.warnings?.length > 0) {
-      for (const warning of result.info.warnings) {
-        console.warn(warning);
+    // Display conversion info for each file
+    for (const [file, result] of results) {
+      if (targets.length > 1) {
+        console.log(`\n${basename(file)}:`);
+      }
+
+      // Display any warnings
+      if (result.info.warnings?.length > 0) {
+        for (const warning of result.info.warnings) {
+          console.warn(warning);
+        }
+      }
+
+      const infoText = formatConversionInfo(result.info);
+      if (infoText) {
+        console.log(infoText);
+      }
+      if (result.info.output?.path && result.info.output.path !== "stdout") {
+        console.log(`  → ${result.info.output.path}`);
       }
     }
 
-    const infoText = formatConversionInfo(result.info);
-    if (infoText) {
-      console.log(infoText);
-    }
-    if (result.info.output?.path && result.info.output.path !== "stdout") {
-      console.log(`  → ${result.info.output.path}`);
-    }
+    return results;
+  };
+
+  const initial = await render(files).catch(async (error: unknown) => {
+    await closeBrowser();
+    throw error;
+  });
+
+  if (!args["--watch"]) {
+    await closeBrowser();
+    return;
   }
+
+  watchAndRerender(files, initial, args["--config-file"], render);
+}
+
+// --
+// Watch Mode
+
+/**
+ * Re-render inputs whenever they — or a file they depend on — change.
+ *
+ * Watches the containing *directories* rather than the files themselves: many
+ * editors save by writing a temp file and renaming it over the original, which
+ * leaves a file-level watcher bound to a deleted inode.
+ */
+function watchAndRerender(
+  files: string[],
+  initial: Map<string, ConvertResult>,
+  configFile: string | undefined,
+  render: (targets: string[]) => Promise<Map<string, ConvertResult>>,
+): void {
+  const debounceMs = 150;
+
+  // absolute path of a watched file -> inputs that must be re-rendered
+  const dependents = new Map<string, Set<string>>();
+  const watchedDirs = new Map<string, FSWatcher>();
+  const timers = new Map<string, NodeJS.Timeout>();
+  const queued = new Set<string>();
+  let rendering = false;
+
+  const rerender = async (): Promise<void> => {
+    if (rendering || queued.size === 0) return;
+    rendering = true;
+    const targets = [...queued];
+    queued.clear();
+    try {
+      const results = await render(targets);
+      for (const file of targets) {
+        trackDeps(file, results.get(file));
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+    } finally {
+      rendering = false;
+      // Changes that landed mid-render
+      void rerender();
+    }
+  };
+
+  const schedule = (file: string): void => {
+    clearTimeout(timers.get(file));
+    timers.set(
+      file,
+      setTimeout(() => {
+        timers.delete(file);
+        queued.add(file);
+        void rerender();
+      }, debounceMs),
+    );
+  };
+
+  const watchDir = (dir: string): void => {
+    if (watchedDirs.has(dir)) return;
+    const watcher = watch(dir, { persistent: true }, (_event, filename) => {
+      if (!filename) return;
+      const changed = resolve(dir, filename.toString());
+      for (const file of dependents.get(changed) ?? []) {
+        schedule(file);
+      }
+    });
+    watcher.on("error", (error: Error) => {
+      console.warn(`Warning: stopped watching ${dir}: ${error.message}`);
+      watchedDirs.delete(dir);
+    });
+    watchedDirs.set(dir, watcher);
+  };
+
+  const addDep = (target: string, file: string): void => {
+    if (!existsSync(target)) return;
+    const set = dependents.get(target) ?? new Set<string>();
+    set.add(file);
+    dependents.set(target, set);
+    watchDir(dirname(target));
+  };
+
+  /** Track a rendered file's own path plus the stylesheet it resolved to. */
+  const trackDeps = (file: string, result?: ConvertResult): void => {
+    const path = resolve(file);
+    addDep(path, file);
+    if (configFile) {
+      addDep(resolve(configFile), file);
+    }
+    const stylesheet = result?.info.stylesheet;
+    if (stylesheet?.type === "specified" && stylesheet.path) {
+      addDep(resolve(dirname(path), stylesheet.path), file);
+    }
+  };
+
+  for (const file of files) {
+    trackDeps(file, initial.get(file));
+  }
+
+  const shutdown = (): void => {
+    for (const watcher of watchedDirs.values()) {
+      watcher.close();
+    }
+    void closeBrowser().then(() => process.exit(0));
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
+  const first = files[0];
+  const what =
+    files.length === 1 && first ? basename(first) : `${files.length} files`;
+  console.log(`\nwatching ${what} — ctrl-c to stop`);
 }
