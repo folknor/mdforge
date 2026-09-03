@@ -10,3 +10,5 @@ export {
 } from "./acroform.js";
 
 export { injectPdfMetadata, type PdfMetadata } from "./metadata.js";
+
+export { type OutlineEntry, readOutline } from "./outline.js";

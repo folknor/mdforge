@@ -49,6 +49,10 @@
       "default": "./dist/lib/prepare.js",
       "types": "./dist/lib/prepare.d.ts"
     },
+    "./xref": {
+      "default": "./dist/lib/xref.js",
+      "types": "./dist/lib/xref.d.ts"
+    },
     "./util": {
       "default": "./dist/lib/util.js",
       "types": "./dist/lib/util.d.ts"

@@ -345,6 +345,7 @@ pre,
 blockquote,
 table,
 figure,
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier `figure img` rule sets margins only, so this break property never competes with it. */
 img,
 tr {
   page-break-inside: avoid;
@@ -355,6 +356,7 @@ thead {
   display: table-header-group;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier `li > p` rule sets margins only, so orphans/widows never compete with it. */
 p,
 h2,
 h3 {

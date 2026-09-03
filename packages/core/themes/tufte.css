@@ -350,6 +350,7 @@ pre,
 blockquote,
 table,
 figure,
+/* biome-ignore lint/style/noDescendingSpecificity: the earlier `figure img` rule sets margins only, so this break property never competes with it. */
 img {
   page-break-inside: avoid;
 }

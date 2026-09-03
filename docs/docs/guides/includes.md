@@ -76,3 +76,22 @@ Create invisible link targets:
 
 This paragraph can now be linked to with @see(Important Note).
 ```
+
+### Page Numbers
+
+`@pageof` prints the page a heading landed on, which is useful for a hand-built
+table of contents or a printed reference that has to name a page:
+
+```markdown
+| 1. Introduction | Page @pageof(Introduction) |
+| 2. Installation | Page @pageof(Installation) |
+```
+
+The number is only known once the document has been laid out, so mdforge
+renders the PDF, reads the heading positions back from it, and renders again
+with the real numbers filled in. A reference that names a heading which does
+not exist is left as `??` rather than failing the build.
+
+This works for PDF output only. In HTML there are no pages, so the placeholder
+is left as-is. Because the extra pass costs another render, it only happens for
+documents that actually use `@pageof`.
