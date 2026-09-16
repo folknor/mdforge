@@ -30,6 +30,11 @@ pdf_options:
 toc_options:
   skip_first_h1: false
   maxdepth: 6
+  style: bullet
+  page_numbers: false
+  page_label: ""
+  page_separator: " — "
+  # table_headers: ["", ""]
 
 header:
   left: ""
@@ -140,6 +145,38 @@ page_numbers:
   format: roman      # arabic, roman, roman-upper, alpha, alpha-upper
   start: 1
 ```
+
+## Table of Contents
+
+Insert `<!-- toc -->` in the document where the contents list should go.
+
+```yaml
+toc_options:
+  skip_first_h1: false    # Skip the first h1 (usually the document title)
+  maxdepth: 6             # Deepest heading level to include
+  style: table            # bullet (default), ordered, or table
+  page_numbers: true      # Resolve the printed page of each heading
+  page_label: "Side "     # Text before the page number
+  page_separator: " — "   # Between title and page (bullet/ordered only)
+  table_headers: ["", ""] # Header cells for the table style
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `skip_first_h1` | `boolean` | `false` | Leave the first h1 out of the list |
+| `maxdepth` | `number` | `6` | Deepest heading level included |
+| `style` | `string` | `"bullet"` | `bullet`, `ordered` or `table` |
+| `page_numbers` | `boolean` | `false` | Append each heading's printed page |
+| `page_label` | `string` | `""` | Text before the page number, e.g. `"Side "` |
+| `page_separator` | `string` | `" — "` | Title/page separator in list styles |
+| `table_headers` | `[string, string]` | `["", ""]` | Header cells for `style: table` |
+
+Page numbers use the same machinery as `@pageof(...)`: the PDF is rendered,
+its outline is read back, and the real numbers are filled in on a second pass.
+They are therefore only available when producing a PDF, not with `--as-html`.
+
+When `heading_numbers` is enabled, contents entries carry the same numbers as
+the rendered headings.
 
 ## Heading Numbers
 

@@ -75,6 +75,8 @@ export const defaultConfig: Config = {
   toc_options: {
     skip_first_h1: false,
     maxdepth: 6,
+    style: "bullet",
+    page_numbers: false,
   },
 };
 

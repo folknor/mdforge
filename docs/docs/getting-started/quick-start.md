@@ -83,3 +83,12 @@ Content...
 
 More content...
 ```
+
+For a printed contents page with page numbers, use the table style:
+
+```yaml
+toc_options:
+  style: table
+  page_numbers: true
+  page_label: "Side "
+```

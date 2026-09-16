@@ -50,6 +50,63 @@ function generateSlug(sectionName: string): string {
 }
 
 /**
+ * Markup for one unresolved page reference pointing at `slug`.
+ *
+ * Exported so generators that run *after* {@link processXref} (the TOC, which
+ * is expanded during markdown-to-HTML conversion) can emit page references
+ * directly instead of `@pageof(...)` text that would never be processed.
+ */
+export function pageRefSpan(slug: string): string {
+  return `<span class="mdforge-pageref" ${PAGEREF_ATTR}="${slug}">${PAGEREF_PLACEHOLDER}</span>`;
+}
+
+/**
+ * Strip a leading heading number such as `8. `, `2.3. `, `A) ` or `iv. `
+ * from a title. Returns `undefined` when there is nothing to strip.
+ *
+ * Only labels a list actually produces are recognised: digits (possibly
+ * dotted), a single letter, or a roman numeral. Anything broader would eat
+ * real words — "NB. Viktig" is a title, not a numbered heading.
+ */
+function stripHeadingNumber(title: string): string | undefined {
+  // The roman branch comes first so "ii. " strips as a numeral rather than
+  // leaving "i. " behind; a single letter that is also a roman digit (i, v,
+  // x, …) strips identically either way, so the overlap is harmless.
+  const stripped = title.replace(
+    /^(?:[0-9]+(?:[.)][0-9]+)*|[ivxlcdm]+|[a-z])[.)]\s+/i,
+    "",
+  );
+  return stripped === title || stripped.length === 0 ? undefined : stripped;
+}
+
+/**
+ * Undo Chrome's doubled outline titles.
+ *
+ * A heading that lands against a page boundary is sometimes written to the
+ * outline with its text repeated verbatim ("2. Intro2. Intro"), which no slug
+ * can match. Only an exact two-halves repeat is undone, so a heading genuinely
+ * named "blahblah" is left alone. Returns `undefined` when nothing was doubled.
+ */
+function numberedHalf(title: string): string | undefined {
+  const half = undoubleTitle(title);
+  // Chrome repeats the *rendered* title, heading number included, so a half
+  // without a leading label is a real heading rather than a doubled one.
+  return half !== undefined && stripHeadingNumber(half) !== undefined
+    ? half
+    : undefined;
+}
+
+/** The first half of an exact two-halves repeat, or `undefined`. */
+function undoubleTitle(title: string): string | undefined {
+  if (title.length < 2 || title.length % 2 !== 0) {
+    return undefined;
+  }
+  const half = title.length / 2;
+  const first = title.slice(0, half);
+  return first === title.slice(half) ? first : undefined;
+}
+
+/**
  * Process cross-references and anchors in markdown content.
  * - @see Section Name → [Section Name](#section-name)
  * - @anchor Custom Point → <a id="custom-point"></a>
@@ -71,10 +128,9 @@ export function processXref(content: string): string {
 
   // Process @pageof references. The real number is only knowable once the PDF
   // has been laid out, so emit a placeholder the renderer fills in afterwards.
-  result = result.replace(PAGEOF_REGEX, (_match, sectionName: string) => {
-    const slug = generateSlug(sectionName.trim());
-    return `<span class="mdforge-pageref" ${PAGEREF_ATTR}="${slug}">${PAGEREF_PLACEHOLDER}</span>`;
-  });
+  result = result.replace(PAGEOF_REGEX, (_match, sectionName: string) =>
+    pageRefSpan(generateSlug(sectionName.trim())),
+  );
 
   return result;
 }
@@ -99,11 +155,39 @@ export function resolvePageRefs(
   headingPages: Map<string, number>,
 ): { html: string; changed: boolean } {
   const pageBySlug = new Map<string, number>();
+  // Fallbacks for outline titles carrying an automatic heading number: the
+  // heading's id is built from the un-numbered text, so "8. Avvik" in the
+  // outline must also answer for the slug "avvik". Only used when no heading
+  // claims that slug directly.
+  const fallbackBySlug = new Map<string, number>();
+  const addFallback = (title: string, page: number): void => {
+    const slug = generateSlug(title);
+    if (!fallbackBySlug.has(slug)) {
+      fallbackBySlug.set(slug, page);
+    }
+  };
   for (const [title, page] of headingPages) {
     const slug = generateSlug(title);
     // A repeated heading resolves to its first occurrence.
     if (!pageBySlug.has(slug)) {
       pageBySlug.set(slug, page);
+    }
+    // Both manglings can apply at once: Chrome doubles a numbered heading as
+    // "3.1. Late3.1. Late", which has to be undoubled before the number strips.
+    // Only a numbered half counts as doubling — otherwise a heading genuinely
+    // named "blahblah" would claim the slug "blah" and answer for it wrongly.
+    const undoubled = numberedHalf(title);
+    if (undoubled !== undefined) {
+      addFallback(undoubled, page);
+    }
+    for (const variant of [title, undoubled]) {
+      if (variant === undefined) {
+        continue;
+      }
+      const unnumbered = stripHeadingNumber(variant);
+      if (unnumbered !== undefined) {
+        addFallback(unnumbered, page);
+      }
     }
   }
 
@@ -111,7 +195,7 @@ export function resolvePageRefs(
   const updated = html.replace(
     PAGEREF_SPAN_REGEX,
     (match, open: string, slug: string, body: string) => {
-      const page = pageBySlug.get(slug);
+      const page = pageBySlug.get(slug) ?? fallbackBySlug.get(slug);
       if (page === undefined) {
         return match;
       }

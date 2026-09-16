@@ -71,7 +71,9 @@
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "postbuild": "cp -r src/data dist/",
-    "prebuild": "node scripts/generate-google-fonts-list.js"
+    "prebuild": "node scripts/generate-google-fonts-list.js",
+    "pretest": "pnpm run build",
+    "test": "node --test \"test/*.test.ts\""
   },
   "type": "module",
   "types": "dist/index.d.ts",

@@ -35,7 +35,7 @@ import {
   resolveFileRefs,
 } from "./util.js";
 import { formatValidationErrors, validateConfig } from "./validate-config.js";
-import { processXref } from "./xref.js";
+import { hasPageRefs, processXref } from "./xref.js";
 
 const require: NodeRequire = createRequire(import.meta.url);
 
@@ -475,6 +475,15 @@ export async function prepareConversion(
   }
 
   const html = getHtml(processedMd, config);
+
+  // Page numbers are read back from a laid-out PDF, so HTML output has nothing
+  // to resolve them against and the "??" placeholders survive into the file.
+  // Say so rather than letting the user discover it in the output.
+  if (config.as_html && hasPageRefs(html)) {
+    info.warnings.push(
+      "Page references (@pageof / toc_options.page_numbers) cannot be resolved for HTML output; they render as '??' placeholders.",
+    );
+  }
 
   // The <base href> must point at the directory containing the document, not
   // at the document itself — otherwise a relative image resolves to

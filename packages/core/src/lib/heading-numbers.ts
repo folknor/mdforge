@@ -105,6 +105,104 @@ function formatNumber(num: number, format: HeadingNumberFormat): string {
 }
 
 /**
+ * Hierarchical heading counter.
+ *
+ * Shared by the marked renderer extension and the TOC generator so both produce
+ * the same numbers from the same config. It is stateful: feed it every heading
+ * of the document, in document order, exactly once — including headings it will
+ * not number, since they still affect the first-h1 tracking.
+ */
+export class HeadingNumberer {
+  private readonly format: HeadingNumberFormat;
+  private readonly startDepth: number;
+  private readonly maxDepth: number;
+  private readonly separator: string;
+  private readonly skipFirstH1: boolean;
+
+  /** Counter per heading level (1-6). */
+  private readonly counters = [0, 0, 0, 0, 0, 0];
+  private firstH1Seen = false;
+  /**
+   * True while the level-1 counter holds a stand-in for a skipped first h1:
+   * its sections need a parent number ("1.1.", not "0.1."), but the skipped
+   * heading itself must not consume one, so the next real h1 is still "1.".
+   */
+  private phantomH1 = false;
+
+  constructor(config: HeadingNumbersConfig = {}) {
+    const {
+      format = "arabic",
+      start_depth = 2,
+      max_depth = 6,
+      separator = ".",
+      skip_first_h1 = true,
+    } = config;
+    this.format = format;
+    this.startDepth = start_depth;
+    this.maxDepth = max_depth;
+    this.separator = separator;
+    this.skipFirstH1 = skip_first_h1;
+  }
+
+  /**
+   * Advance the counters for a heading and return its number prefix, including
+   * the trailing separator (e.g. `"8."` or `"2.3."`). Returns `undefined` when
+   * the heading falls outside the configured depth range.
+   */
+  public next(depth: number): string | undefined {
+    const shouldNumber =
+      depth >= this.startDepth &&
+      depth <= this.maxDepth &&
+      !(this.skipFirstH1 && depth === 1 && !this.firstH1Seen);
+
+    if (depth === 1) {
+      this.firstH1Seen = true;
+    }
+
+    if (!shouldNumber) {
+      // A skipped first h1 still parents the sections under it, so give it a
+      // stand-in number when level 1 is part of the printed prefix.
+      if (depth === 1 && this.startDepth === 1) {
+        this.counters[0] = 1;
+        this.phantomH1 = true;
+      }
+      return undefined;
+    }
+
+    // Reset deeper level counters when a shallower heading appears
+    for (let i = depth; i < 6; i++) {
+      this.counters[i] = 0;
+    }
+
+    const counterIndex = depth - 1;
+    // The stand-in was never a real number, so the first numbered h1 takes it
+    // over rather than following it.
+    if (depth === 1 && this.phantomH1) {
+      this.counters[0] = 0;
+      this.phantomH1 = false;
+    }
+    this.counters[counterIndex] = (this.counters[counterIndex] ?? 0) + 1;
+
+    // Build the number prefix from start_depth to current depth
+    const numberParts: string[] = [];
+    for (let i = this.startDepth - 1; i < depth; i++) {
+      numberParts.push(formatNumber(this.counters[i] ?? 0, this.format));
+    }
+
+    return `${numberParts.join(this.separator)}${this.separator}`;
+  }
+
+  /**
+   * Advance the counters and return the heading text with its number prefix,
+   * exactly as it will be rendered.
+   */
+  public apply(depth: number, text: string): string {
+    const prefix = this.next(depth);
+    return prefix === undefined ? text : `${prefix} ${text}`;
+  }
+}
+
+/**
  * Create a Marked extension that adds hierarchical numbering to headings.
  *
  * @param config - Configuration for heading numbering
@@ -122,58 +220,17 @@ function formatNumber(num: number, format: HeadingNumberFormat): string {
 export function headingNumbers(
   config: HeadingNumbersConfig = {},
 ): MarkedExtension {
-  const {
-    format = "arabic",
-    start_depth = 2,
-    max_depth = 6,
-    separator = ".",
-    skip_first_h1 = true,
-  } = config;
-
   const slugger = new GithubSlugger();
-
-  // Track counters for each heading level (1-6)
-  const counters = [0, 0, 0, 0, 0, 0];
-  let firstH1Seen = false;
+  const numberer = new HeadingNumberer(config);
 
   return {
     renderer: {
       heading({ tokens, depth }: Tokens.Heading): string | false {
         const text = this.parser.parseInline(tokens);
+        // The id is derived from the un-numbered text so TOC links and
+        // @see/@pageof references keep resolving when numbering is enabled.
         const id = slugger.slug(cleanForSlug(text));
-
-        // Check if this heading should be numbered
-        const shouldNumber =
-          depth >= start_depth &&
-          depth <= max_depth &&
-          !(skip_first_h1 && depth === 1 && !firstH1Seen);
-
-        // Track first h1
-        if (depth === 1) {
-          firstH1Seen = true;
-        }
-
-        if (!shouldNumber) {
-          return `<h${depth} id="${id}">${text}</h${depth}>\n`;
-        }
-
-        // Reset deeper level counters when a shallower heading appears
-        for (let i = depth; i < 6; i++) {
-          counters[i] = 0;
-        }
-
-        // Increment current level counter
-        const counterIndex = depth - 1;
-        counters[counterIndex] = (counters[counterIndex] ?? 0) + 1;
-
-        // Build the number prefix from start_depth to current depth
-        const numberParts: string[] = [];
-        for (let i = start_depth - 1; i < depth; i++) {
-          numberParts.push(formatNumber(counters[i] ?? 0, format));
-        }
-
-        const numberPrefix = numberParts.join(separator);
-        const numberedText = `${numberPrefix}${separator} ${text}`;
+        const numberedText = numberer.apply(depth, text);
 
         return `<h${depth} id="${id}">${numberedText}</h${depth}>\n`;
       },

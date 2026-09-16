@@ -67,6 +67,8 @@ pdf_options:
 theme: pandoc
 toc_options:
   maxdepth: 3
+  style: table
+  page_numbers: true
 footer: "Page {page} of {pages}"
 pdf_options:
   format: Letter

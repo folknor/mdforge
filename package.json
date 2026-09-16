@@ -11,7 +11,7 @@
   ],
   "description": "Convert Markdown to beautifully styled PDFs.",
   "devDependencies": {
-    "@biomejs/biome": "^2.5.12"
+    "@biomejs/biome": "^2.5.13"
   },
   "engines": {
     "node": ">=25.0",
@@ -28,7 +28,8 @@
     "clean": "pnpm -r run clean",
     "dev": "pnpm -r run dev",
     "lint": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
-    "regenerate-examples": "node scripts/regenerate-examples.js"
+    "regenerate-examples": "node scripts/regenerate-examples.js",
+    "test": "pnpm -r run test"
   },
   "type": "module"
 }

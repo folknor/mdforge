@@ -50,7 +50,7 @@ const getMarked = (config: Config): Marked => {
  * Generates a HTML document from a markdown string.
  */
 export const getHtml = (md: string, config: Config): string => {
-  const mdWithToc = insertToc(md, config.toc_options);
+  const mdWithToc = insertToc(md, config.toc_options, config.heading_numbers);
   return `<!DOCTYPE html>
 <html>
 	<head><title>${config.document_title}</title><meta charset="utf-8"></head>
