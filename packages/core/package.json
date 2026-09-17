@@ -7,7 +7,7 @@
     "marked": "^18.0.13",
     "marked-footnote": "^1.4.0",
     "marked-highlight": "^2.2.4",
-    "marked-linkify-it": "^3.1.15",
+    "marked-linkify-it": "^4.0.2",
     "marked-smartypants": "^1.1.12",
     "postcss": "^8.5.28",
     "transliteration": "^2.6.1",
@@ -15,7 +15,6 @@
   },
   "description": "Core library for mdforge - Convert Markdown to PDF",
   "devDependencies": {
-    "@types/linkify-it": "^5.0.0",
     "google-font-metadata": "^6.0.8",
     "puppeteer": "^25.11.0",
     "typescript": "6.0.3"
