@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import type { ElectronOptions } from "vite-plugin-electron";
+import { esmShim } from "vite-plugin-electron/plugin";
 import electron from "vite-plugin-electron/simple";
+
+// The plugin does not export the onstart argument type directly.
+type OnStartArgs = Parameters<NonNullable<ElectronOptions["onstart"]>>[0];
 
 const dir: string = import.meta.dirname;
 
@@ -42,6 +47,12 @@ export default defineConfig({
     electron({
       main: {
         entry: resolve(dir, "src/main/index.ts"),
+        // In dev the plugin runs `electron .` from the Vite root, which here is
+        // src/renderer and holds no package.json. Launch from the package root
+        // instead, so Electron finds the manifest and its main field.
+        onstart({ startup }: OnStartArgs): void {
+          void startup([".", "--no-sandbox"], { cwd: dir });
+        },
         vite: {
           build: {
             outDir: resolve(dir, "out/main"),
@@ -52,6 +63,10 @@ export default defineConfig({
             ssr: true,
             rollupOptions: { external },
           },
+          // The package is type: module, so main is emitted as ESM where
+          // __dirname does not exist. src/main/index.ts uses it to locate the
+          // preload script and the built renderer.
+          plugins: [esmShim()],
         },
       },
       preload: {

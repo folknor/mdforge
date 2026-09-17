@@ -27,6 +27,7 @@
     "check": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
     "clean": "pnpm -r run clean",
     "dev": "pnpm -r run dev",
+    "desktop": "pnpm --filter @mdforge/desktop run dev",
     "lint": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
     "regenerate-examples": "node scripts/regenerate-examples.js",
     "test": "pnpm -r run test"
