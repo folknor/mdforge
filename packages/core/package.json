@@ -3,21 +3,21 @@
     "@mdforge/pdf": "workspace:*",
     "font-list": "^2.1.0",
     "github-slugger": "^2.0.0",
-    "highlight.js": "^11.11.1",
-    "marked": "^18.0.5",
+    "highlight.js": "^11.12.0",
+    "marked": "^18.0.13",
     "marked-footnote": "^1.4.0",
     "marked-highlight": "^2.2.4",
     "marked-linkify-it": "^3.1.15",
     "marked-smartypants": "^1.1.12",
-    "postcss": "^8.5.15",
+    "postcss": "^8.5.28",
     "transliteration": "^2.6.1",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.1"
   },
   "description": "Core library for mdforge - Convert Markdown to PDF",
   "devDependencies": {
     "@types/linkify-it": "^5.0.0",
     "google-font-metadata": "^6.0.8",
-    "puppeteer": "^25.1.0",
+    "puppeteer": "^25.11.0",
     "typescript": "6.0.3"
   },
   "exports": {
@@ -49,13 +49,13 @@
       "default": "./dist/lib/prepare.js",
       "types": "./dist/lib/prepare.d.ts"
     },
-    "./xref": {
-      "default": "./dist/lib/xref.js",
-      "types": "./dist/lib/xref.d.ts"
-    },
     "./util": {
       "default": "./dist/lib/util.js",
       "types": "./dist/lib/util.d.ts"
+    },
+    "./xref": {
+      "default": "./dist/lib/xref.js",
+      "types": "./dist/lib/xref.d.ts"
     }
   },
   "files": [

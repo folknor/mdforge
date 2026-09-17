@@ -2,11 +2,11 @@
   "dependencies": {
     "@mdforge/core": "workspace:*",
     "@mdforge/pdf": "workspace:*",
-    "puppeteer": "^25.1.0"
+    "puppeteer": "^25.11.0"
   },
   "description": "Puppeteer-based renderer for mdforge",
   "devDependencies": {
-    "@types/node": "^25.9.3",
+    "@types/node": "^25.9.7",
     "typescript": "6.0.3"
   },
   "exports": {
