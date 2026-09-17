@@ -6,7 +6,7 @@
   "description": "Electron-based renderer for mdforge (no Puppeteer required)",
   "devDependencies": {
     "@types/node": "^25.9.7",
-    "electron": "^42.11.4",
+    "electron": "^44.4.1",
     "typescript": "7.0.2"
   },
   "exports": {
@@ -26,7 +26,7 @@
   "main": "dist/index.js",
   "name": "@mdforge/renderer-electron",
   "peerDependencies": {
-    "electron": "^42.11.4"
+    "electron": "^44.4.1"
   },
   "scripts": {
     "build": "tsc",
