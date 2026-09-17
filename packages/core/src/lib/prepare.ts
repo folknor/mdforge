@@ -129,6 +129,7 @@ export async function prepareConversion(
   const frontMatterConfig = await resolveFileRefs(
     rawFrontMatter as Partial<Config>,
     baseDir,
+    info.dependencies,
   );
 
   // merge front-matter config
@@ -176,24 +177,33 @@ export async function prepareConversion(
       await fs.access(candidateCss);
       config.stylesheet = [candidateCss];
       info.stylesheet = { type: "auto", path: basename(candidateCss) };
+      info.dependencies.push(candidateCss);
     } catch {
       try {
         await fs.access(indexCss);
         config.stylesheet = [indexCss];
         info.stylesheet = { type: "auto", path: "index.css" };
+        info.dependencies.push(indexCss);
       } catch {
         // No stylesheet found, continue without
         info.stylesheet = { type: "none" };
       }
     }
   } else if (config.stylesheet.length > 0) {
-    // User specified stylesheet
-    const firstStylesheet = config.stylesheet[0];
-    if (
-      typeof firstStylesheet === "string" &&
-      !firstStylesheet.includes("\n")
-    ) {
-      info.stylesheet = { type: "specified", path: basename(firstStylesheet) };
+    // User specified one or more stylesheets; they cascade in the order given,
+    // so record all of them — the later sheets are what a layered theme uses to
+    // override the base.
+    const files = config.stylesheet.filter(
+      (s): s is string =>
+        typeof s === "string" && !s.includes("\n") && !s.startsWith("http"),
+    );
+    if (files.length > 0) {
+      info.stylesheet = {
+        type: "specified",
+        path: basename(files[0] as string),
+        paths: files.map((s) => basename(s)),
+      };
+      info.dependencies.push(...files);
     }
   }
 

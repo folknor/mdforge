@@ -20,7 +20,15 @@ export interface ConversionInfo {
   stylesheet?: {
     type: "specified" | "auto" | "none";
     path?: string;
+    /** Basenames of every user stylesheet, in cascade order. */
+    paths?: string[];
   };
+  /**
+   * Absolute paths of every local file the render read besides the Markdown
+   * itself — stylesheets and @filename references. Watch mode re-renders when
+   * any of them changes.
+   */
+  dependencies: string[];
   headerFooter?: {
     type: "css @page" | "puppeteer" | "none";
     header?: string;
@@ -39,6 +47,7 @@ export interface ConversionInfo {
 export function createConversionInfo(): ConversionInfo {
   return {
     fonts: {},
+    dependencies: [],
     warnings: [],
   };
 }
@@ -79,10 +88,13 @@ export function formatConversionInfo(info: ConversionInfo): string {
 
   // Stylesheet
   if (info.stylesheet) {
-    if (info.stylesheet.type === "auto" && info.stylesheet.path) {
-      lines.push(`  stylesheet: ${info.stylesheet.path} (auto-detected)`);
-    } else if (info.stylesheet.type === "specified" && info.stylesheet.path) {
-      lines.push(`  stylesheet: ${info.stylesheet.path}`);
+    const shown = info.stylesheet.paths?.length
+      ? info.stylesheet.paths.join(", ")
+      : info.stylesheet.path;
+    if (info.stylesheet.type === "auto" && shown) {
+      lines.push(`  stylesheet: ${shown} (auto-detected)`);
+    } else if (info.stylesheet.type === "specified" && shown) {
+      lines.push(`  stylesheet: ${shown}`);
     }
   }
 

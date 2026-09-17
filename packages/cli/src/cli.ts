@@ -291,16 +291,15 @@ function watchAndRerender(
     watchDir(dirname(target));
   };
 
-  /** Track a rendered file's own path plus the stylesheet it resolved to. */
+  /** Track a rendered file's own path plus every file that render read. */
   const trackDeps = (file: string, result?: ConvertResult): void => {
     const path = resolve(file);
     addDep(path, file);
     if (configFile) {
       addDep(resolve(configFile), file);
     }
-    const stylesheet = result?.info.stylesheet;
-    if (stylesheet?.type === "specified" && stylesheet.path) {
-      addDep(resolve(dirname(path), stylesheet.path), file);
+    for (const dep of result?.info.dependencies ?? []) {
+      addDep(resolve(dirname(path), dep), file);
     }
   };
 

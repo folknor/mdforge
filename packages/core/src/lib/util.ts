@@ -59,26 +59,32 @@ export const getMarginObject = (margin: string): PDFOptions["margin"] => {
 /**
  * Recursively resolve @filename references in config values.
  * References are resolved relative to the baseDir.
+ *
+ * Absolute paths of the files actually read are appended to `seen`, so callers
+ * (watch mode) can treat them as render dependencies.
  */
 export async function resolveFileRefs<T>(
   value: T,
   baseDir: string,
+  seen?: string[],
 ): Promise<T> {
   if (typeof value === "string" && value.startsWith("@")) {
     const filePath = resolve(baseDir, value.slice(1));
-    return (await fs.readFile(filePath, "utf-8")) as T;
+    const content = (await fs.readFile(filePath, "utf-8")) as T;
+    seen?.push(filePath);
+    return content;
   }
 
   if (Array.isArray(value)) {
     return Promise.all(
-      value.map((item) => resolveFileRefs(item, baseDir)),
+      value.map((item) => resolveFileRefs(item, baseDir, seen)),
     ) as Promise<T>;
   }
 
   if (value !== null && typeof value === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(value)) {
-      result[key] = await resolveFileRefs(val, baseDir);
+      result[key] = await resolveFileRefs(val, baseDir, seen);
     }
     return result as T;
   }
