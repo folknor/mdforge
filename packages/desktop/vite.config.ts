@@ -35,9 +35,9 @@ const external: string[] = [
 // out/**/* and package.json points main at ./out/main/index.js.
 export default defineConfig({
   root: resolve(dir, "src/renderer"),
-  // A packaged build loads the renderer with loadFile(), so assets must be
-  // referenced relatively rather than from the server root.
-  base: "./",
+  // base is left unset: vite-plugin-electron already applies base: "./" to the
+  // production build, which a packaged renderer needs because it is loaded
+  // with loadFile().
   build: {
     outDir: resolve(dir, "out/renderer"),
     emptyOutDir: true,
@@ -61,7 +61,7 @@ export default defineConfig({
             // the main process is bundled as a client build. Revisit if this
             // package moves to Vite 8.
             ssr: true,
-            rollupOptions: { external },
+            rollupOptions: { external, output: { format: "es" } },
           },
           // The package is type: module, so main is emitted as ESM where
           // __dirname does not exist. src/main/index.ts uses it to locate the
@@ -75,7 +75,12 @@ export default defineConfig({
           build: {
             outDir: resolve(dir, "out/preload"),
             ssr: true,
-            rollupOptions: { external },
+            // The plugin decides CJS vs ESM from config.root, which is
+            // src/renderer here and holds no package.json, so it assumed CJS
+            // and emitted `require` calls into a .mjs file. Electron parses
+            // .mjs as ESM, the preload threw, and the contextBridge was never
+            // set up, leaving the window blank. Pin the format instead.
+            rollupOptions: { external, output: { format: "es" } },
           },
         },
       },
