@@ -188,3 +188,8 @@ heading_numbers:
   separator: "."      # Between levels
   skip_first_h1: true # Skip first h1
 ```
+
+Prose can refer to a generated number with `@numberof(Heading Text)`, which
+prints it bare (`8.1`) and follows the heading if the document is renumbered.
+Unresolvable references are left in the output verbatim. See
+[Cross-References](../guides/includes.md#heading-numbers).

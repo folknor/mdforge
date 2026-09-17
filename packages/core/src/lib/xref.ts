@@ -1,4 +1,9 @@
 import GithubSlugger from "github-slugger";
+import { marked } from "marked";
+import {
+  HeadingNumberer,
+  type HeadingNumbersConfig,
+} from "./heading-numbers.js";
 import { cleanForSlug } from "./slugger.js";
 
 /**
@@ -7,6 +12,7 @@ import { cleanForSlug } from "./slugger.js";
  * @see(Section Name) → [Section Name](#section-name)
  * @anchor(Custom Point) → <a id="custom-point"></a>
  * @pageof(Section Name) → the printed page number that heading lands on
+ * @numberof(Section Name) → that heading's automatic number, e.g. `7.1`
  *
  * Uses the same slug logic as heading IDs for consistency.
  */
@@ -133,6 +139,93 @@ export function processXref(content: string): string {
   );
 
   return result;
+}
+
+/**
+ * Regex to match @numberof(...) references (not inside backticks)
+ */
+const NUMBEROF_REGEX = /(?<!`)@numberof\(([^)]+)\)/g;
+
+/**
+ * Map every heading in `md` to its automatic number, without the trailing
+ * separator (`"7.1"`, not `"7.1."`), keyed by the heading's slug.
+ *
+ * Headings are fed to the numberer in document order, including ones it will
+ * not number, because they still move the counters and the first-h1 tracking.
+ * A repeated heading text resolves to its first occurrence, matching how the
+ * slugger hands the plain slug to the first heading and suffixes the rest.
+ */
+function headingNumbersBySlug(
+  md: string,
+  config: HeadingNumbersConfig,
+): Map<string, string> {
+  const slugger = new GithubSlugger();
+  const numberer = new HeadingNumberer(config);
+  const numbers = new Map<string, string>();
+
+  for (const token of marked.lexer(md)) {
+    if (token.type !== "heading") {
+      continue;
+    }
+    // Slugged from the un-numbered text, exactly as the renderer builds the
+    // heading id, so a reference works with the heading's visible text.
+    const slug = slugger.slug(cleanForSlug(token.text));
+    const prefix = numberer.next(token.depth);
+    if (prefix === undefined || numbers.has(slug)) {
+      continue;
+    }
+    // Prose writes «se punkt 7.1», so the trailing separator has to go.
+    numbers.set(slug, trimTrailingSeparator(prefix, config.separator ?? "."));
+  }
+
+  return numbers;
+}
+
+/** Drop the trailing level separator from a heading number prefix. */
+function trimTrailingSeparator(prefix: string, separator: string): string {
+  return separator && prefix.endsWith(separator)
+    ? prefix.slice(0, -separator.length)
+    : prefix;
+}
+
+/**
+ * Replace `@numberof(...)` with the referenced heading's automatic number.
+ *
+ * Unlike `@pageof`, the answer is knowable statically: the same counters the
+ * renderer uses can be replayed over the markdown, so this needs no second
+ * pass over the laid-out PDF.
+ *
+ * Runs on the *final* markdown, after includes and constants, so it sees every
+ * heading the document will actually render.
+ *
+ * The bare number is emitted, not a link: these references are written inline
+ * as «etter punkt 8.1», where the surrounding prose is the sentence and an
+ * underlined link fragment in the middle of it would read as noise. Authors who
+ * want a link can write `@see(...)` alongside it.
+ *
+ * An unresolvable reference — numbering disabled, an unnumbered heading, or a
+ * slug no heading claims — is left verbatim in the output rather than silently
+ * dropped. A visible `@numberof(Punkt 8)` in the PDF is a defect the author
+ * will notice and fix; a blank would quietly falsify the cross-reference, which
+ * is the exact hazard this directive exists to prevent.
+ */
+export function resolveNumberRefs(
+  md: string,
+  config: HeadingNumbersConfig | false | undefined,
+): string {
+  if (!(config && NUMBEROF_REGEX.test(md))) {
+    // Also resets `lastIndex`, which the `test` above advanced on a match.
+    NUMBEROF_REGEX.lastIndex = 0;
+    return md;
+  }
+  NUMBEROF_REGEX.lastIndex = 0;
+
+  const numbers = headingNumbersBySlug(md, config);
+  return md.replace(
+    NUMBEROF_REGEX,
+    (match, sectionName: string) =>
+      numbers.get(generateSlug(sectionName.trim())) ?? match,
+  );
 }
 
 /** True when the document contains at least one unresolved page reference. */

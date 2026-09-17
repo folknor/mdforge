@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { pageRefSpan, resolvePageRefs } from "../dist/lib/xref.js";
+import {
+  pageRefSpan,
+  resolveNumberRefs,
+  resolvePageRefs,
+} from "../dist/lib/xref.js";
 
 /** Resolve a single page reference and return the text it ended up showing. */
 function resolve(
@@ -108,5 +112,98 @@ describe("resolvePageRefs", () => {
       text: "??",
       changed: false,
     });
+  });
+});
+
+/** A small numbered document: one title, two sections, one subsection. */
+const DOC = [
+  "# Avtale",
+  "",
+  "## Ansettelse",
+  "",
+  "## Arbeidstid",
+  "",
+  "### Overtid",
+  "",
+].join("\n");
+
+/** Resolve a single `@numberof(...)` against {@link DOC}. */
+function numberOf(
+  reference: string,
+  config: Record<string, unknown> | false = {},
+  doc = DOC,
+): string {
+  return resolveNumberRefs(`${doc}\nse punkt @numberof(${reference}).`, config);
+}
+
+describe("resolveNumberRefs", () => {
+  it("resolves a heading to its number without the trailing separator", () => {
+    assert.equal(numberOf("Ansettelse").endsWith("se punkt 1."), true);
+  });
+
+  it("resolves a nested heading to its full dotted number", () => {
+    assert.equal(numberOf("Overtid").endsWith("se punkt 2.1."), true);
+  });
+
+  it("accepts an explicit #slug the same way @pageof does", () => {
+    assert.equal(numberOf("#overtid").endsWith("se punkt 2.1."), true);
+  });
+
+  it("respects format and separator", () => {
+    assert.equal(
+      numberOf("Overtid", { format: "roman-upper", separator: "-" }).endsWith(
+        "se punkt II-I.",
+      ),
+      true,
+    );
+  });
+
+  it("respects start_depth and max_depth", () => {
+    // max_depth 2 leaves the h3 unnumbered, so its reference stays verbatim.
+    const html = numberOf("Overtid", { max_depth: 2 });
+    assert.equal(html.endsWith("se punkt @numberof(Overtid)."), true);
+  });
+
+  it("leaves a reference to an unnumbered heading verbatim", () => {
+    // skip_first_h1 defaults to true, so the document title has no number.
+    assert.equal(
+      numberOf("Avtale").endsWith("se punkt @numberof(Avtale)."),
+      true,
+    );
+  });
+
+  it("leaves a reference that matches no heading verbatim", () => {
+    assert.equal(
+      numberOf("Finnes Ikke").endsWith("se punkt @numberof(Finnes Ikke)."),
+      true,
+    );
+  });
+
+  it("leaves every reference alone when numbering is disabled", () => {
+    assert.equal(
+      numberOf("Ansettelse", false).endsWith("se punkt @numberof(Ansettelse)."),
+      true,
+    );
+    assert.equal(
+      resolveNumberRefs("se @numberof(X)", undefined),
+      "se @numberof(X)",
+    );
+  });
+
+  it("matches headings through their transliterated slug", () => {
+    const doc = "# Avtale\n\n## Årsverk\n";
+    assert.equal(numberOf("Årsverk", {}, doc).endsWith("se punkt 1."), true);
+  });
+
+  it("resolves several references in one document", () => {
+    const html = resolveNumberRefs(
+      `${DOC}\njf. @numberof(Ansettelse) og @numberof(Overtid).`,
+      {},
+    );
+    assert.equal(html.endsWith("jf. 1 og 2.1."), true);
+  });
+
+  it("is a no-op for a document without references", () => {
+    assert.equal(resolveNumberRefs(DOC, {}), DOC);
   });
 });

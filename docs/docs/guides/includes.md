@@ -77,6 +77,31 @@ Create invisible link targets:
 This paragraph can now be linked to with @see(Important Note).
 ```
 
+### Heading Numbers
+
+When [`heading_numbers`](../reference/configuration.md) is enabled, `@numberof`
+prints the automatic number of a heading, so prose references survive a
+renumbering:
+
+```markdown
+Overtid godtgjøres etter punkt @numberof(Overtid).
+```
+
+If "Overtid" is the first subsection of section 8, that renders as "etter punkt
+8.1". Insert a new section above it and the reference follows along, instead of
+quietly pointing at the wrong clause.
+
+The heading is named by its visible text (without the number), or by its anchor
+as `@numberof(#overtid)` — the same argument style as `@see` and `@pageof`. The
+number is printed bare, without a trailing separator and without a link; pair it
+with `@see` if you want the reference to be clickable.
+
+A reference that cannot be resolved — numbering turned off, a heading outside
+`start_depth`/`max_depth`, or a name that matches no heading — is left in the
+output verbatim as `@numberof(...)`. That is deliberate: a visible directive is
+a defect you will catch when proofreading, whereas a blank or a silently wrong
+number is exactly the hazard this directive exists to prevent.
+
 ### Page Numbers
 
 `@pageof` prints the page a heading landed on, which is useful for a hand-built

@@ -10,6 +10,7 @@ import { formFields } from "./form-fields.js";
 import { headingNumbers } from "./heading-numbers.js";
 import { gfmHeadingId } from "./slugger.js";
 import { insertToc } from "./toc.js";
+import { resolveNumberRefs } from "./xref.js";
 
 /**
  * Create a configured Marked instance with syntax highlighting and extensions.
@@ -50,7 +51,17 @@ const getMarked = (config: Config): Marked => {
  * Generates a HTML document from a markdown string.
  */
 export const getHtml = (md: string, config: Config): string => {
-  const mdWithToc = insertToc(md, config.toc_options, config.heading_numbers);
+  // `@numberof(...)` is resolved here rather than in {@link processXref},
+  // because it needs the whole document's headings replayed through the same
+  // counters the renderer uses — which is only sound once includes and
+  // constants have been expanded. It runs before the TOC is inserted so the
+  // generated TOC markup is never scanned for directives.
+  const resolved = resolveNumberRefs(md, config.heading_numbers);
+  const mdWithToc = insertToc(
+    resolved,
+    config.toc_options,
+    config.heading_numbers,
+  );
   return `<!DOCTYPE html>
 <html>
 	<head><title>${config.document_title}</title><meta charset="utf-8"></head>
