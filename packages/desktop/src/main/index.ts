@@ -4,6 +4,11 @@ import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, shell } from "electron";
 import { setupIpcHandlers } from "./ipc";
 
+// The main process is bundled as ESM, where __dirname does not exist. Use
+// import.meta.dirname rather than relying on a bundler-injected shim, which
+// differs between Vite's rollup and rolldown backends.
+const currentDir: string = import.meta.dirname;
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
@@ -15,7 +20,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(__dirname, "../preload/index.mjs"),
+      preload: join(currentDir, "../preload/index.mjs"),
       sandbox: false,
     },
   });
@@ -35,7 +40,7 @@ function createWindow(): void {
   if (is.dev && rendererUrl) {
     mainWindow.loadURL(rendererUrl);
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(join(currentDir, "../renderer/index.html"));
   }
 }
 

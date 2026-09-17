@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import type { ElectronOptions } from "vite-plugin-electron";
-import { esmShim } from "vite-plugin-electron/plugin";
 import electron from "vite-plugin-electron/simple";
 
 // The plugin does not export the onstart argument type directly.
@@ -56,17 +55,16 @@ export default defineConfig({
         vite: {
           build: {
             outDir: resolve(dir, "out/main"),
-            // vite-plugin-electron marks these as node builds via rolldown's
-            // `platform: "node"`, which Vite 7 (rollup) ignores. Without ssr
-            // the main process is bundled as a client build. Revisit if this
-            // package moves to Vite 8.
-            ssr: true,
-            rollupOptions: { external, output: { format: "es" } },
+            // platform: "node" is repeated from the plugin's own defaults
+            // because supplying rolldownOptions here replaces them wholesale
+            // rather than merging. Without it the main process is bundled as a
+            // browser target. The external list keeps linked workspace
+            // packages out, which rolldown would otherwise inline.
+            rolldownOptions: {
+              platform: "node",
+              external,
+            },
           },
-          // The package is type: module, so main is emitted as ESM where
-          // __dirname does not exist. src/main/index.ts uses it to locate the
-          // preload script and the built renderer.
-          plugins: [esmShim()],
         },
       },
       preload: {
@@ -74,13 +72,16 @@ export default defineConfig({
         vite: {
           build: {
             outDir: resolve(dir, "out/preload"),
-            ssr: true,
             // The plugin decides CJS vs ESM from config.root, which is
             // src/renderer here and holds no package.json, so it assumed CJS
             // and emitted `require` calls into a .mjs file. Electron parses
             // .mjs as ESM, the preload threw, and the contextBridge was never
             // set up, leaving the window blank. Pin the format instead.
-            rollupOptions: { external, output: { format: "es" } },
+            rolldownOptions: {
+              platform: "node",
+              external,
+              output: { format: "es" },
+            },
           },
         },
       },
