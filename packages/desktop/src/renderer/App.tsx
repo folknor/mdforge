@@ -137,8 +137,9 @@ export default function App(): React.ReactElement {
       const updated = [...prev, ...unique];
 
       // Auto-select first file if nothing is selected
-      if (unique.length > 0) {
-        setSelectedFile((current) => current ?? unique[0].path);
+      const first = unique[0];
+      if (first) {
+        setSelectedFile((current) => current ?? first.path);
       }
 
       return updated;
@@ -201,7 +202,7 @@ export default function App(): React.ReactElement {
       const updated = prev.filter((f) => f.path !== path);
       // If we removed the selected file, select another one
       if (path === selectedFile) {
-        setSelectedFile(updated.length > 0 ? updated[0].path : null);
+        setSelectedFile(updated[0]?.path ?? null);
       }
       return updated;
     });

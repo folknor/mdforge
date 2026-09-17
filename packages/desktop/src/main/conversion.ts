@@ -133,11 +133,12 @@ export async function generatePreview(
     );
     log("Preview generated, size:", result.content.length);
 
-    // Convert Buffer to Uint8Array for IPC transfer
+    // Convert Buffer to Uint8Array for IPC transfer. Buffer extends
+    // Uint8Array, so only string output (HTML) needs encoding.
     const pdfData =
       result.content instanceof Uint8Array
         ? result.content
-        : new Uint8Array(result.content as Buffer);
+        : new TextEncoder().encode(result.content);
 
     return {
       success: true,

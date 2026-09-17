@@ -21,7 +21,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vite": "^7.3.6"
   },
   "license": "MIT",
@@ -32,8 +32,9 @@
     "url": "https://github.com/folknor/mdforge"
   },
   "scripts": {
-    "build": "electron-vite build",
+    "build": "pnpm run typecheck && electron-vite build",
     "dev": "electron-vite dev",
+    "typecheck": "tsc --build",
     "package": "electron-builder",
     "package:linux": "electron-builder --linux AppImage",
     "package:mac": "electron-builder --mac zip",

@@ -21,7 +21,11 @@ export default function PdfPreview({
   // Create blob URL when PDF data changes
   useEffect(() => {
     if (pdfData) {
-      const blob = new Blob([pdfData], { type: "application/pdf" });
+      // pdfData arrives over IPC, so it is always backed by a plain
+      // ArrayBuffer rather than a SharedArrayBuffer, which Blob requires.
+      const blob = new Blob([pdfData as Uint8Array<ArrayBuffer>], {
+        type: "application/pdf",
+      });
       const url = URL.createObjectURL(blob);
       setBlobUrl(url);
 

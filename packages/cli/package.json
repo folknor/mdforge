@@ -11,7 +11,7 @@
   "description": "CLI for mdforge - Convert Markdown to PDF",
   "devDependencies": {
     "@types/listr": "0.14.10",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "files": [
     "/dist"

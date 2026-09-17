@@ -17,7 +17,7 @@
   "devDependencies": {
     "google-font-metadata": "^6.0.8",
     "puppeteer": "^25.11.0",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "exports": {
     ".": {

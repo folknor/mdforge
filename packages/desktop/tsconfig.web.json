@@ -6,9 +6,8 @@
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "composite": true,
     "jsx": "react-jsx",
-    "outDir": "out",
-    "declaration": false,
-    "declarationMap": false
+    "outDir": "node_modules/.cache/tsc",
+    "types": ["vite/client"]
   },
   "include": ["src/renderer/**/*", "src/types.ts"]
 }
