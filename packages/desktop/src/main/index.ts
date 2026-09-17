@@ -29,8 +29,9 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  // Load the renderer
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  // Load the renderer. vite-plugin-electron exposes the dev server URL as
+  // VITE_DEV_SERVER_URL; in a packaged build it is unset and we load the file.
+  const rendererUrl = process.env["VITE_DEV_SERVER_URL"];
   if (is.dev && rendererUrl) {
     mainWindow.loadURL(rendererUrl);
   } else {

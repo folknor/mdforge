@@ -16,13 +16,13 @@
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.4.1",
     "electron-builder": "^26.16.1",
-    "electron-vite": "^5.0.0",
     "postcss": "^8.5.28",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
     "typescript": "7.0.2",
-    "vite": "^7.3.6"
+    "vite": "^7.3.6",
+    "vite-plugin-electron": "^1.1.2"
   },
   "license": "MIT",
   "main": "./out/main/index.js",
@@ -32,14 +32,14 @@
     "url": "https://github.com/folknor/mdforge"
   },
   "scripts": {
-    "build": "pnpm run typecheck && electron-vite build",
-    "dev": "electron-vite dev",
+    "build": "pnpm run typecheck && vite build",
+    "dev": "vite",
     "typecheck": "tsc --build",
     "package": "electron-builder",
     "package:linux": "electron-builder --linux AppImage",
     "package:mac": "electron-builder --mac zip",
     "package:win": "electron-builder --win --portable",
-    "preview": "electron-vite preview"
+    "preview": "vite preview"
   },
   "type": "module",
   "version": "1.0.0"

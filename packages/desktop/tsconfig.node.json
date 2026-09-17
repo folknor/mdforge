@@ -6,12 +6,12 @@
     "lib": ["ES2024"],
     "composite": true,
     "outDir": "node_modules/.cache/tsc",
-    "types": ["electron-vite/node"]
+    "types": ["vite/client"]
   },
   "include": [
     "src/main/**/*",
     "src/preload/**/*",
     "src/types.ts",
-    "electron.vite.config.ts"
+    "vite.config.ts"
   ]
 }
