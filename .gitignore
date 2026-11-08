@@ -1,3 +1,7 @@
+.agents
+.claude
+.maki
+.codex
 .vscode
 node_modules
 fullmakt
