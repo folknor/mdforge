@@ -74,9 +74,7 @@ export async function convertMdToPdf(
 
         const outline = await readOutline(output.content);
 
-        const headingPages = new Map(
-          outline.map((entry) => [entry.title, entry.page] as const),
-        );
+        const headingPages = new Map(outline.map((entry) => [entry.title, entry.page] as const));
 
         const resolved = resolvePageRefs(prepared.html, headingPages);
 
@@ -107,10 +105,7 @@ export async function convertMdToPdf(
       );
     }
 
-    throw new GenerationError(
-      `Failed to create ${outputType}: ${err.message}`,
-      err,
-    );
+    throw new GenerationError(`Failed to create ${outputType}: ${err.message}`, err);
   }
 
   // Write output file if destination is set

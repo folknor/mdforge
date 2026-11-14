@@ -6,12 +6,7 @@ import {
   fontPairings,
   isFontPairingPreset,
 } from "@mdforge/renderer-electron";
-import type {
-  ConversionConfig,
-  ConversionResult,
-  PreviewConfig,
-  PreviewResult,
-} from "../types";
+import type { ConversionConfig, ConversionResult, PreviewConfig, PreviewResult } from "../types";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";

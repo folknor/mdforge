@@ -43,7 +43,11 @@ const paddingRule = createPaddingLineRule(
       prev: ["multiline-const", "multiline-let", "multiline-var", "multiline-using"],
       next: "*",
     },
-    { blankLine: "always", prev: "*", next: ["return", "if", "switch", "try", "for", "while", "do"] },
+    {
+      blankLine: "always",
+      prev: "*",
+      next: ["return", "if", "switch", "try", "for", "while", "do"],
+    },
     { blankLine: "always", prev: "block-like", next: "*" },
     { blankLine: "any", prev: "import", next: "import" },
     // Consecutive single-line bindings form one group at any scope, including

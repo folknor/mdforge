@@ -77,9 +77,7 @@ export async function processIncludes(
   const MAX_DEPTH = 10;
 
   if (depth >= MAX_DEPTH) {
-    throw new Error(
-      `Maximum include depth (${MAX_DEPTH}) exceeded. Check for circular includes.`,
-    );
+    throw new Error(`Maximum include depth (${MAX_DEPTH}) exceeded. Check for circular includes.`);
   }
 
   // Process @include directives

@@ -5,9 +5,7 @@ interface DropZoneProps {
   onFilesAdded: (paths: string[]) => void;
 }
 
-export default function DropZone({
-  onFilesAdded,
-}: DropZoneProps): React.ReactElement {
+export default function DropZone({ onFilesAdded }: DropZoneProps): React.ReactElement {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: DragEvent) => {

@@ -74,9 +74,7 @@ export interface AcroFormConfig {
  * Parse a marker URL to extract field information.
  * URL format: https://mdforge.marker/{name}?type={type}&value={value}
  */
-function parseMarkerUrl(
-  url: string,
-): { name: string; type: string; value?: string } | null {
+function parseMarkerUrl(url: string): { name: string; type: string; value?: string } | null {
   if (!url.startsWith(MARKER_URL_PREFIX)) return null;
 
   try {
@@ -213,15 +211,12 @@ export async function addAcroFormFields(
     const fontFamily = config.formFontInfo?.fontFamily;
 
     let fontData = config.embeddedFonts.find(
-      (f) =>
-        f.family === fontFamily && f.weight === 400 && f.style === "normal",
+      (f) => f.family === fontFamily && f.weight === 400 && f.style === "normal",
     );
 
     // Fallback to any font with weight 400
     if (!fontData) {
-      fontData = config.embeddedFonts.find(
-        (f) => f.weight === 400 && f.style === "normal",
-      );
+      fontData = config.embeddedFonts.find((f) => f.weight === 400 && f.style === "normal");
     }
 
     // Fallback to first available font
@@ -235,9 +230,7 @@ export async function addAcroFormFields(
         // documented to take. The fork declares its own copy of the Fontkit
         // interface, which only differs in typing path.toFunction() as an
         // unknown-args function rather than Function.
-        pdfDoc.registerFontkit(
-          fontkit as Parameters<PDFDocument["registerFontkit"]>[0],
-        );
+        pdfDoc.registerFontkit(fontkit as Parameters<PDFDocument["registerFontkit"]>[0]);
         customFont = await pdfDoc.embedFont(new Uint8Array(fontData.data));
       } catch {
         // Font embedding failed - continue with default Helvetica

@@ -1,18 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { HeadingNumbersConfig } from "../dist/lib/heading-numbers.js";
-import {
-  pageRefSpan,
-  resolveNumberRefs,
-  resolvePageRefs,
-} from "../dist/lib/xref.js";
+import { pageRefSpan, resolveNumberRefs, resolvePageRefs } from "../dist/lib/xref.js";
 
 /** Resolve a single page reference and return the text it ended up showing. */
 function resolve(slug: string, headings: Record<string, number>) {
-  const { html, changed } = resolvePageRefs(
-    pageRefSpan(slug),
-    new Map(Object.entries(headings)),
-  );
+  const { html, changed } = resolvePageRefs(pageRefSpan(slug), new Map(Object.entries(headings)));
 
   const text = /<span[^>]*>([^<]*)<\/span>/.exec(html)?.[1];
   assert.ok(text !== undefined, `no page-reference span left in: ${html}`);
@@ -102,10 +95,7 @@ describe("resolvePageRefs", () => {
   });
 
   it("resolves a doubled title by its own slug too", () => {
-    assert.equal(
-      resolve("2-intro2-intro", { "2. Intro2. Intro": 4 }).text,
-      "4",
-    );
+    assert.equal(resolve("2-intro2-intro", { "2. Intro2. Intro": 4 }).text, "4");
   });
 
   it("does not undouble a heading that is genuinely repetitive", () => {
@@ -118,23 +108,12 @@ describe("resolvePageRefs", () => {
 });
 
 /** A small numbered document: one title, two sections, one subsection. */
-const DOC = [
-  "# Avtale",
-  "",
-  "## Ansettelse",
-  "",
-  "## Arbeidstid",
-  "",
-  "### Overtid",
-  "",
-].join("\n");
+const DOC = ["# Avtale", "", "## Ansettelse", "", "## Arbeidstid", "", "### Overtid", ""].join(
+  "\n",
+);
 
 /** Resolve a single `@numberof(...)` against {@link DOC}. */
-function numberOf(
-  reference: string,
-  config: HeadingNumbersConfig | false = {},
-  doc = DOC,
-): string {
+function numberOf(reference: string, config: HeadingNumbersConfig | false = {}, doc = DOC): string {
   return resolveNumberRefs(`${doc}\nse punkt @numberof(${reference}).`, config);
 }
 
@@ -153,9 +132,7 @@ describe("resolveNumberRefs", () => {
 
   it("respects format and separator", () => {
     assert.equal(
-      numberOf("Overtid", { format: "roman-upper", separator: "-" }).endsWith(
-        "se punkt II-I.",
-      ),
+      numberOf("Overtid", { format: "roman-upper", separator: "-" }).endsWith("se punkt II-I."),
       true,
     );
   });
@@ -168,28 +145,16 @@ describe("resolveNumberRefs", () => {
 
   it("leaves a reference to an unnumbered heading verbatim", () => {
     // skip_first_h1 defaults to true, so the document title has no number.
-    assert.equal(
-      numberOf("Avtale").endsWith("se punkt @numberof(Avtale)."),
-      true,
-    );
+    assert.equal(numberOf("Avtale").endsWith("se punkt @numberof(Avtale)."), true);
   });
 
   it("leaves a reference that matches no heading verbatim", () => {
-    assert.equal(
-      numberOf("Finnes Ikke").endsWith("se punkt @numberof(Finnes Ikke)."),
-      true,
-    );
+    assert.equal(numberOf("Finnes Ikke").endsWith("se punkt @numberof(Finnes Ikke)."), true);
   });
 
   it("leaves every reference alone when numbering is disabled", () => {
-    assert.equal(
-      numberOf("Ansettelse", false).endsWith("se punkt @numberof(Ansettelse)."),
-      true,
-    );
-    assert.equal(
-      resolveNumberRefs("se @numberof(X)", undefined),
-      "se @numberof(X)",
-    );
+    assert.equal(numberOf("Ansettelse", false).endsWith("se punkt @numberof(Ansettelse)."), true);
+    assert.equal(resolveNumberRefs("se @numberof(X)", undefined), "se @numberof(X)");
   });
 
   it("matches headings through their transliterated slug", () => {
@@ -198,10 +163,7 @@ describe("resolveNumberRefs", () => {
   });
 
   it("resolves several references in one document", () => {
-    const html = resolveNumberRefs(
-      `${DOC}\njf. @numberof(Ansettelse) og @numberof(Overtid).`,
-      {},
-    );
+    const html = resolveNumberRefs(`${DOC}\njf. @numberof(Ansettelse) og @numberof(Overtid).`, {});
 
     assert.equal(html.endsWith("jf. 1 og 2.1."), true);
   });

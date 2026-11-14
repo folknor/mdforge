@@ -1,31 +1,31 @@
 {
-  "dependencies": {
-    "@folknor/pdf-lib": "github:folknor/pdf-lib#e017036e70d833ed446a5760b264d763ba03a6d0",
-    "@pdf-lib/fontkit": "^1.1.1"
-  },
+  "name": "@mdforge/pdf",
+  "version": "1.0.0",
   "description": "PDF manipulation utilities for mdforge",
-  "devDependencies": {
-    "@types/node": "^26.6.6",
-    "typescript": "7.0.2"
-  },
+  "license": "MIT",
+  "files": [
+    "/dist"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "default": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
   },
-  "files": [
-    "/dist"
-  ],
-  "license": "MIT",
-  "main": "dist/index.js",
-  "name": "@mdforge/pdf",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
     "dev": "tsc --watch"
   },
-  "type": "module",
-  "types": "dist/index.d.ts",
-  "version": "1.0.0"
+  "dependencies": {
+    "@folknor/pdf-lib": "github:folknor/pdf-lib#e017036e70d833ed446a5760b264d763ba03a6d0",
+    "@pdf-lib/fontkit": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "7.0.2"
+  }
 }

@@ -26,7 +26,7 @@ async function fetchData(url) {
   return data;
 }
 
-const users = await fetchData('/api/users');
+const users = await fetchData("/api/users");
 console.log(users);
 ```
 
@@ -51,7 +51,7 @@ def get_active_users(users: List[User]) -> List[User]:
 ```typescript
 interface Config {
   theme: string;
-  format: 'A4' | 'Letter';
+  format: "A4" | "Letter";
   margin: number;
 }
 

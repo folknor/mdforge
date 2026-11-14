@@ -25,7 +25,6 @@ export interface HeaderFooterColumn {
   firstPage?: boolean; // show on first page (default: true, only works without background)
 }
 
-
 /**
  * Page number format options.
  */

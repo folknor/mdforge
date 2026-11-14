@@ -1,10 +1,6 @@
 import { promises as fs } from "node:fs";
 import { extname, resolve } from "node:path";
-import type {
-  HeaderFooterColumn,
-  PageNumberFormat,
-  PageNumbersConfig,
-} from "./config.js";
+import type { HeaderFooterColumn, PageNumberFormat, PageNumbersConfig } from "./config.js";
 
 /**
  * MIME types for image embedding
@@ -38,10 +34,7 @@ function formatDate(locale?: string): string {
 /**
  * Convert image path to base64 data URI
  */
-async function imageToDataUri(
-  imagePath: string,
-  baseDir: string,
-): Promise<string | null> {
+async function imageToDataUri(imagePath: string, baseDir: string): Promise<string | null> {
   try {
     const fullPath = resolve(baseDir, imagePath);
     const ext = extname(fullPath).toLowerCase();
@@ -99,11 +92,7 @@ async function processImages(text: string, baseDir: string): Promise<string> {
   let result = text;
 
   for (const regex of patterns) {
-    for (
-      let match = regex.exec(text);
-      match !== null;
-      match = regex.exec(text)
-    ) {
+    for (let match = regex.exec(text); match !== null; match = regex.exec(text)) {
       // Extract src and size based on pattern
       let src: string | undefined;
       let sizePercent: string | undefined;
@@ -173,14 +162,10 @@ function variablesToCss(text: string, pageFormat?: PageNumberFormat): string {
   const counterStyle = formatToCssCounterStyle(pageFormat);
 
   const pageCounter =
-    counterStyle === "decimal"
-      ? "counter(page)"
-      : `counter(page, ${counterStyle})`;
+    counterStyle === "decimal" ? "counter(page)" : `counter(page, ${counterStyle})`;
 
   const pagesCounter =
-    counterStyle === "decimal"
-      ? "counter(pages)"
-      : `counter(pages, ${counterStyle})`;
+    counterStyle === "decimal" ? "counter(pages)" : `counter(pages, ${counterStyle})`;
 
   return (
     text
@@ -274,10 +259,7 @@ async function buildContentValue(
   }
 
   // Wrap in quotes for CSS content, clean up empty quotes
-  const content = `"${processed}"`
-    .replace(/"" /g, "")
-    .replace(/ ""/g, "")
-    .replace(/^""$/, '""');
+  const content = `"${processed}"`.replace(/"" /g, "").replace(/ ""/g, "").replace(/^""$/, '""');
 
   return { content, styles };
 }
@@ -289,9 +271,7 @@ async function buildContentValue(
  * `pdf_options` template.
  */
 export function hasContent(columns: HeaderFooterColumn | undefined): boolean {
-  return Boolean(
-    columns?.left || columns?.center || columns?.right || columns?.background,
-  );
+  return Boolean(columns?.left || columns?.center || columns?.right || columns?.background);
 }
 
 /**
@@ -424,10 +404,7 @@ function transformCssSelectors(css: string): string {
   for (const [selector, pagedSelector] of Object.entries(selectorMap)) {
     // Match: .header-left { ... }
     const regex = new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`, "g");
-    transformed = transformed.replace(
-      regex,
-      (_, content) => `${pagedSelector} {${content}}`,
-    );
+    transformed = transformed.replace(regex, (_, content) => `${pagedSelector} {${content}}`);
   }
 
   return transformed;
@@ -452,15 +429,8 @@ export async function generatePagedCss(
   const marginRules: string[] = [];
 
   // Helper to build margin rule with optional extra styles
-  const addMarginRule = async (
-    position: string,
-    text: string,
-  ): Promise<void> => {
-    const { content, styles } = await buildContentValue(
-      text,
-      baseDir,
-      pageFormat,
-    );
+  const addMarginRule = async (position: string, text: string): Promise<void> => {
+    const { content, styles } = await buildContentValue(text, baseDir, pageFormat);
 
     const extraStyles = styles.length > 0 ? `${styles.join("; ")}; ` : "";
     marginRules.push(`@${position} { ${extraStyles}content: ${content}; }`);
@@ -493,14 +463,10 @@ export async function generatePagedCss(
 
   // Counter reset for custom start value (subtract 1 because counter increments before first page)
   const counterReset =
-    pageStart !== undefined && pageStart !== 1
-      ? `\n  counter-reset: page ${pageStart - 1};`
-      : "";
+    pageStart !== undefined && pageStart !== 1 ? `\n  counter-reset: page ${pageStart - 1};` : "";
 
   // Escape title for CSS string
-  const escapedTitle = config.title
-    ? config.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-    : "";
+  const escapedTitle = config.title ? config.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"') : "";
 
   // Build the CSS
   const css = `

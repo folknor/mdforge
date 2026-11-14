@@ -8,10 +8,5 @@
     "outDir": "node_modules/.cache/tsc",
     "types": ["vite/client"]
   },
-  "include": [
-    "src/main/**/*",
-    "src/preload/**/*",
-    "src/types.ts",
-    "vite.config.ts"
-  ]
+  "include": ["src/main/**/*", "src/preload/**/*", "src/types.ts", "vite.config.ts"]
 }

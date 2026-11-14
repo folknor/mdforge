@@ -1,9 +1,6 @@
 import GithubSlugger from "github-slugger";
 import { marked } from "marked";
-import {
-  HeadingNumberer,
-  type HeadingNumbersConfig,
-} from "./heading-numbers.js";
+import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.js";
 import { cleanForSlug } from "./slugger.js";
 
 /**
@@ -79,10 +76,7 @@ function stripHeadingNumber(title: string): string | undefined {
   // The roman branch comes first so "ii. " strips as a numeral rather than
   // leaving "i. " behind; a single letter that is also a roman digit (i, v,
   // x, …) strips identically either way, so the overlap is harmless.
-  const stripped = title.replace(
-    /^(?:[0-9]+(?:[.)][0-9]+)*|[ivxlcdm]+|[a-z])[.)]\s+/i,
-    "",
-  );
+  const stripped = title.replace(/^(?:[0-9]+(?:[.)][0-9]+)*|[ivxlcdm]+|[a-z])[.)]\s+/i, "");
 
   return stripped === title || stripped.length === 0 ? undefined : stripped;
 }
@@ -100,9 +94,7 @@ function numberedHalf(title: string): string | undefined {
 
   // Chrome repeats the *rendered* title, heading number included, so a half
   // without a leading label is a real heading rather than a doubled one.
-  return half !== undefined && stripHeadingNumber(half) !== undefined
-    ? half
-    : undefined;
+  return half !== undefined && stripHeadingNumber(half) !== undefined ? half : undefined;
 }
 
 /** The first half of an exact two-halves repeat, or `undefined`. */
@@ -162,10 +154,7 @@ const NUMBEROF_REGEX = /(?<!`)@numberof\(([^)]+)\)/g;
  * A repeated heading text resolves to its first occurrence, matching how the
  * slugger hands the plain slug to the first heading and suffixes the rest.
  */
-function headingNumbersBySlug(
-  md: string,
-  config: HeadingNumbersConfig,
-): Map<string, string> {
+function headingNumbersBySlug(md: string, config: HeadingNumbersConfig): Map<string, string> {
   const slugger = new GithubSlugger();
   const numberer = new HeadingNumberer(config);
   const numbers = new Map<string, string>();
@@ -193,9 +182,7 @@ function headingNumbersBySlug(
 
 /** Drop the trailing level separator from a heading number prefix. */
 function trimTrailingSeparator(prefix: string, separator: string): string {
-  return separator && prefix.endsWith(separator)
-    ? prefix.slice(0, -separator.length)
-    : prefix;
+  return separator && prefix.endsWith(separator) ? prefix.slice(0, -separator.length) : prefix;
 }
 
 /**
@@ -236,8 +223,7 @@ export function resolveNumberRefs(
 
   return md.replace(
     NUMBEROF_REGEX,
-    (match, sectionName: string) =>
-      numbers.get(generateSlug(sectionName.trim())) ?? match,
+    (match, sectionName: string) => numbers.get(generateSlug(sectionName.trim())) ?? match,
   );
 }
 

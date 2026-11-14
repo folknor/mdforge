@@ -4,7 +4,6 @@ Convert Markdown to beautifully styled PDFs.
 
 Built with LLMs. See [LLM.md](LLM.md).
 
-
 ## Install
 
 ```bash

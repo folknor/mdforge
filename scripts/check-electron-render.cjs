@@ -47,27 +47,18 @@ app.on("ready", async () => {
       join(repoRoot, "packages/renderer-electron/dist/index.js")
     );
 
-    const { defaultConfig } = await import(
-      join(repoRoot, "packages/core/dist/index.js")
-    );
+    const { defaultConfig } = await import(join(repoRoot, "packages/core/dist/index.js"));
 
-    const result = await convertMdToPdf(
-      { path: input },
-      { ...defaultConfig, dest: output },
-    );
+    const result = await convertMdToPdf({ path: input }, { ...defaultConfig, dest: output });
 
     const content = Buffer.from(result.content);
     await fs.writeFile(output, content);
 
     const header = content.subarray(0, 5).toString("latin1");
 
-    const pages = (
-      content.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []
-    ).length;
+    const pages = (content.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length;
 
-    out(
-      `electron ${process.versions.electron}, chrome ${process.versions.chrome}`,
-    );
+    out(`electron ${process.versions.electron}, chrome ${process.versions.chrome}`);
     out(`wrote ${output} (${content.length} bytes), header ${header}`);
     out(`pages: ${pages}`);
 

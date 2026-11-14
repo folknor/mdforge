@@ -24,18 +24,13 @@
  * substituted verbatim for a bare `{{ name }}`. The kind is decided once, when
  * the config is parsed, so nothing here inspects the runtime type.
  */
-export type Constant =
-  | { kind: "number"; value: number }
-  | { kind: "text"; value: string };
+export type Constant = { kind: "number"; value: number } | { kind: "text"; value: string };
 
 /** Declared constants by name. Look names up with `Object.hasOwn`. */
 export type Constants = Readonly<Record<string, Constant>>;
 
 /** The declared constant `name`, ignoring inherited names like `toString`. */
-function findConstant(
-  constants: Constants,
-  name: string,
-): Constant | undefined {
+function findConstant(constants: Constants, name: string): Constant | undefined {
   return Object.hasOwn(constants, name) ? constants[name] : undefined;
 }
 
@@ -91,19 +86,14 @@ class Evaluator {
     this.skipWhitespace();
 
     if (this.pos < this.source.length) {
-      throw new ExpressionError(
-        `unexpected "${this.source.slice(this.pos).trim()}"`,
-      );
+      throw new ExpressionError(`unexpected "${this.source.slice(this.pos).trim()}"`);
     }
 
     return value;
   }
 
   private skipWhitespace(): void {
-    while (
-      this.pos < this.source.length &&
-      /\s/.test(this.source[this.pos] ?? "")
-    ) {
+    while (this.pos < this.source.length && /\s/.test(this.source[this.pos] ?? "")) {
       this.pos++;
     }
   }
@@ -203,9 +193,7 @@ class Evaluator {
     }
 
     const rest = this.source.slice(this.pos).trim();
-    throw new ExpressionError(
-      rest ? `unexpected "${rest}"` : "unexpected end of expression",
-    );
+    throw new ExpressionError(rest ? `unexpected "${rest}"` : "unexpected end of expression");
   }
 
   private lookup(name: string): number {
@@ -216,9 +204,7 @@ class Evaluator {
     }
 
     if (constant.kind === "text") {
-      throw new ExpressionError(
-        `constant "${name}" is text and can't be used in arithmetic`,
-      );
+      throw new ExpressionError(`constant "${name}" is text and can't be used in arithmetic`);
     }
 
     return constant.value;
@@ -226,10 +212,7 @@ class Evaluator {
 }
 
 /** Render a numeric result, grouping digits when a locale is configured. */
-function formatNumber(
-  value: number,
-  { locale, precision = 2 }: ConstantsOptions,
-): string {
+function formatNumber(value: number, { locale, precision = 2 }: ConstantsOptions): string {
   const factor = 10 ** precision;
   const rounded = Math.round(value * factor) / factor;
 
@@ -270,9 +253,7 @@ export function processConstants(
       // Throws RangeError on a malformed BCP 47 tag, as NumberFormat would
       Intl.getCanonicalLocales(options.locale);
     } catch {
-      warnings.push(
-        `Invalid constants_locale "${options.locale}" — numbers will be unformatted`,
-      );
+      warnings.push(`Invalid constants_locale "${options.locale}" — numbers will be unformatted`);
     }
   }
 
@@ -280,11 +261,7 @@ export function processConstants(
 
   const result = content.replace(
     SCAN_REGEX,
-    (
-      match,
-      passthrough: string | undefined,
-      expression: string | undefined,
-    ) => {
+    (match, passthrough: string | undefined, expression: string | undefined) => {
       if (passthrough !== undefined) {
         // `\{{` is the escape hatch for a literal placeholder
         return passthrough === "\\{{" ? "{{" : passthrough;
@@ -306,13 +283,9 @@ export function processConstants(
       }
 
       try {
-        return formatNumber(
-          new Evaluator(trimmed, constants).evaluate(),
-          options,
-        );
+        return formatNumber(new Evaluator(trimmed, constants).evaluate(), options);
       } catch (error) {
-        const reason =
-          error instanceof ExpressionError ? error.message : String(error);
+        const reason = error instanceof ExpressionError ? error.message : String(error);
 
         const warning = `{{ ${trimmed} }}: ${reason}`;
 

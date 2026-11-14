@@ -8,14 +8,14 @@ mdforge uses [Puppeteer](https://pptr.dev/) to render HTML/CSS to PDF, giving yo
 
 ## Key Features
 
-| Feature | Description |
-|---------|-------------|
-| Themes | Built-in themes or custom CSS |
-| Fonts | Google Fonts with presets |
+| Feature         | Description                         |
+| --------------- | ----------------------------------- |
+| Themes          | Built-in themes or custom CSS       |
+| Fonts           | Google Fonts with presets           |
 | Headers/Footers | Three-column layouts with variables |
-| TOC | Auto-generated with PDF bookmarks |
-| Icons | 200,000+ from Iconify |
-| Includes | Modular documents with templates |
+| TOC             | Auto-generated with PDF bookmarks   |
+| Icons           | 200,000+ from Iconify               |
+| Includes        | Modular documents with templates    |
 
 ## Origins
 

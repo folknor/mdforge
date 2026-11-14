@@ -34,10 +34,10 @@ Numeric constants can be combined, so derived figures never have to be written
 down literally:
 
 ```markdown
-| Overtime | Total |
-|----------|-------|
-| 50%  | {{ hourly_rate * 1.5 }} |
-| 100% | {{ hourly_rate * 2 }}   |
+| Overtime | Total                   |
+| -------- | ----------------------- |
+| 50%      | {{ hourly_rate * 1.5 }} |
+| 100%     | {{ hourly_rate * 2 }}   |
 
 A five-day trip: {{ 5 * (daily_rate + per_diem) }}
 ```
@@ -52,8 +52,8 @@ Results are rounded to two decimals and rendered bare by default (`15000`). Set
 a locale to group digits:
 
 ```yaml
-constants_locale: nb-NO      # 15 000, and 428,57 for decimals
-constants_precision: 0       # optional; default 2
+constants_locale: nb-NO # 15 000, and 428,57 for decimals
+constants_precision: 0 # optional; default 2
 ```
 
 ## Escaping
@@ -80,8 +80,8 @@ or wrong figure in a rate table.
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `constants` | Map of name → number or string |
-| `constants_locale` | BCP 47 locale for grouping numeric results (default: unformatted) |
-| `constants_precision` | Maximum fraction digits (default: 2) |
+| Option                | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `constants`           | Map of name → number or string                                    |
+| `constants_locale`    | BCP 47 locale for grouping numeric results (default: unformatted) |
+| `constants_precision` | Maximum fraction digits (default: 2)                              |

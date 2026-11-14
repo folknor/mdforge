@@ -8,10 +8,7 @@ import {
 } from "../dist/lib/heading-numbers.js";
 
 /** Feed a sequence of heading depths to a numberer and collect the prefixes. */
-function numbersFor(
-  depths: number[],
-  config: HeadingNumbersConfig = {},
-): (string | undefined)[] {
+function numbersFor(depths: number[], config: HeadingNumbersConfig = {}): (string | undefined)[] {
   const numberer = new HeadingNumberer(config);
 
   return depths.map((depth) => numberer.next(depth));
@@ -21,10 +18,7 @@ function numbersFor(
  * Render headings through the marked extension and pull the visible text of
  * each heading back out, so extension output can be compared to the class.
  */
-function renderedHeadingTexts(
-  markdown: string,
-  config: HeadingNumbersConfig = {},
-): string[] {
+function renderedHeadingTexts(markdown: string, config: HeadingNumbersConfig = {}): string[] {
   const marked = new Marked(headingNumbers(config));
   const html = marked.parse(markdown, { async: false });
   const texts: string[] = [];
@@ -58,44 +52,30 @@ describe("HeadingNumberer", () => {
   });
 
   it("restarts a deeper counter after it was reset", () => {
-    assert.deepEqual(numbersFor([2, 3, 4, 3]), [
-      "1.",
-      "1.1.",
-      "1.1.1.",
-      "1.2.",
-    ]);
+    assert.deepEqual(numbersFor([2, 3, 4, 3]), ["1.", "1.1.", "1.1.1.", "1.2."]);
   });
 
   it("honours start_depth by numbering from that level", () => {
-    assert.deepEqual(
-      numbersFor([1, 2, 2, 3], { start_depth: 1, skip_first_h1: false }),
-      ["1.", "1.1.", "1.2.", "1.2.1."],
-    );
+    assert.deepEqual(numbersFor([1, 2, 2, 3], { start_depth: 1, skip_first_h1: false }), [
+      "1.",
+      "1.1.",
+      "1.2.",
+      "1.2.1.",
+    ]);
   });
 
   it("skips only the first h1 when start_depth is 1", () => {
     // The skipped h1 still parents its sections ("1.1.", never "0.1."), but
     // does not consume a number: the next real h1 is "1.".
-    assert.deepEqual(numbersFor([1, 2, 1], { start_depth: 1 }), [
-      undefined,
-      "1.1.",
-      "1.",
-    ]);
+    assert.deepEqual(numbersFor([1, 2, 1], { start_depth: 1 }), [undefined, "1.1.", "1."]);
   });
 
   it("numbers the first h1 when skip_first_h1 is false", () => {
-    assert.deepEqual(
-      numbersFor([1, 1], { start_depth: 1, skip_first_h1: false }),
-      ["1.", "2."],
-    );
+    assert.deepEqual(numbersFor([1, 1], { start_depth: 1, skip_first_h1: false }), ["1.", "2."]);
   });
 
   it("does not number headings deeper than max_depth", () => {
-    assert.deepEqual(numbersFor([2, 3, 4], { max_depth: 3 }), [
-      "1.",
-      "1.1.",
-      undefined,
-    ]);
+    assert.deepEqual(numbersFor([2, 3, 4], { max_depth: 3 }), ["1.", "1.1.", undefined]);
   });
 
   it("uses the configured separator between and after levels", () => {
@@ -103,19 +83,11 @@ describe("HeadingNumberer", () => {
   });
 
   it("formats numbers as lowercase roman numerals", () => {
-    assert.deepEqual(numbersFor([2, 2, 2, 2], { format: "roman" }), [
-      "i.",
-      "ii.",
-      "iii.",
-      "iv.",
-    ]);
+    assert.deepEqual(numbersFor([2, 2, 2, 2], { format: "roman" }), ["i.", "ii.", "iii.", "iv."]);
   });
 
   it("formats numbers as uppercase roman numerals", () => {
-    assert.deepEqual(numbersFor([2, 2], { format: "roman-upper" }), [
-      "I.",
-      "II.",
-    ]);
+    assert.deepEqual(numbersFor([2, 2], { format: "roman-upper" }), ["I.", "II."]);
   });
 
   it("formats numbers as letters", () => {
@@ -165,9 +137,7 @@ describe("headingNumbers() extension", () => {
       [3, "Epsilon"],
     ];
 
-    const markdown = headings
-      .map(([depth, title]) => `${"#".repeat(depth)} ${title}`)
-      .join("\n\n");
+    const markdown = headings.map(([depth, title]) => `${"#".repeat(depth)} ${title}`).join("\n\n");
 
     for (const config of [
       {},
@@ -177,9 +147,7 @@ describe("headingNumbers() extension", () => {
     ] satisfies HeadingNumbersConfig[]) {
       const numberer = new HeadingNumberer(config);
 
-      const expected = headings.map(([depth, title]) =>
-        numberer.apply(depth, title),
-      );
+      const expected = headings.map(([depth, title]) => numberer.apply(depth, title));
 
       assert.deepEqual(
         renderedHeadingTexts(markdown, config),

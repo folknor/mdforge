@@ -15,12 +15,7 @@ import { getFonts } from "font-list";
 const moduleDir: string = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR: string = join(homedir(), ".cache", "mdforge", "fonts");
 
-const GOOGLE_FONTS_LIST: string = join(
-  moduleDir,
-  "..",
-  "data",
-  "google-fonts.json",
-);
+const GOOGLE_FONTS_LIST: string = join(moduleDir, "..", "data", "google-fonts.json");
 
 // Cache system fonts for the session (avoid repeated lookups)
 let systemFontsCache: Set<string> | null = null;
@@ -37,9 +32,7 @@ async function getSystemFonts(): Promise<Set<string>> {
   try {
     const fonts = await getFonts();
     // Normalize: remove quotes and lowercase for comparison
-    systemFontsCache = new Set(
-      fonts.map((f) => f.replace(/^["']|["']$/g, "").toLowerCase()),
-    );
+    systemFontsCache = new Set(fonts.map((f) => f.replace(/^["']|["']$/g, "").toLowerCase()));
   } catch {
     // If font-list fails, return empty set (will download all fonts)
     systemFontsCache = new Set();
@@ -191,11 +184,7 @@ async function fetchAndEmbedFonts(
     const urlRegex = /url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2)\)/g;
     const urls = new Set<string>();
 
-    for (
-      let match = urlRegex.exec(css);
-      match !== null;
-      match = urlRegex.exec(css)
-    ) {
+    for (let match = urlRegex.exec(css); match !== null; match = urlRegex.exec(css)) {
       if (match[1]) urls.add(match[1]);
     }
 
@@ -213,19 +202,14 @@ async function fetchAndEmbedFonts(
 
     // Replace URLs with base64 data URIs
     for (const [fontUrl, base64] of fontMap) {
-      css = css.replace(
-        `url(${fontUrl})`,
-        `url(data:font/woff2;base64,${base64})`,
-      );
+      css = css.replace(`url(${fontUrl})`, `url(data:font/woff2;base64,${base64})`);
     }
 
     return { css, warnings };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    warnings.push(
-      `Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${message}`,
-    );
+    warnings.push(`Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${message}`);
 
     return { css: null, warnings };
   }

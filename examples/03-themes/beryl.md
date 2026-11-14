@@ -29,8 +29,8 @@ function greet(name) {
 
 ## Table
 
-| Feature | Description |
-|---------|-------------|
-| Font | System sans-serif |
-| Style | Modern, clean |
+| Feature  | Description       |
+| -------- | ----------------- |
+| Font     | System sans-serif |
+| Style    | Modern, clean     |
 | Best for | General documents |

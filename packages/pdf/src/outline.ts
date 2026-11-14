@@ -7,14 +7,7 @@
  * page a given heading ended up on.
  */
 
-import {
-  PDFArray,
-  PDFDict,
-  PDFDocument,
-  PDFHexString,
-  PDFName,
-  PDFString,
-} from "@folknor/pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFString } from "@folknor/pdf-lib";
 
 /** A heading from the PDF outline, with the page it appears on. */
 export interface OutlineEntry {
@@ -30,9 +23,7 @@ export interface OutlineEntry {
  * Returns an empty array when the PDF has no outline, which is the normal case
  * for a document with no headings.
  */
-export async function readOutline(
-  pdfBytes: Buffer | Uint8Array,
-): Promise<OutlineEntry[]> {
+export async function readOutline(pdfBytes: Buffer | Uint8Array): Promise<OutlineEntry[]> {
   const doc = await PDFDocument.load(new Uint8Array(pdfBytes));
   const outlines = doc.catalog.lookupMaybe(PDFName.of("Outlines"), PDFDict);
 

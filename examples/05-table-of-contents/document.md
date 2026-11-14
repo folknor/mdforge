@@ -58,8 +58,8 @@ High-quality PDF output with:
 
 ```yaml
 toc_options:
-  skip_first_h1: true   # Skip the document title
-  maxdepth: 3           # Include h1, h2, h3
+  skip_first_h1: true # Skip the document title
+  maxdepth: 3 # Include h1, h2, h3
 ```
 
 ### Other Settings

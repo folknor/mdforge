@@ -59,11 +59,7 @@ export const getHtml = (md: string, config: Config): string => {
   // generated TOC markup is never scanned for directives.
   const resolved = resolveNumberRefs(md, config.heading_numbers);
 
-  const mdWithToc = insertToc(
-    resolved,
-    config.toc_options,
-    config.heading_numbers,
-  );
+  const mdWithToc = insertToc(resolved, config.toc_options, config.heading_numbers);
 
   return `<!DOCTYPE html>
 <html>

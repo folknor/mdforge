@@ -1,14 +1,14 @@
 {
-  "dependencies": {
-    "@mdforge/core": "workspace:*",
-    "@mdforge/pdf": "workspace:*"
-  },
+  "name": "@mdforge/renderer-electron",
+  "version": "1.0.0",
   "description": "Electron-based renderer for mdforge (no Puppeteer required)",
-  "devDependencies": {
-    "@types/node": "^26.6.6",
-    "electron": "^45.3.2",
-    "typescript": "7.0.2"
-  },
+  "license": "MIT",
+  "files": [
+    "/dist"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "default": "./dist/index.js",
@@ -19,21 +19,21 @@
       "types": "./dist/browser.d.ts"
     }
   },
-  "files": [
-    "/dist"
-  ],
-  "license": "MIT",
-  "main": "dist/index.js",
-  "name": "@mdforge/renderer-electron",
-  "peerDependencies": {
-    "electron": "^45.3.2"
-  },
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
     "dev": "tsc --watch"
   },
-  "type": "module",
-  "types": "dist/index.d.ts",
-  "version": "1.0.0"
+  "dependencies": {
+    "@mdforge/core": "workspace:*",
+    "@mdforge/pdf": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "^45.3.2",
+    "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "electron": "^45.3.2"
+  }
 }

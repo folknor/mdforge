@@ -19,29 +19,29 @@ figure below follows.
 
 ## Rates
 
-| Component | Rate | Note |
-|-----------|------|------|
-| Day rate | {{ daily_rate }} {{ currency }} | Per 24-hour period |
-| Hourly | {{ hourly_rate }} {{ currency }} | Full qualification |
-| Hourly | {{ hourly_rate_reduced }} {{ currency }} | Reduced |
-| Per diem | {{ per_diem }} {{ currency }} | Per night |
+| Component | Rate                                     | Note               |
+| --------- | ---------------------------------------- | ------------------ |
+| Day rate  | {{ daily_rate }} {{ currency }}          | Per 24-hour period |
+| Hourly    | {{ hourly_rate }} {{ currency }}         | Full qualification |
+| Hourly    | {{ hourly_rate_reduced }} {{ currency }} | Reduced            |
+| Per diem  | {{ per_diem }} {{ currency }}            | Per night          |
 
 ## Derived figures
 
 Overtime is a multiplier on the hourly rate, so it is never written down
 literally:
 
-| Overtime | Supplement | Total |
-|----------|-----------|-------|
-| 50% | +{{ hourly_rate * 0.5 }} | {{ hourly_rate * 1.5 }} {{ currency }}/h |
-| 100% | +{{ hourly_rate }} | {{ hourly_rate * 2 }} {{ currency }}/h |
+| Overtime | Supplement               | Total                                    |
+| -------- | ------------------------ | ---------------------------------------- |
+| 50%      | +{{ hourly_rate * 0.5 }} | {{ hourly_rate * 1.5 }} {{ currency }}/h |
+| 100%     | +{{ hourly_rate }}       | {{ hourly_rate * 2 }} {{ currency }}/h   |
 
 Worked examples compute from the same source:
 
-| Case | Calculation | Amount |
-|------|-------------|--------|
-| 14 hours | 14 × {{ hourly_rate }} | {{ 14 * hourly_rate }} {{ currency }} |
-| 5 days | 5 × {{ daily_rate }} | {{ 5 * daily_rate }} {{ currency }} |
+| Case        | Calculation                             | Amount                                           |
+| ----------- | --------------------------------------- | ------------------------------------------------ |
+| 14 hours    | 14 × {{ hourly_rate }}                  | {{ 14 * hourly_rate }} {{ currency }}            |
+| 5 days      | 5 × {{ daily_rate }}                    | {{ 5 * daily_rate }} {{ currency }}              |
 | A week away | 5 × ({{ daily_rate }} + {{ per_diem }}) | {{ 5 * (daily_rate + per_diem) }} {{ currency }} |
 
 The `constants_locale: nb-NO` setting is what groups those digits — without it

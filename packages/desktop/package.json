@@ -1,13 +1,35 @@
 {
+  "name": "@mdforge/desktop",
+  "version": "1.0.0",
+  "description": "Desktop app for mdforge - Convert Markdown to PDF",
+  "license": "MIT",
   "author": {
     "name": "folknor",
     "url": "https://github.com/folknor"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/folknor/mdforge"
+  },
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "build-deps": "pnpm --filter \"@mdforge/desktop^...\" run build",
+    "build": "pnpm run typecheck && vite build",
+    "dev": "vite",
+    "prebuild": "pnpm run build-deps",
+    "predev": "pnpm run build-deps",
+    "typecheck": "tsc --build",
+    "package": "electron-builder",
+    "package:linux": "electron-builder --linux AppImage",
+    "package:mac": "electron-builder --mac zip",
+    "package:win": "electron-builder --win --portable",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@mdforge/renderer-electron": "workspace:*",
     "fflate": "^0.8.3"
   },
-  "description": "Desktop app for mdforge - Convert Markdown to PDF",
   "devDependencies": {
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/postcss": "^4.3.3",
@@ -23,27 +45,5 @@
     "typescript": "7.0.2",
     "vite": "^8.3.0",
     "vite-plugin-electron": "^1.1.2"
-  },
-  "license": "MIT",
-  "main": "./out/main/index.js",
-  "name": "@mdforge/desktop",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/folknor/mdforge"
-  },
-  "scripts": {
-    "build-deps": "pnpm --filter \"@mdforge/desktop^...\" run build",
-    "build": "pnpm run typecheck && vite build",
-    "dev": "vite",
-    "prebuild": "pnpm run build-deps",
-    "predev": "pnpm run build-deps",
-    "typecheck": "tsc --build",
-    "package": "electron-builder",
-    "package:linux": "electron-builder --linux AppImage",
-    "package:mac": "electron-builder --mac zip",
-    "package:win": "electron-builder --win --portable",
-    "preview": "vite preview"
-  },
-  "type": "module",
-  "version": "1.0.0"
+  }
 }

@@ -84,9 +84,7 @@ export function admonitions(): MarkedExtension {
           const customTitle = match[2];
 
           const title =
-            customTitle !== undefined
-              ? customTitle
-              : type.charAt(0).toUpperCase() + type.slice(1);
+            customTitle !== undefined ? customTitle : type.charAt(0).toUpperCase() + type.slice(1);
 
           // Find the content block (indented lines)
           const afterHeader = src.slice(match[0].length);
@@ -104,10 +102,7 @@ export function admonitions(): MarkedExtension {
           }
 
           // Remove trailing empty lines
-          while (
-            contentLines.length > 0 &&
-            contentLines[contentLines.length - 1] === ""
-          ) {
+          while (contentLines.length > 0 && contentLines[contentLines.length - 1] === "") {
             contentLines.pop();
           }
 
@@ -139,9 +134,7 @@ export function admonitions(): MarkedExtension {
           // them, always as an AdmonitionToken.
           const { admonitionType, title, tokens } = token as AdmonitionToken;
 
-          const titleHtml = title
-            ? `<p class="admonition-title">${title}</p>\n`
-            : "";
+          const titleHtml = title ? `<p class="admonition-title">${title}</p>\n` : "";
 
           const contentHtml = this.parser.parse(tokens);
 

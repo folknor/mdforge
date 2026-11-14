@@ -22,21 +22,14 @@ async function getExampleOutputs(examplePath) {
   const entries = await fs.readdir(examplePath, { withFileTypes: true });
 
   // Check for config.yaml in this example directory (default config)
-  const hasDefaultConfig = entries.some(
-    (e) => e.isFile() && e.name === "config.yaml",
-  );
+  const hasDefaultConfig = entries.some((e) => e.isFile() && e.name === "config.yaml");
 
-  const defaultConfigFile = hasDefaultConfig
-    ? join(examplePath, "config.yaml")
-    : null;
+  const defaultConfigFile = hasDefaultConfig ? join(examplePath, "config.yaml") : null;
 
   // Find variant config files (*.yaml but not config.yaml)
   const variantConfigs = await Promise.all(
     entries
-      .filter(
-        (e) =>
-          e.isFile() && e.name.endsWith(".yaml") && e.name !== "config.yaml",
-      )
+      .filter((e) => e.isFile() && e.name.endsWith(".yaml") && e.name !== "config.yaml")
       .map(async (e) => {
         const configPath = join(examplePath, e.name);
         const configContent = await fs.readFile(configPath, "utf-8");
@@ -97,9 +90,7 @@ async function regenerateExamples() {
 
     // Filter to single example if specified
     if (filterExample) {
-      const match = exampleDirs.find(
-        (d) => d === filterExample || d.startsWith(filterExample),
-      );
+      const match = exampleDirs.find((d) => d === filterExample || d.startsWith(filterExample));
 
       if (!match) {
         console.error(`Example "${filterExample}" not found`);
@@ -130,19 +121,16 @@ async function regenerateExamples() {
         try {
           const configArg = configFile ? `--config-file "${configFile}"` : "";
 
-          const result = execSync(
-            `node "${cliPath}" ${configArg} "${input}" -o "${output}"`,
-            { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-          );
+          const result = execSync(`node "${cliPath}" ${configArg} "${input}" -o "${output}"`, {
+            encoding: "utf-8",
+            stdio: ["pipe", "pipe", "pipe"],
+          });
 
           // Print CLI output (skip the "generating" lines, show the info)
           const lines = result
             .split("\n")
             .filter(
-              (line) =>
-                line.trim() &&
-                !line.includes("[started]") &&
-                !line.includes("[completed]"),
+              (line) => line.trim() && !line.includes("[started]") && !line.includes("[completed]"),
             );
 
           for (const line of lines) {
@@ -158,8 +146,7 @@ async function regenerateExamples() {
           totalFailed++;
 
           // Extract error message (format: "[time] → Error message") - may be in stdout or stderr
-          const errorOutput =
-            (error.stdout?.toString() || "") + (error.stderr?.toString() || "");
+          const errorOutput = (error.stdout?.toString() || "") + (error.stderr?.toString() || "");
 
           const errorMatch = errorOutput.match(/\] → (.+)/);
 
@@ -174,9 +161,7 @@ async function regenerateExamples() {
       console.log("");
     }
 
-    console.log(
-      `Done! Generated ${totalGenerated} PDF(s), ${totalFailed} failed.`,
-    );
+    console.log(`Done! Generated ${totalGenerated} PDF(s), ${totalFailed} failed.`);
   } catch (error) {
     console.error("Error:", error.message);
     process.exit(1);

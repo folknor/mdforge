@@ -8,13 +8,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { APIDirect } from "google-font-metadata";
 
-const outputPath = join(
-  import.meta.dirname,
-  "..",
-  "src",
-  "data",
-  "google-fonts.json",
-);
+const outputPath = join(import.meta.dirname, "..", "src", "data", "google-fonts.json");
 
 // Extract just the family names (lowercase for case-insensitive lookup)
 const fontNames = APIDirect.map((f) => f.family.toLowerCase());

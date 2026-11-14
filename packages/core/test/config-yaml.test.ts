@@ -2,24 +2,17 @@ import assert from "node:assert/strict";
 import { dirname, join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import {
-  type ConfigSource,
-  parseConfigYaml,
-  splitFrontMatter,
-} from "../dist/lib/config-yaml.js";
+import { type ConfigSource, parseConfigYaml, splitFrontMatter } from "../dist/lib/config-yaml.js";
 
-const fixtures = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "fixtures",
-  "config-yaml",
-);
+const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "config-yaml");
 
 function parse(yaml: string, source: ConfigSource = "front-matter") {
   const dependencies: string[] = [];
 
-  return parseConfigYaml(yaml, { source, baseDir: fixtures, dependencies }).then(
-    (parsed) => ({ ...parsed, dependencies }),
-  );
+  return parseConfigYaml(yaml, { source, baseDir: fixtures, dependencies }).then((parsed) => ({
+    ...parsed,
+    dependencies,
+  }));
 }
 
 const paths = (issues: { path: string }[]) => issues.map(({ path }) => path);
@@ -97,11 +90,7 @@ pdf_options:
       page_numbers: { start: 3 },
       pdf_options: { landscape: true },
     });
-    assert.deepEqual(paths(issues), [
-      "unknown_option",
-      "page_numbers.format",
-      "pdf_options.scale",
-    ]);
+    assert.deepEqual(paths(issues), ["unknown_option", "page_numbers.format", "pdf_options.scale"]);
   });
 
   it("rejects theme: true rather than passing it on", async () => {

@@ -14,20 +14,20 @@ This document uses **roman numerals** for page numbers (i, ii, iii...).
 
 ## Available Formats
 
-| Format | Example | Config |
-|--------|---------|--------|
-| Arabic (default) | 1, 2, 3 | `format: arabic` |
-| Roman lowercase | i, ii, iii | `format: roman` |
-| Roman uppercase | I, II, III | `format: roman-upper` |
-| Alpha lowercase | a, b, c | `format: alpha` |
-| Alpha uppercase | A, B, C | `format: alpha-upper` |
+| Format           | Example    | Config                |
+| ---------------- | ---------- | --------------------- |
+| Arabic (default) | 1, 2, 3    | `format: arabic`      |
+| Roman lowercase  | i, ii, iii | `format: roman`       |
+| Roman uppercase  | I, II, III | `format: roman-upper` |
+| Alpha lowercase  | a, b, c    | `format: alpha`       |
+| Alpha uppercase  | A, B, C    | `format: alpha-upper` |
 
 ## Configuration
 
 ```yaml
 page_numbers:
-  format: roman      # or: arabic, roman-upper, alpha, alpha-upper
-  start: 1           # optional: start from a different number
+  format: roman # or: arabic, roman-upper, alpha, alpha-upper
+  start: 1 # optional: start from a different number
 ```
 
 ## Custom Start Value
@@ -36,7 +36,7 @@ Start numbering from a specific page (useful for multi-part documents):
 
 ```yaml
 page_numbers:
-  start: 5    # First page is numbered 5
+  start: 5 # First page is numbered 5
 ```
 
 ## Use Cases
@@ -57,7 +57,7 @@ Continue numbering from previous section:
 ```yaml
 page_numbers:
   format: arabic
-  start: 47    # Continue from page 47
+  start: 47 # Continue from page 47
 ```
 
 ### Appendices
@@ -66,7 +66,7 @@ Use letters for appendix pages:
 
 ```yaml
 page_numbers:
-  format: alpha-upper   # A, B, C...
+  format: alpha-upper # A, B, C...
 ```
 
 ## This Document

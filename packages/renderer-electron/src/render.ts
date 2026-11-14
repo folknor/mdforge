@@ -39,9 +39,7 @@ export interface RenderResult {
 /**
  * Detect the actual system font file using fc-match (Linux/macOS with fontconfig).
  */
-async function detectSystemFont(
-  fontFamily: string,
-): Promise<EmbeddedFontData | undefined> {
+async function detectSystemFont(fontFamily: string): Promise<EmbeddedFontData | undefined> {
   try {
     const fontFile = execSync(`fc-match -f '%{file}' "${fontFamily}"`, {
       encoding: "utf-8",
@@ -69,9 +67,7 @@ async function detectSystemFont(
  * Build complete HTML with stylesheets inlined.
  * Electron doesn't have addStyleTag like Puppeteer, so we inline everything.
  */
-async function buildCompleteHtml(
-  prepared: PreparedConversion,
-): Promise<string> {
+async function buildCompleteHtml(prepared: PreparedConversion): Promise<string> {
   const styleParts: string[] = [];
 
   for (const stylesheet of prepared.stylesheets) {
@@ -93,10 +89,7 @@ async function buildCompleteHtml(
   // Inject stylesheets and base URL into head
   const stylesHtml = styleParts.join("\n");
 
-  return prepared.html.replace(
-    "<head>",
-    `<head><base href="${prepared.baseUrl}">\n${stylesHtml}`,
-  );
+  return prepared.html.replace("<head>", `<head><base href="${prepared.baseUrl}">\n${stylesHtml}`);
 }
 
 /** Electron's named page sizes, keyed by lowercased Puppeteer paper format. */
@@ -120,9 +113,7 @@ const ELECTRON_PAGE_SIZES = new Map<
 /**
  * Map Puppeteer PDF options to Electron printToPDF options.
  */
-function mapPdfOptions(
-  pdfOptions: PreparedConversion["pdfOptions"],
-): Electron.PrintToPDFOptions {
+function mapPdfOptions(pdfOptions: PreparedConversion["pdfOptions"]): Electron.PrintToPDFOptions {
   const options: Electron.PrintToPDFOptions = {
     printBackground: pdfOptions.printBackground ?? true,
     landscape: pdfOptions.landscape ?? false,
@@ -233,17 +224,10 @@ function parseCssToInches(value: string | number | undefined): number {
  * @param prepared - The prepared conversion from @mdforge/core
  * @returns The rendered content
  */
-export async function render(
-  prepared: PreparedConversion,
-): Promise<RenderResult> {
+export async function render(prepared: PreparedConversion): Promise<RenderResult> {
   const { config } = prepared;
 
-  log(
-    "Starting render, as_html:",
-    config.as_html,
-    "fillable:",
-    config.fillable,
-  );
+  log("Starting render, as_html:", config.as_html, "fillable:", config.fillable);
 
   // Create a hidden BrowserWindow for rendering
   const win = new BrowserWindow({
@@ -308,10 +292,7 @@ export async function render(
 
       if (selectData.length > 0) {
         selectOptions = new Map(
-          selectData.map((s: { name: string; options: string[] }) => [
-            s.name,
-            s.options,
-          ]),
+          selectData.map((s: { name: string; options: string[] }) => [s.name, s.options]),
         );
       }
 
@@ -360,8 +341,7 @@ export async function render(
     const pdfOptions = mapPdfOptions(prepared.pdfOptions);
     log("PDF options:", JSON.stringify(pdfOptions));
 
-    let pdfContent: Buffer | Uint8Array =
-      await win.webContents.printToPDF(pdfOptions);
+    let pdfContent: Buffer | Uint8Array = await win.webContents.printToPDF(pdfOptions);
 
     log("PDF generated, size:", pdfContent.length);
 
@@ -378,12 +358,7 @@ export async function render(
         creator: config.metadata.creator || "mdforge",
       };
 
-      if (
-        metadata.title ||
-        metadata.author ||
-        metadata.subject ||
-        metadata.keywords?.length
-      ) {
+      if (metadata.title || metadata.author || metadata.subject || metadata.keywords?.length) {
         pdfContent = await injectPdfMetadata(Buffer.from(pdfContent), metadata);
       }
     }
@@ -403,10 +378,7 @@ export async function render(
 
     return {
       content: pdfContent,
-      fillableData:
-        selectOptions && formFontInfo
-          ? { selectOptions, formFontInfo }
-          : undefined,
+      fillableData: selectOptions && formFontInfo ? { selectOptions, formFontInfo } : undefined,
     };
   } finally {
     // Always close the window

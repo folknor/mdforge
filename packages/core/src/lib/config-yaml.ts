@@ -130,9 +130,7 @@ type YamlValue = YamlScalar | YamlValue[] | Map<string, YamlValue>;
 
 /** Tags of the YAML 1.2 core schema. */
 const CORE_TAGS: ReadonlySet<string> = new Set(
-  ["str", "int", "float", "bool", "null", "map", "seq"].map(
-    (name) => `tag:yaml.org,2002:${name}`,
-  ),
+  ["str", "int", "float", "bool", "null", "map", "seq"].map((name) => `tag:yaml.org,2002:${name}`),
 );
 
 /*
@@ -199,11 +197,7 @@ function childPath(path: string, key: string | number): string {
 }
 
 /** Turn a parsed YAML node into a YamlValue, reporting what is unsupported. */
-function fromNode(
-  ctx: Context,
-  path: string,
-  node: YamlNode | null,
-): YamlValue | undefined {
+function fromNode(ctx: Context, path: string, node: YamlNode | null): YamlValue | undefined {
   // An empty value (`key:` with nothing after it) has no node.
   if (node === null) return null;
 
@@ -216,9 +210,7 @@ function fromNode(
   }
 
   if (isScalar(node)) {
-    return isYamlScalar(node.value)
-      ? node.value
-      : report(ctx, path, "unsupported YAML value");
+    return isYamlScalar(node.value) ? node.value : report(ctx, path, "unsupported YAML value");
   }
 
   if (isSeq(node)) {
@@ -269,21 +261,12 @@ function fromNode(
 // Decoders
 
 /** Decodes one value at `path`; undefined means rejected (and reported). */
-type Decoder<T> = (
-  ctx: Context,
-  path: string,
-  value: YamlValue,
-) => Promise<T | undefined>;
+type Decoder<T> = (ctx: Context, path: string, value: YamlValue) => Promise<T | undefined>;
 
 /** A decoder for every key of T, so none can be forgotten. */
 type Decoders<T> = { [K in keyof T]-?: Decoder<NonNullable<T[K]>> };
 
-function expected(
-  ctx: Context,
-  path: string,
-  what: string,
-  value: YamlValue,
-): undefined {
+function expected(ctx: Context, path: string, what: string, value: YamlValue): undefined {
   return report(ctx, path, `expected ${what}, got ${kindOf(value)}`);
 }
 
@@ -300,11 +283,7 @@ interface Text {
   fromFile: boolean;
 }
 
-async function readText(
-  ctx: Context,
-  path: string,
-  value: YamlValue,
-): Promise<Text | undefined> {
+async function readText(ctx: Context, path: string, value: YamlValue): Promise<Text | undefined> {
   if (!isString(value)) return expected(ctx, path, "a string", value);
 
   if (!value.startsWith("@")) return { value, fromFile: false };
@@ -325,8 +304,7 @@ async function readText(
 }
 
 /** Free text; an `@file` reference is replaced by the file's contents. */
-const text: Decoder<string> = async (ctx, path, value) =>
-  (await readText(ctx, path, value))?.value;
+const text: Decoder<string> = async (ctx, path, value) => (await readText(ctx, path, value))?.value;
 
 function oneOf<T extends string>(
   allowed: readonly T[],
@@ -420,10 +398,7 @@ function oneOrMany<T>(item: Decoder<T>): Decoder<T[]> {
   };
 }
 
-function isFieldOf<T>(
-  decoders: Decoders<T>,
-  key: string,
-): key is Extract<keyof T, string> {
+function isFieldOf<T>(decoders: Decoders<T>, key: string): key is Extract<keyof T, string> {
   return Object.hasOwn(decoders, key);
 }
 
@@ -589,10 +564,7 @@ const pdfOptions = record<PDFOptions>({
 const switchOrList: Decoder<boolean | string[]> = async (ctx, path, value) =>
   isBoolean(value) ? value : list(literal, true)(ctx, path, value);
 
-const BROWSERS = [
-  "chrome",
-  "firefox",
-] as const satisfies readonly SupportedBrowser[];
+const BROWSERS = ["chrome", "firefox"] as const satisfies readonly SupportedBrowser[];
 
 const CHANNELS = [
   "chrome",
@@ -628,11 +600,7 @@ const launchOptionFields = record<YamlLaunchOptions>({
   waitForInitialPage: boolean,
 });
 
-const launchOptions: Decoder<Partial<YamlLaunchOptions>> = async (
-  ctx,
-  path,
-  value,
-) =>
+const launchOptions: Decoder<Partial<YamlLaunchOptions>> = async (ctx, path, value) =>
   ctx.source === "config-file"
     ? launchOptionFields(ctx, path, value)
     : report(
@@ -641,11 +609,7 @@ const launchOptions: Decoder<Partial<YamlLaunchOptions>> = async (
         "can only be set in the config file: one browser is shared by every document",
       );
 
-const TOC_STYLES = [
-  "bullet",
-  "ordered",
-  "table",
-] as const satisfies readonly TOCStyle[];
+const TOC_STYLES = ["bullet", "ordered", "table"] as const satisfies readonly TOCStyle[];
 
 const tableHeaders: Decoder<[string, string]> = async (ctx, path, value) => {
   const cells = await list(text, true)(ctx, path, value);
@@ -741,11 +705,8 @@ const headingNumberFields = record<HeadingNumbersConfig>({
   skip_first_h1: boolean,
 });
 
-const headingNumbers: Decoder<HeadingNumbersConfig | false> = async (
-  ctx,
-  path,
-  value,
-) => (value === false ? false : headingNumberFields(ctx, path, value));
+const headingNumbers: Decoder<HeadingNumbersConfig | false> = async (ctx, path, value) =>
+  value === false ? false : headingNumberFields(ctx, path, value);
 
 const constantValue: Decoder<Constant> = async (ctx, path, value) => {
   if (isNumber(value)) {
@@ -843,10 +804,7 @@ export async function parseConfigYaml(
 }
 
 /** Render issues as one warning block for CLI output. */
-export function formatConfigIssues(
-  issues: readonly ConfigIssue[],
-  origin: string,
-): string {
+export function formatConfigIssues(issues: readonly ConfigIssue[], origin: string): string {
   const lines = issues.map(
     ({ path, message }) => `  - ${path === "" ? "(document)" : path}: ${message}`,
   );

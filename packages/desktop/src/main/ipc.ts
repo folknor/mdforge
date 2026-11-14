@@ -18,32 +18,26 @@ const fileWatchers: Map<string, FSWatcher> = new Map();
 
 export function setupIpcHandlers(): void {
   // File conversion
-  ipcMain.handle(
-    "convert-files",
-    async (event, files: string[], config: ConversionConfig) => {
-      log("convert-files IPC called, files:", files);
-      const window = BrowserWindow.fromWebContents(event.sender);
+  ipcMain.handle("convert-files", async (event, files: string[], config: ConversionConfig) => {
+    log("convert-files IPC called, files:", files);
+    const window = BrowserWindow.fromWebContents(event.sender);
 
-      const results = await convertFiles(files, config, (file, progress) => {
-        log("Progress:", file, progress);
-        window?.webContents.send("conversion-progress", { file, progress });
-      });
+    const results = await convertFiles(files, config, (file, progress) => {
+      log("Progress:", file, progress);
+      window?.webContents.send("conversion-progress", { file, progress });
+    });
 
-      log("Conversion complete, results:", results);
+    log("Conversion complete, results:", results);
 
-      return results;
-    },
-  );
+    return results;
+  });
 
   // Preview generation
-  ipcMain.handle(
-    "generate-preview",
-    async (_event, filePath: string, config: PreviewConfig) => {
-      log("generate-preview IPC called:", filePath);
+  ipcMain.handle("generate-preview", async (_event, filePath: string, config: PreviewConfig) => {
+    log("generate-preview IPC called:", filePath);
 
-      return generatePreview(filePath, config);
-    },
-  );
+    return generatePreview(filePath, config);
+  });
 
   // File watching for live preview
   ipcMain.handle("watch-file", async (event, filePath: string) => {

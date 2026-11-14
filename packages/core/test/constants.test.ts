@@ -9,10 +9,7 @@ const constants = {
 
 describe("processConstants", () => {
   it("substitutes text and evaluates arithmetic", () => {
-    const { content, warnings } = processConstants(
-      "{{ name }}: {{ rate * 2 }}",
-      constants,
-    );
+    const { content, warnings } = processConstants("{{ name }}: {{ rate * 2 }}", constants);
 
     assert.equal(content, "Acme: 3000");
     assert.deepEqual(warnings, []);
@@ -27,10 +24,7 @@ describe("processConstants", () => {
 
   it("treats prototype names as unknown", () => {
     for (const name of ["toString", "constructor", "hasOwnProperty"]) {
-      const { content, warnings } = processConstants(
-        `{{ ${name} }}`,
-        constants,
-      );
+      const { content, warnings } = processConstants(`{{ ${name} }}`, constants);
 
       assert.equal(content, `{{ ${name} }}`);
       assert.match(warnings[0] ?? "", /unknown constant/, name);

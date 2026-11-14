@@ -8,14 +8,14 @@ mdforge [options] <files...>
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `-h, --help` | Show help |
-| `-v, --version` | Show version |
-| `-o, --output <path>` | Output file path (single file only) |
-| `--as-html` | Output HTML instead of PDF |
-| `--config-file <path>` | Path to YAML configuration file |
-| `-w, --watch` | Re-render when an input file or its stylesheet changes |
+| Option                 | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| `-h, --help`           | Show help                                              |
+| `-v, --version`        | Show version                                           |
+| `-o, --output <path>`  | Output file path (single file only)                    |
+| `--as-html`            | Output HTML instead of PDF                             |
+| `--config-file <path>` | Path to YAML configuration file                        |
+| `-w, --watch`          | Re-render when an input file or its stylesheet changes |
 
 ## Examples
 
@@ -64,7 +64,7 @@ const result = await mdToPdf({ path: "document.md" });
 // From string
 const result = await mdToPdf(
   { content: "# Hello\n\nWorld" },
-  { theme: "tufte", pdf_options: { format: "Letter" } }
+  { theme: "tufte", pdf_options: { format: "Letter" } },
 );
 
 // result.content is Buffer (PDF) or string (HTML)

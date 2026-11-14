@@ -74,17 +74,14 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
         name: "formFieldBlock",
         level: "block",
         start(src: string): number | undefined {
-          const match = src.match(
-            /^\[\?(?:select|checklist|radiolist)\?\s*([^\]]*)\]\(([^)]*)\)/m,
-          );
+          const match = src.match(/^\[\?(?:select|checklist|radiolist)\?\s*([^\]]*)\]\(([^)]*)\)/m);
 
           return match?.index;
         },
         tokenizer(src: string): Tokens.Generic | undefined {
-          const match =
-            /^\[(\?(?:select|checklist|radiolist)\?)\s*([^\]]*)\]\(([^)]*)\)\n?/.exec(
-              src,
-            );
+          const match = /^\[(\?(?:select|checklist|radiolist)\?)\s*([^\]]*)\]\(([^)]*)\)\n?/.exec(
+            src,
+          );
 
           if (match) {
             const typeStr = match[1] ?? "";
@@ -146,9 +143,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
           // Parse list items manually
           const listRaw = listMatch[0];
 
-          const itemMatches = listRaw.matchAll(
-            /^[ \t]*[-*+\d.]+[ \t]+(.+?)(?:\n|$)/gm,
-          );
+          const itemMatches = listRaw.matchAll(/^[ \t]*[-*+\d.]+[ \t]+(.+?)(?:\n|$)/gm);
 
           const parsedOptions: FieldOption[] = [];
 
@@ -180,12 +175,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
           // SAFETY: marked dispatches this renderer only for tokens whose
           // `type` is "formFieldList", and only the tokenizer above creates
           // them, always as a FormFieldListToken.
-          const {
-            fieldType,
-            name,
-            label,
-            options: fieldOptions,
-          } = token as FormFieldListToken;
+          const { fieldType, name, label, options: fieldOptions } = token as FormFieldListToken;
 
           if (fieldType === "select") {
             if (fillable) {
@@ -272,12 +262,9 @@ ${itemsHtml}
             const label = match[1]?.trim() ?? "";
             const questionMarks = match[2] ?? "??";
 
-            const lineCount = match[3]
-              ? Number.parseInt(match[3], 10)
-              : undefined;
+            const lineCount = match[3] ? Number.parseInt(match[3], 10) : undefined;
 
-            const name =
-              match[4]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
+            const name = match[4]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
 
             const isTextarea = questionMarks === "???";
 
@@ -297,8 +284,7 @@ ${itemsHtml}
           // SAFETY: marked dispatches this renderer only for tokens whose
           // `type` is "formFieldInline", and only the tokenizer above creates
           // them, always as a FormFieldInlineToken.
-          const { fieldType, name, label, lineCount } =
-            token as FormFieldInlineToken;
+          const { fieldType, name, label, lineCount } = token as FormFieldInlineToken;
 
           const dataAttrs = fillable
             ? `data-form-field data-field-name="${name}" data-field-type="${fieldType}"`
@@ -324,9 +310,7 @@ ${wrappedTextarea}
           // Text input
           const inputHtml = `<input type="text" name="${name}">`;
 
-          const wrappedInput = fillable
-            ? wrapWithMarker(inputHtml, name, "text")
-            : inputHtml;
+          const wrappedInput = fillable ? wrapWithMarker(inputHtml, name, "text") : inputHtml;
 
           return `<label class="form-field form-text" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
@@ -349,12 +333,7 @@ export const MARKER_URL_PREFIX = "https://mdforge.marker/";
  * The marker link overlays the input element to capture its full dimensions
  * as a PDF link annotation rectangle.
  */
-function wrapWithMarker(
-  inputHtml: string,
-  name: string,
-  type: string,
-  value?: string,
-): string {
+function wrapWithMarker(inputHtml: string, name: string, type: string, value?: string): string {
   const params = new URLSearchParams({ type });
 
   if (value) params.set("value", value);

@@ -33,8 +33,8 @@ func main() {
 
 ## Table
 
-| Feature | Description |
-|---------|-------------|
-| Font | Computer Modern style |
-| Style | LaTeX-like |
-| Best for | Technical documents |
+| Feature  | Description           |
+| -------- | --------------------- |
+| Font     | Computer Modern style |
+| Style    | LaTeX-like            |
+| Best for | Technical documents   |

@@ -28,7 +28,6 @@ header:
 footer:
   center: "Page {page}/{pages}"
 ---
-
 # My Document
 
 Content here...

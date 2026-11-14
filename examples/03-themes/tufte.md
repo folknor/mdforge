@@ -30,8 +30,8 @@ def fibonacci(n):
 
 ## Table
 
-| Feature | Description |
-|---------|-------------|
-| Font | Serif (ET Book style) |
-| Style | Classic, bookish |
+| Feature  | Description               |
+| -------- | ------------------------- |
+| Font     | Serif (ET Book style)     |
+| Style    | Classic, bookish          |
 | Best for | Essays, long-form writing |

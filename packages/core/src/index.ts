@@ -10,21 +10,13 @@
 export type { PdfMetadata } from "@mdforge/pdf";
 
 // Configuration types and defaults
-export {
-  type Config,
-  defaultConfig,
-  type Theme,
-  themes,
-} from "./lib/config.js";
+export { type Config, defaultConfig, type Theme, themes } from "./lib/config.js";
 
 // Document constants
 export type { Constant, Constants } from "./lib/constants.js";
 
 // Conversion info for CLI output
-export {
-  type ConversionInfo,
-  formatConversionInfo,
-} from "./lib/conversion-info.js";
+export { type ConversionInfo, formatConversionInfo } from "./lib/conversion-info.js";
 
 // Error types
 export {

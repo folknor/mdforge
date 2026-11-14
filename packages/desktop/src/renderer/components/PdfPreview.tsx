@@ -58,13 +58,9 @@ export default function PdfPreview({
         </span>
         <div className="flex items-center gap-3">
           {generatedAt != null && !isLoading ? (
-            <span className="text-xs text-gray-500">
-              {formatTime(generatedAt)}
-            </span>
+            <span className="text-xs text-gray-500">{formatTime(generatedAt)}</span>
           ) : null}
-          {isLoading ? (
-            <span className="text-sm text-blue-600">Generating...</span>
-          ) : null}
+          {isLoading ? <span className="text-sm text-blue-600">Generating...</span> : null}
         </div>
       </div>
 
@@ -123,11 +119,7 @@ export default function PdfPreview({
         ) : null}
 
         {blobUrl != null ? (
-          <iframe
-            src={blobUrl}
-            title="PDF Preview"
-            className="w-full h-full border-0"
-          />
+          <iframe src={blobUrl} title="PDF Preview" className="w-full h-full border-0" />
         ) : null}
 
         {isLoading && blobUrl != null ? (

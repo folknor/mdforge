@@ -13,10 +13,7 @@ describe("header/footer activity", () => {
   });
 
   it("ignores an empty background when choosing the renderer", () => {
-    assert.equal(
-      hasBackground({ header: { background: "" }, footer: { center: "x" } }),
-      false,
-    );
+    assert.equal(hasBackground({ header: { background: "" }, footer: { center: "x" } }), false);
     assert.equal(hasBackground({ footer: { background: "bg.png" } }), true);
   });
 });

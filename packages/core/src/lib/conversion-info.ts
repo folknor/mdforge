@@ -70,9 +70,7 @@ export function formatConversionInfo(info: ConversionInfo): string {
     if (font) {
       const source = font.source.includes("system") ? "system" : "google";
 
-      const fallbackNote = font.preferred
-        ? ` ← ${font.preferred} not found`
-        : "";
+      const fallbackNote = font.preferred ? ` ← ${font.preferred} not found` : "";
 
       fontParts.push(`${role}: ${font.name} (${source})${fallbackNote}`);
     }
@@ -107,11 +105,9 @@ export function formatConversionInfo(info: ConversionInfo): string {
   if (info.headerFooter && info.headerFooter.type !== "none") {
     const parts: string[] = [];
 
-    if (info.headerFooter.header)
-      parts.push(`header: "${info.headerFooter.header}"`);
+    if (info.headerFooter.header) parts.push(`header: "${info.headerFooter.header}"`);
 
-    if (info.headerFooter.footer)
-      parts.push(`footer: "${info.headerFooter.footer}"`);
+    if (info.headerFooter.footer) parts.push(`footer: "${info.headerFooter.footer}"`);
 
     if (parts.length > 0) {
       lines.push(`  ${parts.join(", ")} (${info.headerFooter.type})`);

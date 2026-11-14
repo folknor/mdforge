@@ -37,10 +37,7 @@ function getCachePath(prefix: string, name: string): string {
 /**
  * Check if icon is in cache and return it
  */
-async function getFromCache(
-  prefix: string,
-  name: string,
-): Promise<string | null> {
+async function getFromCache(prefix: string, name: string): Promise<string | null> {
   const cachePath = getCachePath(prefix, name);
 
   try {
@@ -55,11 +52,7 @@ async function getFromCache(
 /**
  * Save icon to cache
  */
-async function saveToCache(
-  prefix: string,
-  name: string,
-  svg: string,
-): Promise<void> {
+async function saveToCache(prefix: string, name: string, svg: string): Promise<void> {
   await ensureCacheDir();
   const cachePath = getCachePath(prefix, name);
   await fs.writeFile(cachePath, svg, "utf-8");
@@ -155,11 +148,7 @@ function findIconReferences(
   // Reset regex lastIndex
   ICON_REGEX.lastIndex = 0;
 
-  for (
-    let match = ICON_REGEX.exec(content);
-    match !== null;
-    match = ICON_REGEX.exec(content)
-  ) {
+  for (let match = ICON_REGEX.exec(content); match !== null; match = ICON_REGEX.exec(content)) {
     const fullMatch = match[0];
     const prefix = match[1];
     const name = match[2];
@@ -190,10 +179,7 @@ function findIconReferences(
  * @param content - Markdown content to process
  * @param apiUrl - Optional Iconify API URL (defaults to https://api.iconify.design)
  */
-export async function processIcons(
-  content: string,
-  apiUrl?: string,
-): Promise<string> {
+export async function processIcons(content: string, apiUrl?: string): Promise<string> {
   const refs = findIconReferences(content);
 
   if (refs.length === 0) {
@@ -208,11 +194,7 @@ export async function processIcons(
       const key = `${prefix}:${name}`;
 
       if (!iconMap.has(key)) {
-        const svg = await fetchIcon(
-          prefix,
-          name,
-          apiUrl ?? DEFAULT_ICONIFY_API,
-        );
+        const svg = await fetchIcon(prefix, name, apiUrl ?? DEFAULT_ICONIFY_API);
 
         if (svg) {
           iconMap.set(key, svg);

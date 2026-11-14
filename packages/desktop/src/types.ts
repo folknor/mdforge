@@ -35,16 +35,10 @@ export interface ConversionProgress {
 
 export interface ElectronAPI {
   // Conversion
-  convertFiles: (
-    files: string[],
-    config: ConversionConfig,
-  ) => Promise<ConversionResult[]>;
+  convertFiles: (files: string[], config: ConversionConfig) => Promise<ConversionResult[]>;
 
   // Preview
-  generatePreview: (
-    filePath: string,
-    config: PreviewConfig,
-  ) => Promise<PreviewResult>;
+  generatePreview: (filePath: string, config: PreviewConfig) => Promise<PreviewResult>;
   watchFile: (filePath: string) => Promise<void>;
   unwatchFile: (filePath: string) => Promise<void>;
 
@@ -56,8 +50,6 @@ export interface ElectronAPI {
   getPathForFile: (file: File) => string;
 
   // Events
-  onConversionProgress: (
-    callback: (progress: ConversionProgress) => void,
-  ) => () => void;
+  onConversionProgress: (callback: (progress: ConversionProgress) => void) => () => void;
   onFileChanged: (callback: (filePath: string) => void) => () => void;
 }

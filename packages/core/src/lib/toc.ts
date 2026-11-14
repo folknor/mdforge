@@ -8,10 +8,7 @@
 
 import GithubSlugger from "github-slugger";
 import { marked, type Token, type Tokens } from "marked";
-import {
-  HeadingNumberer,
-  type HeadingNumbersConfig,
-} from "./heading-numbers.js";
+import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.js";
 import { cleanForSlug } from "./slugger.js";
 import { pageRefSpan } from "./xref.js";
 
@@ -83,9 +80,7 @@ class MarkedAdapter {
       page_separator: " — ",
       ...options,
     };
-    this.numberer = headingNumbers
-      ? new HeadingNumberer(headingNumbers)
-      : undefined;
+    this.numberer = headingNumbers ? new HeadingNumberer(headingNumbers) : undefined;
   }
 
   /**
@@ -138,9 +133,7 @@ class MarkedAdapter {
     // so de-duplication suffixes and counters match the rendered document.
     const slug = this.slugger.slug(cleanForSlug(text));
 
-    const numbered = this.numberer
-      ? this.numberer.apply(headingDepth, text)
-      : text;
+    const numbered = this.numberer ? this.numberer.apply(headingDepth, text) : text;
 
     // Skip headings beyond maxdepth
     if (headingDepth > (this.options.maxdepth ?? 6)) {
@@ -196,9 +189,7 @@ class MarkedAdapter {
       const indentation = "  ".repeat(indentLevel);
       const page = this.pageRef(heading);
 
-      const suffix = page
-        ? `${this.options.page_separator ?? " — "}${page}`
-        : "";
+      const suffix = page ? `${this.options.page_separator ?? " — "}${page}` : "";
 
       lines.push(
         `${indentation}${marker} [${escapeLinkText(heading.content)}](#${heading.slug})${suffix}`,
@@ -213,10 +204,7 @@ class MarkedAdapter {
     const highestLevel = this.getHighestLevel();
     const [titleHeader, pageHeader] = this.options.table_headers ?? ["", ""];
 
-    const lines = [
-      `| ${escapeCell(titleHeader)} | ${escapeCell(pageHeader)} |`,
-      "| --- | --- |",
-    ];
+    const lines = [`| ${escapeCell(titleHeader)} | ${escapeCell(pageHeader)} |`, "| --- | --- |"];
 
     for (const heading of this.headings) {
       // Markdown indentation is meaningless inside a table cell, so nesting is
@@ -317,12 +305,7 @@ export function insertToc(
   // re-parsed or its links would consume slugs a second time.
   const preceding = sections[0] ?? "";
 
-  const tocContent = toc(
-    last,
-    options,
-    headingNumbers || undefined,
-    preceding,
-  ).content;
+  const tocContent = toc(last, options, headingNumbers || undefined, preceding).content;
 
   if (sections.length === 3) {
     // Both markers present: <!-- toc --> content <!-- tocstop -->

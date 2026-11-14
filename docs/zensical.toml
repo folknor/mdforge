@@ -8,23 +8,23 @@ repo_url = "https://github.com/folknor/mdforge"
 repo_name = "folknor/mdforge"
 
 nav = [
-  {"Home" = "index.md"},
-  {"Getting Started" = [
+  { "Home" = "index.md" },
+  { "Getting Started" = [
     "getting-started/index.md",
     "getting-started/installation.md",
-    "getting-started/quick-start.md"
-  ]},
-  {"Guides" = [
+    "getting-started/quick-start.md",
+  ] },
+  { "Guides" = [
     "guides/themes.md",
     "guides/headers-footers.md",
     "guides/fonts.md",
     "guides/includes.md",
-    "guides/constants.md"
-  ]},
-  {"Reference" = [
+    "guides/constants.md",
+  ] },
+  { "Reference" = [
     "reference/configuration.md",
-    "reference/cli.md"
-  ]}
+    "reference/cli.md",
+  ] },
 ]
 
 [project.theme]

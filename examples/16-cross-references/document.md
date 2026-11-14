@@ -10,9 +10,9 @@ This document demonstrates mdforge's cross-reference syntax. See @see(Syntax) fo
 
 Two directives are available:
 
-| Directive | Purpose |
-|-----------|---------|
-| `@see(Name)` | Link to a heading or anchor |
+| Directive       | Purpose                         |
+| --------------- | ------------------------------- |
+| `@see(Name)`    | Link to a heading or anchor     |
 | `@anchor(Name)` | Create an invisible link target |
 
 ### Linking to Headings

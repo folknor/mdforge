@@ -1,8 +1,4 @@
-import {
-  fontPairingPresets,
-  type Theme,
-  themes,
-} from "@mdforge/renderer-electron/browser";
+import { fontPairingPresets, type Theme, themes } from "@mdforge/renderer-electron/browser";
 import type React from "react";
 
 interface ConfigPanelProps {
@@ -28,10 +24,7 @@ export default function ConfigPanel({
 
       <div className="space-y-4">
         <div>
-          <label
-            htmlFor="theme-select"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label htmlFor="theme-select" className="block text-sm font-medium text-gray-700 mb-1">
             Theme
           </label>
           <select
@@ -78,10 +71,7 @@ export default function ConfigPanel({
         </div>
 
         <div>
-          <label
-            htmlFor="author-input"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <label htmlFor="author-input" className="block text-sm font-medium text-gray-700 mb-1">
             Author
           </label>
           <input

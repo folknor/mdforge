@@ -49,9 +49,7 @@ export async function closeBrowser(): Promise<void> {
 /**
  * Detect the actual system font file using fc-match (Linux/macOS with fontconfig).
  */
-async function detectSystemFont(
-  fontFamily: string,
-): Promise<EmbeddedFontData | undefined> {
+async function detectSystemFont(fontFamily: string): Promise<EmbeddedFontData | undefined> {
   try {
     // Use fc-match to find the font file
     const fontFile = execSync(`fc-match -f '%{file}' "${fontFamily}"`, {
@@ -108,10 +106,7 @@ export async function render(
   const page = await browser.newPage();
 
   // Inject <base> tag so relative paths in markdown resolve correctly
-  const htmlWithBase = prepared.html.replace(
-    "<head>",
-    `<head><base href="${prepared.baseUrl}">`,
-  );
+  const htmlWithBase = prepared.html.replace("<head>", `<head><base href="${prepared.baseUrl}">`);
 
   // Load the page from a real file:// URL rather than via setContent. A page
   // populated by setContent has an about:blank origin, and Chromium refuses to
@@ -184,9 +179,7 @@ export async function render(
 
         if (!name) continue;
 
-        const options = Array.from(select.options).map(
-          (opt) => opt.value || opt.text,
-        );
+        const options = Array.from(select.options).map((opt) => opt.value || opt.text);
 
         result.push({ name, options });
       }
@@ -207,9 +200,7 @@ export async function render(
       if (!input) return;
       const style = window.getComputedStyle(input);
 
-      const fontFamily =
-        style.fontFamily.split(",")[0]?.trim().replace(/['"]/g, "") ||
-        "Helvetica";
+      const fontFamily = style.fontFamily.split(",")[0]?.trim().replace(/['"]/g, "") || "Helvetica";
 
       const fontSize = parseFloat(style.fontSize) || 12;
 
@@ -257,12 +248,7 @@ export async function render(
     };
 
     // Only inject if there's meaningful metadata
-    if (
-      metadata.title ||
-      metadata.author ||
-      metadata.subject ||
-      metadata.keywords?.length
-    ) {
+    if (metadata.title || metadata.author || metadata.subject || metadata.keywords?.length) {
       pdfContent = await injectPdfMetadata(Buffer.from(pdfContent), metadata);
     }
   }
@@ -278,9 +264,6 @@ export async function render(
 
   return {
     content: pdfContent,
-    fillableData:
-      selectOptions && formFontInfo
-        ? { selectOptions, formFontInfo }
-        : undefined,
+    fillableData: selectOptions && formFontInfo ? { selectOptions, formFontInfo } : undefined,
   };
 }

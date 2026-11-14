@@ -61,11 +61,11 @@ pdf_options:
 
 Each template is a complete HTML document with inline styles:
 
-| File | Purpose |
-|------|---------|
-| `header.html` | Logo, company name, gradient background |
+| File          | Purpose                                                    |
+| ------------- | ---------------------------------------------------------- |
+| `header.html` | Logo, company name, gradient background                    |
 | `footer.html` | Date, confidentiality badge with icon, styled page numbers |
-| `style.css` | Document body styling (separate from header/footer) |
+| `style.css`   | Document body styling (separate from header/footer)        |
 
 ## Important Notes
 
@@ -77,8 +77,8 @@ Each template is a complete HTML document with inline styles:
 ## Sample Data
 
 | Quarter | Revenue | Growth |
-|---------|---------|--------|
-| Q1 | $2.4M | +12% |
-| Q2 | $2.8M | +17% |
-| Q3 | $3.1M | +11% |
-| Q4 | $3.6M | +16% |
+| ------- | ------- | ------ |
+| Q1      | $2.4M   | +12%   |
+| Q2      | $2.8M   | +17%   |
+| Q3      | $3.1M   | +11%   |
+| Q4      | $3.6M   | +16%   |

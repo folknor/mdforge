@@ -265,9 +265,7 @@ async function addFormFields(pdfDoc, pages, fieldPositions, pageInfo) {
     const pdfFieldHeight = htmlHeight * scale;
 
     console.log(`\nField: ${field.name}`);
-    console.log(
-      `  HTML: x=${htmlX}, y=${htmlY}, w=${htmlWidth}, h=${htmlHeight}`,
-    );
+    console.log(`  HTML: x=${htmlX}, y=${htmlY}, w=${htmlWidth}, h=${htmlHeight}`);
     console.log(
       `  PDF:  x=${pdfX.toFixed(1)}, y=${pdfY.toFixed(1)}, w=${pdfFieldWidth.toFixed(1)}, h=${pdfFieldHeight.toFixed(1)}`,
     );
@@ -321,9 +319,7 @@ async function embedPositionsInPdf(pdfPath, fieldPositions, pageInfo) {
   const metadataMarker = `__MDFORGE_FORM_FIELDS__${JSON.stringify(formMetadata)}__END_MDFORGE__`;
 
   pdfDoc.setKeywords([...existingKeywords, metadataMarker]);
-  pdfDoc.setSubject(
-    "PDF with embedded form field positions for post-processing",
-  );
+  pdfDoc.setSubject("PDF with embedded form field positions for post-processing");
 
   const outputPath = join(outputDir, "test-form-with-metadata.pdf");
   const modifiedBytes = await pdfDoc.save();
@@ -340,9 +336,7 @@ async function embedPositionsInPdf(pdfPath, fieldPositions, pageInfo) {
   );
 
   // Keywords might be a string or array depending on pdf-lib version
-  const keywordStr = Array.isArray(keywords)
-    ? keywords.join(" ")
-    : keywords || "";
+  const keywordStr = Array.isArray(keywords) ? keywords.join(" ") : keywords || "";
 
   const match = keywordStr.match(/__MDFORGE_FORM_FIELDS__(.+?)__END_MDFORGE__/);
 
@@ -352,9 +346,7 @@ async function embedPositionsInPdf(pdfPath, fieldPositions, pageInfo) {
       `Successfully extracted ${extracted.fields.length} field definitions from PDF metadata`,
     );
   } else {
-    console.log(
-      "✗ Failed to extract metadata (might be in a different format)",
-    );
+    console.log("✗ Failed to extract metadata (might be in a different format)");
   }
 
   return outputPath;
@@ -635,9 +627,7 @@ async function fullPipeline() {
         console.log(`    Options: ${field.options.join(", ")}`);
 
         const dropdown = form.createDropdown(field.name);
-        dropdown.addOptions(
-          field.options.length > 0 ? field.options : ["Option 1", "Option 2"],
-        );
+        dropdown.addOptions(field.options.length > 0 ? field.options : ["Option 1", "Option 2"]);
         dropdown.addToPage(firstPage, {
           x: pdfX,
           y: pdfY,
@@ -646,9 +636,7 @@ async function fullPipeline() {
           borderColor: rgb(0.4, 0.4, 0.4),
           borderWidth: 1,
         });
-        console.log(
-          `    ✓ Added dropdown with ${field.options.length} options`,
-        );
+        console.log(`    ✓ Added dropdown with ${field.options.length} options`);
       } else if (field.type === "radio") {
         // Radio button group - each option is a separate radio button
         console.log(`    Options: ${field.options.length} radio buttons`);
@@ -674,9 +662,7 @@ async function fullPipeline() {
           });
         }
 
-        console.log(
-          `    ✓ Added radio group with ${field.options.length} options`,
-        );
+        console.log(`    ✓ Added radio group with ${field.options.length} options`);
       } else if (field.type === "checkboxgroup") {
         // Checkbox group - each option is a separate checkbox
         console.log(`    Options: ${field.options.length} checkboxes`);
@@ -702,9 +688,7 @@ async function fullPipeline() {
           });
         }
 
-        console.log(
-          `    ✓ Added checkbox group with ${field.options.length} checkboxes`,
-        );
+        console.log(`    ✓ Added checkbox group with ${field.options.length} checkboxes`);
       }
     } catch (err) {
       console.log(`    ✗ Error: ${err.message}`);
@@ -712,10 +696,7 @@ async function fullPipeline() {
   }
 
   // Save final PDF
-  const outputPath = join(
-    outputDir,
-    `${versionedName("registration-form-fillable")}.pdf`,
-  );
+  const outputPath = join(outputDir, `${versionedName("registration-form-fillable")}.pdf`);
 
   await fs.writeFile(outputPath, await pdfDoc.save());
   console.log(`\nGenerated fillable PDF: ${outputPath}`);

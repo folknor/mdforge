@@ -9,29 +9,13 @@ import { basename, dirname, relative, resolve } from "node:path";
 import process from "node:process";
 import type { FrameAddScriptTagOptions, PDFOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
-import {
-  type Config,
-  type HeaderFooterColumn,
-  themes,
-  themesDir,
-} from "./config.js";
-import {
-  formatConfigIssues,
-  parseConfigYaml,
-  splitFrontMatter,
-} from "./config-yaml.js";
+import { type Config, type HeaderFooterColumn, themes, themesDir } from "./config.js";
+import { formatConfigIssues, parseConfigYaml, splitFrontMatter } from "./config-yaml.js";
 import { processConstants } from "./constants.js";
-import {
-  type ConversionInfo,
-  createConversionInfo,
-} from "./conversion-info.js";
+import { type ConversionInfo, createConversionInfo } from "./conversion-info.js";
 import { formatCssErrors, validateCss } from "./css-validator.js";
 import { ConfigError, IncludeError } from "./errors.js";
-import {
-  type EmbeddedFontData,
-  fontPairings,
-  generateFontStylesheet,
-} from "./fonts.js";
+import { type EmbeddedFontData, fontPairings, generateFontStylesheet } from "./fonts.js";
 import { formFieldsCss } from "./form-fields.js";
 import { processIcons } from "./icons.js";
 import { processIncludes } from "./includes.js";
@@ -49,11 +33,7 @@ const require: NodeRequire = createRequire(import.meta.url);
 
 /** One-line summary of a header or footer for the conversion info. */
 function summarize(columns: HeaderFooterColumn | undefined): string | undefined {
-  return (
-    [columns?.left, columns?.center, columns?.right]
-      .filter(Boolean)
-      .join(" | ") || undefined
-  );
+  return [columns?.left, columns?.center, columns?.right].filter(Boolean).join(" | ") || undefined;
 }
 
 /** Options that can be passed from CLI or other callers */
@@ -131,9 +111,7 @@ export async function prepareConversion(
   const info = createConversionInfo();
 
   const mdFileContent =
-    "content" in input
-      ? input.content
-      : await fs.readFile(input.path, { encoding: "utf-8" });
+    "content" in input ? input.content : await fs.readFile(input.path, { encoding: "utf-8" });
 
   const { content: md, yaml } = splitFrontMatter(mdFileContent);
 
@@ -142,8 +120,7 @@ export async function prepareConversion(
 
   // @file references and relative stylesheets in front matter resolve
   // against the markdown file's directory
-  const baseDir =
-    "path" in input ? dirname(resolve(input.path)) : process.cwd();
+  const baseDir = "path" in input ? dirname(resolve(input.path)) : process.cwd();
 
   if (yaml !== undefined) {
     const frontMatter = await parseConfigYaml(yaml, {
@@ -192,9 +169,7 @@ export async function prepareConversion(
     // User specified one or more stylesheets; they cascade in the order given,
     // so record all of them — the later sheets are what a layered theme uses to
     // override the base.
-    const files = config.stylesheet.filter(
-      (s) => !s.includes("\n") && !s.startsWith("http"),
-    );
+    const files = config.stylesheet.filter((s) => !s.includes("\n") && !s.startsWith("http"));
 
     const [firstFile] = files;
 
@@ -215,9 +190,7 @@ export async function prepareConversion(
     const themeName = config.theme;
 
     if (!themes.includes(themeName)) {
-      throw new ConfigError(
-        `Unknown theme "${themeName}". Available themes: ${themes.join(", ")}`,
-      );
+      throw new ConfigError(`Unknown theme "${themeName}". Available themes: ${themes.join(", ")}`);
     }
 
     themeStylesheet = resolve(themesDir, `${themeName}.css`);
@@ -229,8 +202,7 @@ export async function prepareConversion(
   // Generate font stylesheet from config (fonts are cached locally)
   // If no fonts specified but theme is set, use the theme's pairing. Resolved
   // here, not when parsing, so a front-matter theme still picks the default.
-  const effectiveFonts =
-    config.fonts ?? (config.theme ? fontPairings[config.theme] : undefined);
+  const effectiveFonts = config.fonts ?? (config.theme ? fontPairings[config.theme] : undefined);
 
   const fontResult = await generateFontStylesheet(effectiveFonts);
   const fontCss = fontResult?.css;
@@ -299,19 +271,11 @@ export async function prepareConversion(
     if (hasBackground(headerFooterConfig)) {
       // Use Puppeteer's native header/footer templates for backgrounds
       if (header) {
-        config.pdf_options.headerTemplate = await buildPuppeteerTemplate(
-          header,
-          "header",
-          baseDir,
-        );
+        config.pdf_options.headerTemplate = await buildPuppeteerTemplate(header, "header", baseDir);
       }
 
       if (footer) {
-        config.pdf_options.footerTemplate = await buildPuppeteerTemplate(
-          footer,
-          "footer",
-          baseDir,
-        );
+        config.pdf_options.footerTemplate = await buildPuppeteerTemplate(footer, "footer", baseDir);
       }
 
       config.pdf_options.displayHeaderFooter = true;
@@ -346,11 +310,7 @@ export async function prepareConversion(
       const allCss = cssContents.join("\n\n");
 
       // Generate CSS @page rules for paged.js
-      const pagedCss = await generatePagedCss(
-        headerFooterConfig,
-        allCss,
-        baseDir,
-      );
+      const pagedCss = await generatePagedCss(headerFooterConfig, allCss, baseDir);
 
       // Add paged CSS to stylesheets (uses native Chrome @page margin boxes)
       config.stylesheet = [...config.stylesheet, pagedCss];
@@ -378,8 +338,7 @@ export async function prepareConversion(
   }
 
   // Auto-enable displayHeaderFooter if raw templates are set via pdf_options
-  const { headerTemplate, footerTemplate, displayHeaderFooter } =
-    config.pdf_options;
+  const { headerTemplate, footerTemplate, displayHeaderFooter } = config.pdf_options;
 
   if ((headerTemplate || footerTemplate) && displayHeaderFooter === undefined) {
     config.pdf_options.displayHeaderFooter = true;
@@ -415,9 +374,7 @@ export async function prepareConversion(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    info.warnings.push(
-      `Icon processing failed: ${message} (continuing with placeholders)`,
-    );
+    info.warnings.push(`Icon processing failed: ${message} (continuing with placeholders)`);
   }
 
   // Process @see Section Name → [Section Name](#section-name)
@@ -441,9 +398,7 @@ export async function prepareConversion(
   // set output destination
   if (config.dest === undefined) {
     config.dest =
-      "path" in input
-        ? getOutputFilePath(input.path, config.as_html ? "html" : "pdf")
-        : "stdout";
+      "path" in input ? getOutputFilePath(input.path, config.as_html ? "html" : "pdf") : "stdout";
   }
 
   const highlightStylesheet = resolve(
@@ -486,15 +441,12 @@ export async function prepareConversion(
         const result = validateCss(css, basename(stylesheet));
 
         if (!result.valid) {
-          info.warnings.push(
-            ...formatCssErrors(result.errors, basename(stylesheet)),
-          );
+          info.warnings.push(...formatCssErrors(result.errors, basename(stylesheet)));
         }
 
         validatedStylesheets.push({ type: "path", value: stylesheet });
       } catch (error) {
-        const isMissing =
-          error instanceof Error && "code" in error && error.code === "ENOENT";
+        const isMissing = error instanceof Error && "code" in error && error.code === "ENOENT";
 
         if (isMissing) {
           info.warnings.push(`Stylesheet not found: ${stylesheet}`);

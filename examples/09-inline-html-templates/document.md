@@ -74,15 +74,19 @@ Templates are full HTML documents with inline styles:
 
 ```html
 <html>
-<head>
-  <style>
-    #header { padding: 0 !important; }
-    .my-header { /* your styles */ }
-  </style>
-</head>
-<body>
-  <div class="my-header">Content here</div>
-</body>
+  <head>
+    <style>
+      #header {
+        padding: 0 !important;
+      }
+      .my-header {
+        /* your styles */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="my-header">Content here</div>
+  </body>
 </html>
 ```
 
@@ -90,13 +94,13 @@ Templates are full HTML documents with inline styles:
 
 Puppeteer replaces these with actual values:
 
-| Class | Description |
-|-------|-------------|
+| Class        | Description         |
+| ------------ | ------------------- |
 | `pageNumber` | Current page number |
-| `totalPages` | Total page count |
-| `date` | Current date |
-| `title` | Document title |
-| `url` | Document URL |
+| `totalPages` | Total page count    |
+| `date`       | Current date        |
+| `title`      | Document title      |
+| `url`        | Document URL        |
 
 Example: `<span class="pageNumber"></span>`
 

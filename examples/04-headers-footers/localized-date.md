@@ -14,20 +14,20 @@ Use `{date:locale}` to specify a locale:
 
 ```yaml
 header:
-  left: "{date:nb-NO}"    # Norwegian: "30. desember 2024"
-  right: "{date:en-US}"   # US English: "December 30, 2024"
+  left: "{date:nb-NO}" # Norwegian: "30. desember 2024"
+  right: "{date:en-US}" # US English: "December 30, 2024"
 ```
 
 ## Common Locales
 
-| Locale | Example Output |
-|--------|----------------|
+| Locale  | Example Output    |
+| ------- | ----------------- |
 | `en-US` | December 30, 2024 |
-| `en-GB` | 30 December 2024 |
+| `en-GB` | 30 December 2024  |
 | `nb-NO` | 30. desember 2024 |
 | `de-DE` | 30. Dezember 2024 |
-| `fr-FR` | 30 décembre 2024 |
-| `ja-JP` | 2024年12月30日 |
+| `fr-FR` | 30 décembre 2024  |
+| `ja-JP` | 2024年12月30日    |
 
 ## Sample Content
 

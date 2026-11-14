@@ -10,7 +10,7 @@
   color: #dc2626;
 }
 #warning-read-carefully::before {
-  content: "\26A0\0020";  /* Warning sign + space */
+  content: "\26A0\0020"; /* Warning sign + space */
 }
 
 /* Style the "How It Works" section differently */

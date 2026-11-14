@@ -40,29 +40,25 @@ export default function App(): React.ReactElement {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const [previewGeneratedAt, setPreviewGeneratedAt] = useState<Date | null>(
-    null,
-  );
+  const [previewGeneratedAt, setPreviewGeneratedAt] = useState<Date | null>(null);
 
   const watchedFileRef = useRef<string | null>(null);
 
   // Listen for conversion progress
   useEffect(() => {
-    const unsubscribe = window.electron.onConversionProgress(
-      (progress: ConversionProgress) => {
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.path === progress.file
-              ? {
-                  ...f,
-                  status: progress.progress === 100 ? "done" : "converting",
-                  progress: progress.progress,
-                }
-              : f,
-          ),
-        );
-      },
-    );
+    const unsubscribe = window.electron.onConversionProgress((progress: ConversionProgress) => {
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.path === progress.file
+            ? {
+                ...f,
+                status: progress.progress === 100 ? "done" : "converting",
+                progress: progress.progress,
+              }
+            : f,
+        ),
+      );
+    });
 
     return unsubscribe;
   }, []);
@@ -163,9 +159,7 @@ export default function App(): React.ReactElement {
     if (files.length === 0 || !outputDir) return;
 
     setIsConverting(true);
-    setFiles((prev) =>
-      prev.map((f) => ({ ...f, status: "converting" as const, progress: 0 })),
-    );
+    setFiles((prev) => prev.map((f) => ({ ...f, status: "converting" as const, progress: 0 })));
 
     const config: ConversionConfig = {
       theme,
@@ -181,9 +175,7 @@ export default function App(): React.ReactElement {
 
     setFiles((prev) =>
       prev.map((f) => {
-        const result = results.find(
-          (r: ConversionResult) => r.inputPath === f.path,
-        );
+        const result = results.find((r: ConversionResult) => r.inputPath === f.path);
 
         if (result) {
           return {
@@ -285,9 +277,7 @@ export default function App(): React.ReactElement {
           isLoading={previewLoading}
           error={previewError}
           fileName={
-            selectedFile
-              ? (files.find((f) => f.path === selectedFile)?.name ?? null)
-              : null
+            selectedFile ? (files.find((f) => f.path === selectedFile)?.name ?? null) : null
           }
           generatedAt={previewGeneratedAt}
         />

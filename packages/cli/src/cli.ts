@@ -176,9 +176,7 @@ async function main(args: typeof cliFlags): Promise<void> {
     return config;
   };
 
-  const render = async (
-    targets: string[],
-  ): Promise<Map<string, ConvertResult>> => {
+  const render = async (targets: string[]): Promise<Map<string, ConvertResult>> => {
     const config = await loadConfig();
 
     // Store results for info display
@@ -368,8 +366,7 @@ function watchAndRerender(
 
   const first = files[0];
 
-  const what =
-    files.length === 1 && first ? basename(first) : `${files.length} files`;
+  const what = files.length === 1 && first ? basename(first) : `${files.length} files`;
 
   console.log(`\nwatching ${what} — ctrl-c to stop`);
 }

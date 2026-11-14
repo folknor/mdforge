@@ -29,11 +29,7 @@ export default function FileList({
         <span className="font-medium text-gray-700">
           {files.length} file{files.length !== 1 ? "s" : ""}
         </span>
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-sm text-red-600 hover:text-red-700"
-        >
+        <button type="button" onClick={onClear} className="text-sm text-red-600 hover:text-red-700">
           Clear all
         </button>
       </div>
@@ -109,11 +105,7 @@ export default function FileList({
   );
 }
 
-function StatusIcon({
-  status,
-}: {
-  status: FileItem["status"];
-}): React.ReactElement {
+function StatusIcon({ status }: { status: FileItem["status"] }): React.ReactElement {
   switch (status) {
     case "pending":
       return <div className="w-5 h-5 rounded-full border-2 border-gray-300" />;
@@ -130,12 +122,7 @@ function StatusIcon({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 13l4 4L19 7"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
       );
     case "error":

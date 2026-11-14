@@ -17,25 +17,25 @@ fonts: classic-elegant
 
 ## Available Presets
 
-| Preset | Heading | Body | Mono |
-|--------|---------|------|------|
-| `modern-professional` | Inter | Inter | Fira Code |
-| `classic-elegant` | Playfair Display | Libre Baskerville | Fira Code |
-| `modern-geometric` | Poppins | Open Sans | Fira Code |
-| `tech-minimal` | Space Grotesk | DM Sans | JetBrains Mono |
-| `editorial` | Cormorant Garamond | Libre Baskerville | Fira Code |
-| `clean-sans` | DM Sans | Inter | Fira Code |
+| Preset                | Heading            | Body              | Mono           |
+| --------------------- | ------------------ | ----------------- | -------------- |
+| `modern-professional` | Inter              | Inter             | Fira Code      |
+| `classic-elegant`     | Playfair Display   | Libre Baskerville | Fira Code      |
+| `modern-geometric`    | Poppins            | Open Sans         | Fira Code      |
+| `tech-minimal`        | Space Grotesk      | DM Sans           | JetBrains Mono |
+| `editorial`           | Cormorant Garamond | Libre Baskerville | Fira Code      |
+| `clean-sans`          | DM Sans            | Inter             | Fira Code      |
 
 ### Theme Font Presets
 
 Each theme has matching fonts (system fonts with Google Fonts fallbacks):
 
-| Theme | Heading | Body | Mono |
-|-------|---------|------|------|
-| `beryl` | — | Noto Sans | Fira Code |
-| `tufte` | — | Palatino → EB Garamond | Consolas → Inconsolata |
-| `buttondown` | Helvetica Neue → Inter | Georgia → Gelasio | Courier New → Fira Code |
-| `pandoc` | — | Georgia → Libre Baskerville | Consolas → Fira Code |
+| Theme        | Heading                | Body                        | Mono                    |
+| ------------ | ---------------------- | --------------------------- | ----------------------- |
+| `beryl`      | —                      | Noto Sans                   | Fira Code               |
+| `tufte`      | —                      | Palatino → EB Garamond      | Consolas → Inconsolata  |
+| `buttondown` | Helvetica Neue → Inter | Georgia → Gelasio           | Courier New → Fira Code |
+| `pandoc`     | —                      | Georgia → Libre Baskerville | Consolas → Fira Code    |
 
 System fonts are used when available; fallbacks (after →) are downloaded from Google Fonts.
 
@@ -54,7 +54,7 @@ You can specify just what you need:
 
 ```yaml
 fonts:
-  heading: "Poppins"    # Others use theme defaults
+  heading: "Poppins" # Others use theme defaults
 ```
 
 ## Code Example
@@ -74,6 +74,7 @@ function greet(name) {
 3. Cached in `~/.cache/mdforge/fonts/` for future use
 
 Fonts are set as CSS variables that themes use:
+
 - `--font-heading`
 - `--font-body`
 - `--font-mono`
@@ -84,5 +85,5 @@ Fonts work with any theme:
 
 ```yaml
 theme: tufte
-fonts: tech-minimal    # Override tufte's default fonts
+fonts: tech-minimal # Override tufte's default fonts
 ```

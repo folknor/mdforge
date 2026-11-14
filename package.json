@@ -1,4 +1,9 @@
 {
+  "name": "mdforge-workspace",
+  "private": true,
+  "description": "Convert Markdown to beautifully styled PDFs.",
+  "homepage": "https://github.com/folknor/mdforge",
+  "license": "MIT",
   "author": {
     "name": "folknor",
     "url": "https://github.com/folknor"
@@ -9,28 +14,26 @@
       "url": "https://github.com/simonhaenisch"
     }
   ],
-  "description": "Convert Markdown to beautifully styled PDFs.",
-  "engines": {
-    "node": ">=25.0",
-    "pnpm": ">=11.0"
-  },
-  "homepage": "https://github.com/folknor/mdforge",
-  "license": "MIT",
-  "name": "mdforge-workspace",
-  "private": true,
   "repository": "folknor/mdforge",
+  "type": "module",
   "scripts": {
     "build": "pnpm -r run build",
     "clean": "pnpm -r run clean",
     "dev": "pnpm -r run dev",
     "lint": "oxlint",
+    "fmt": "oxfmt . '!packages/core/src/data/google-fonts.json'",
+    "fmt:check": "oxfmt --check . '!packages/core/src/data/google-fonts.json'",
     "desktop": "pnpm --filter @mdforge/desktop run dev",
     "regenerate-examples": "node scripts/regenerate-examples.js",
     "test": "pnpm -r run test"
   },
-  "type": "module",
   "devDependencies": {
     "@oxlint/plugins": "1.93.0",
+    "oxfmt": "0.78.0",
     "oxlint": "1.93.0"
+  },
+  "engines": {
+    "node": ">=25.0",
+    "pnpm": ">=11.0"
   }
 }

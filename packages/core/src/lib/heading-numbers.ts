@@ -223,9 +223,7 @@ export class HeadingNumberer {
  *   separator: "."      # Number separator (default)
  * ```
  */
-export function headingNumbers(
-  config: HeadingNumbersConfig = {},
-): MarkedExtension {
+export function headingNumbers(config: HeadingNumbersConfig = {}): MarkedExtension {
   const slugger = new GithubSlugger();
   const numberer = new HeadingNumberer(config);
 

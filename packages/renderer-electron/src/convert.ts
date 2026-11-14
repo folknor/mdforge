@@ -63,10 +63,7 @@ export async function convertMdToPdf(
     const err = error instanceof Error ? error : new Error(String(error));
     log("Render failed:", err.message);
     const outputType = prepared.config.as_html ? "HTML" : "PDF";
-    throw new GenerationError(
-      `Failed to create ${outputType}: ${err.message}`,
-      err,
-    );
+    throw new GenerationError(`Failed to create ${outputType}: ${err.message}`, err);
   }
 
   // Write output file if destination is set

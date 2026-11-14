@@ -1,10 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type {
-  ConversionConfig,
-  ConversionProgress,
-  ElectronAPI,
-  PreviewConfig,
-} from "../types";
+import type { ConversionConfig, ConversionProgress, ElectronAPI, PreviewConfig } from "../types";
 
 const electronAPI: ElectronAPI = {
   // Conversion
@@ -15,8 +10,7 @@ const electronAPI: ElectronAPI = {
   generatePreview: (filePath: string, config: PreviewConfig) =>
     ipcRenderer.invoke("generate-preview", filePath, config),
   watchFile: (filePath: string) => ipcRenderer.invoke("watch-file", filePath),
-  unwatchFile: (filePath: string) =>
-    ipcRenderer.invoke("unwatch-file", filePath),
+  unwatchFile: (filePath: string) => ipcRenderer.invoke("unwatch-file", filePath),
 
   // File dialogs
   selectFiles: () => ipcRenderer.invoke("select-files"),
@@ -27,10 +21,7 @@ const electronAPI: ElectronAPI = {
 
   // Events
   onConversionProgress: (callback: (progress: ConversionProgress) => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      progress: ConversionProgress,
-    ): void => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: ConversionProgress): void => {
       callback(progress);
     };
 
@@ -41,10 +32,7 @@ const electronAPI: ElectronAPI = {
     };
   },
   onFileChanged: (callback: (filePath: string) => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      filePath: string,
-    ): void => {
+    const handler = (_event: Electron.IpcRendererEvent, filePath: string): void => {
       callback(filePath);
     };
 

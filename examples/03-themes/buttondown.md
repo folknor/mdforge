@@ -29,8 +29,8 @@ fn main() {
 
 ## Table
 
-| Feature | Description |
-|---------|-------------|
-| Font | Classic serif |
-| Style | Academic, formal |
-| Best for | Papers, reports |
+| Feature  | Description      |
+| -------- | ---------------- |
+| Font     | Classic serif    |
+| Style    | Academic, formal |
+| Best for | Papers, reports  |

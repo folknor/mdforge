@@ -1,17 +1,9 @@
 // Electron-based renderer for mdforge (no Puppeteer required)
 
 // Re-export everything from @mdforge/core for convenience
-export {
-  type Config,
-  defaultConfig,
-  type Theme,
-  themes,
-} from "@mdforge/core";
+export { type Config, defaultConfig, type Theme, themes } from "@mdforge/core";
 
-export {
-  type ConversionInfo,
-  formatConversionInfo,
-} from "@mdforge/core/conversion-info";
+export { type ConversionInfo, formatConversionInfo } from "@mdforge/core/conversion-info";
 
 export {
   ConfigError,

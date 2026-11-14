@@ -25,17 +25,38 @@ tester.run("anti-slop/no-array-filter-map", noArrayFilterMapRule, {
   ],
   invalid: [
     { code: "[].filter(active).map(email);", errors: [error] },
-    { code: "[].map(user => user.active ? user.email : undefined).filter(email => email !== undefined);", errors: [error] },
+    {
+      code: "[].map(user => user.active ? user.email : undefined).filter(email => email !== undefined);",
+      errors: [error],
+    },
     { code: "const users = []; users.map(email).filter(Boolean);", errors: [error] },
-    { code: "const users = []; const alias = users; alias.filter(active).map(email);", errors: [error] },
-    { code: "function collect(users: User[]) { return users.filter(active).map(email); }", errors: [error] },
-    { code: "function collect(users: readonly User[]) { return users.map(email).filter(present); }", errors: [error] },
-    { code: "function collect(users: ReadonlyArray<User>) { return users.filter(active).map(email); }", errors: [error] },
-    { code: "function collect(users: Array<User>) { return users.filter(active).map(email); }", errors: [error] },
+    {
+      code: "const users = []; const alias = users; alias.filter(active).map(email);",
+      errors: [error],
+    },
+    {
+      code: "function collect(users: User[]) { return users.filter(active).map(email); }",
+      errors: [error],
+    },
+    {
+      code: "function collect(users: readonly User[]) { return users.map(email).filter(present); }",
+      errors: [error],
+    },
+    {
+      code: "function collect(users: ReadonlyArray<User>) { return users.filter(active).map(email); }",
+      errors: [error],
+    },
+    {
+      code: "function collect(users: Array<User>) { return users.filter(active).map(email); }",
+      errors: [error],
+    },
     { code: "const users = [] as const; users['filter'](active)['map'](email);", errors: [error] },
     { code: "const users = []; (users.filter(active)!).map(email);", errors: [error] },
     { code: "const users = []; users?.filter(active)?.map(email);", errors: [error] },
     { code: "const users = []; users.slice().filter(active).map(email);", errors: [error] },
-    { code: "const users = []; users.filter(active).map(email).filter(Boolean);", errors: [error, error] },
+    {
+      code: "const users = []; users.filter(active).map(email).filter(Boolean);",
+      errors: [error, error],
+    },
   ],
 });

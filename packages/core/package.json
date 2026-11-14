@@ -1,24 +1,16 @@
 {
-  "dependencies": {
-    "@mdforge/pdf": "workspace:*",
-    "font-list": "^2.1.0",
-    "github-slugger": "^2.0.0",
-    "highlight.js": "^11.12.0",
-    "marked": "^18.2.0",
-    "marked-footnote": "^1.4.0",
-    "marked-highlight": "^2.2.4",
-    "marked-linkify-it": "^4.0.2",
-    "marked-smartypants": "^1.1.12",
-    "postcss": "^8.5.33",
-    "transliteration": "^2.7.0",
-    "yaml": "^2.9.1"
-  },
+  "name": "@mdforge/core",
+  "version": "1.0.0",
   "description": "Core library for mdforge - Convert Markdown to PDF",
-  "devDependencies": {
-    "google-font-metadata": "^6.0.8",
-    "puppeteer": "^25.17.0",
-    "typescript": "7.0.2"
-  },
+  "license": "MIT",
+  "files": [
+    "/dist",
+    "/themes",
+    "/src/data"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "default": "./dist/index.js",
@@ -61,14 +53,6 @@
       "types": "./dist/lib/xref.d.ts"
     }
   },
-  "files": [
-    "/dist",
-    "/themes",
-    "/src/data"
-  ],
-  "license": "MIT",
-  "main": "dist/index.js",
-  "name": "@mdforge/core",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
@@ -78,7 +62,23 @@
     "pretest": "pnpm run build",
     "test": "node --test \"test/*.test.ts\""
   },
-  "type": "module",
-  "types": "dist/index.d.ts",
-  "version": "1.0.0"
+  "dependencies": {
+    "@mdforge/pdf": "workspace:*",
+    "font-list": "^2.1.0",
+    "github-slugger": "^2.0.0",
+    "highlight.js": "^11.12.0",
+    "marked": "^18.2.0",
+    "marked-footnote": "^1.4.0",
+    "marked-highlight": "^2.2.4",
+    "marked-linkify-it": "^4.0.2",
+    "marked-smartypants": "^1.1.12",
+    "postcss": "^8.5.33",
+    "transliteration": "^2.7.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "google-font-metadata": "^6.0.8",
+    "puppeteer": "^25.17.0",
+    "typescript": "7.0.2"
+  }
 }
