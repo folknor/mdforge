@@ -58,6 +58,10 @@ Large: :icon[mdi:star]{size=48}
 
 Browse available icons at [icon-sets.iconify.design](https://icon-sets.iconify.design/).
 
+Icons are fetched from `https://api.iconify.design` unless the config file sets
+`iconify_api` (see [Icon Server](../reference/configuration.md#icon-server)), and
+cached in `~/.cache/mdforge/iconify/`, separately for each server.
+
 ## Cross-References
 
 Link to headings by name with `@see`:

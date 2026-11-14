@@ -1,18 +1,26 @@
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 /**
  * Iconify icon support for mdforge
  *
  * Syntax: :icon[prefix:name] or :icon[prefix:name]{size=24}
  * Example: :icon[mdi:home] or :icon[mdi:home]{size=32}
+ *
+ * Fetched SVGs are cached on disk per server: the cache directory is named by
+ * a hash of the canonical server URL (see iconifyBase), so icons fetched from
+ * one server are never served for another. The server is an operator setting
+ * (config file or programmatic Config); front matter cannot choose it, so a
+ * document cannot make the converter contact a host of its choosing or plant
+ * SVGs in the cache other documents read. The legacy name-only cache
+ * (~/.cache/mdforge/icons) has unknown origin and is never read.
  */
 
 const DEFAULT_ICONIFY_API = "https://api.iconify.design";
 
-// Cache directory for downloaded icons
-const CACHE_DIR: string = join(homedir(), ".cache", "mdforge", "icons");
+const DEFAULT_CACHE_ROOT: string = join(homedir(), ".cache", "mdforge", "iconify");
 
 /**
  * Regex to match icon syntax:
@@ -21,82 +29,104 @@ const CACHE_DIR: string = join(homedir(), ".cache", "mdforge", "icons");
 const ICON_REGEX = /:icon\[([a-z0-9-]+):([a-z0-9-]+)\](?:\{size=(\d+)\})?/gi;
 
 /**
- * Ensure cache directory exists
+ * Canonical base URL of an Iconify server. The value names a base directory:
+ * `https://host/icons` and `https://host/icons/` are the same server; repeated
+ * slashes and case in the path are kept. Only http(s) without credentials,
+ * query or fragment is accepted (an icon path appended to a query or fragment
+ * would not reach the server). Throws on anything else.
  */
-async function ensureCacheDir(): Promise<void> {
-  await fs.mkdir(CACHE_DIR, { recursive: true });
+export function iconifyBase(api: string): URL {
+  const url = new URL(api);
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`Iconify server must be an http(s) URL: ${api}`);
+  }
+
+  if (url.username || url.password) {
+    throw new Error(`Iconify server URL must not contain credentials: ${api}`);
+  }
+
+  if (url.search || url.hash || api.includes("?") || api.includes("#")) {
+    throw new Error(`Iconify server URL must not have a query or fragment: ${api}`);
+  }
+
+  const pathname = url.pathname.endsWith("/") ? url.pathname : `${url.pathname}/`;
+
+  return new URL(`${url.origin}${pathname}`);
 }
 
-/**
- * Get cache file path for an icon
- */
-function getCachePath(prefix: string, name: string): string {
-  return join(CACHE_DIR, `${prefix}--${name}.svg`);
+export type IconOptions = {
+  /** Iconify server; defaults to https://api.iconify.design. */
+  apiUrl?: string;
+  /** Root of the per-server cache; defaults to ~/.cache/mdforge/iconify. */
+  cacheRoot?: string;
+  /** Fetch implementation (tests inject one). */
+  fetch?: typeof fetch;
+};
+
+type IconSource = {
+  base: URL;
+  cacheDir: string;
+  fetch: typeof fetch;
+};
+
+function iconCachePath(source: IconSource, prefix: string, name: string): string {
+  // Prefix and name are separate path components, so no two ids share a file.
+  return join(source.cacheDir, prefix, `${name}.svg`);
 }
 
-/**
- * Check if icon is in cache and return it
- */
-async function getFromCache(prefix: string, name: string): Promise<string | null> {
-  const cachePath = getCachePath(prefix, name);
-
+async function readCached(path: string): Promise<string | null> {
   try {
-    const svg = await fs.readFile(cachePath, "utf-8");
+    const svg = await fs.readFile(path, "utf-8");
 
-    return svg;
+    return svg.includes("<svg") ? svg : null;
   } catch {
     return null;
   }
 }
 
-/**
- * Save icon to cache
- */
-async function saveToCache(prefix: string, name: string, svg: string): Promise<void> {
-  await ensureCacheDir();
-  const cachePath = getCachePath(prefix, name);
-  await fs.writeFile(cachePath, svg, "utf-8");
+/** Best effort: a failed write leaves no partial file and is otherwise ignored. */
+async function writeCached(path: string, svg: string): Promise<void> {
+  const tmp = `${path}.${process.pid}-${randomUUID()}.tmp`;
+
+  try {
+    await fs.mkdir(dirname(path), { recursive: true });
+    await fs.writeFile(tmp, svg, "utf-8");
+    await fs.rename(tmp, path);
+  } catch {
+    await fs.rm(tmp, { force: true }).catch(() => undefined);
+  }
 }
 
-/**
- * Fetch icon from Iconify API
- */
-async function fetchIcon(
-  prefix: string,
-  name: string,
-  apiUrl: string = DEFAULT_ICONIFY_API,
-): Promise<string | null> {
-  // Check cache first
-  const cached = await getFromCache(prefix, name);
+async function fetchIcon(source: IconSource, prefix: string, name: string): Promise<string | null> {
+  const cachePath = iconCachePath(source, prefix, name);
+  const cached = await readCached(cachePath);
 
   if (cached) {
     return cached;
   }
 
-  // Fetch from API
-  const url = `${apiUrl}/${prefix}/${name}.svg`;
+  let svg: string;
 
   try {
-    const response = await fetch(url);
+    const response = await source.fetch(new URL(`${prefix}/${name}.svg`, source.base));
 
     if (!response.ok) {
       return null;
     }
 
-    const svg = await response.text();
-
-    // Validate it's actually SVG
-    if (!svg.includes("<svg")) {
-      return null;
-    }
-
-    // Cache for future use
-    await saveToCache(prefix, name, svg);
-
-    return svg;
+    svg = await response.text();
   } catch {
     return null;
   }
+
+  if (!svg.includes("<svg")) {
+    return null;
+  }
+
+  await writeCached(cachePath, svg);
+
+  return svg;
 }
 
 /**
@@ -130,105 +160,71 @@ function createInlineSvg(svg: string, size?: number): string {
   return cleanSvg;
 }
 
-/**
- * Find all icon references in content
- */
-function findIconReferences(
-  content: string,
-): Array<{ prefix: string; name: string; size?: number; match: string }> {
-  const refs: Array<{
-    prefix: string;
-    name: string;
-    size?: number;
-    match: string;
-  }> = [];
+/** Iconify ids are lowercase; the syntax is matched case-insensitively. */
+type IconId = { prefix: string; name: string; key: string };
 
-  const seen = new Set<string>();
+function iconKey(prefix: string, name: string): IconId {
+  const p = prefix.toLowerCase();
+  const n = name.toLowerCase();
 
-  // Reset regex lastIndex
-  ICON_REGEX.lastIndex = 0;
-
-  for (let match = ICON_REGEX.exec(content); match !== null; match = ICON_REGEX.exec(content)) {
-    const fullMatch = match[0];
-    const prefix = match[1];
-    const name = match[2];
-    const sizeStr = match[3];
-
-    if (!(prefix && name)) continue;
-
-    const key = `${prefix}:${name}`;
-
-    if (!seen.has(key)) {
-      seen.add(key);
-      refs.push({
-        prefix,
-        name,
-        size: sizeStr ? Number.parseInt(sizeStr, 10) : undefined,
-        match: fullMatch,
-      });
-    }
-  }
-
-  return refs;
+  return { prefix: p, name: n, key: `${p}:${n}` };
 }
 
 /**
  * Process icons in markdown content.
- * Fetches icons from Iconify API and replaces :icon[prefix:name] syntax with inline SVGs.
- *
- * @param content - Markdown content to process
- * @param apiUrl - Optional Iconify API URL (defaults to https://api.iconify.design)
+ * Fetches icons from the Iconify server and replaces :icon[prefix:name]
+ * syntax with inline SVGs. Throws if `apiUrl` is not a valid server URL.
  */
-export async function processIcons(content: string, apiUrl?: string): Promise<string> {
-  const refs = findIconReferences(content);
+export async function processIcons(content: string, options: IconOptions = {}): Promise<string> {
+  const ids = new Map<string, IconId>();
 
-  if (refs.length === 0) {
+  for (const match of content.matchAll(ICON_REGEX)) {
+    const [, prefix, name] = match;
+
+    if (prefix && name) {
+      const id = iconKey(prefix, name);
+      ids.set(id.key, id);
+    }
+  }
+
+  if (ids.size === 0) {
     return content;
   }
 
-  // Fetch all unique icons in parallel
+  const base = iconifyBase(options.apiUrl ?? DEFAULT_ICONIFY_API);
+
+  const source: IconSource = {
+    base,
+    cacheDir: join(
+      options.cacheRoot ?? DEFAULT_CACHE_ROOT,
+      createHash("sha256").update(base.href).digest("hex"),
+    ),
+    fetch: options.fetch ?? fetch,
+  };
+
   const iconMap = new Map<string, string>();
 
   await Promise.all(
-    refs.map(async ({ prefix, name }) => {
-      const key = `${prefix}:${name}`;
+    [...ids].map(async ([key, { prefix, name }]) => {
+      const svg = await fetchIcon(source, prefix, name);
 
-      if (!iconMap.has(key)) {
-        const svg = await fetchIcon(prefix, name, apiUrl ?? DEFAULT_ICONIFY_API);
-
-        if (svg) {
-          iconMap.set(key, svg);
-        }
+      if (svg) {
+        iconMap.set(key, svg);
       }
     }),
   );
 
-  // Replace all icon references with inline SVGs
-  // Reset regex for replacement pass
-  ICON_REGEX.lastIndex = 0;
-
-  return content.replace(ICON_REGEX, (_match, prefix, name, sizeStr) => {
-    const key = `${prefix}:${name}`;
-    const svg = iconMap.get(key);
+  return content.replace(ICON_REGEX, (_match, prefix: string, name: string, sizeStr?: string) => {
+    const id = iconKey(prefix, name);
+    const svg = iconMap.get(id.key);
 
     if (!svg) {
-      // Return placeholder if icon couldn't be fetched
-      return `[icon:${prefix}:${name}]`;
+      // Placeholder if the icon couldn't be fetched
+      return `[icon:${id.prefix}:${id.name}]`;
     }
 
     const size = sizeStr ? Number.parseInt(sizeStr, 10) : undefined;
 
     return createInlineSvg(svg, size);
   });
-}
-
-/**
- * Clear the icon cache
- */
-export async function clearIconCache(): Promise<void> {
-  try {
-    await fs.rm(CACHE_DIR, { recursive: true, force: true });
-  } catch {
-    // Ignore errors
-  }
 }

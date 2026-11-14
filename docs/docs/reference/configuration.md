@@ -191,6 +191,20 @@ launch_options:
   args: ["--no-sandbox"]
 ```
 
+## Icon Server
+
+`iconify_api` names the [Iconify](https://iconify.design/) server icons are
+fetched from (default `https://api.iconify.design`), for self-hosted or
+air-gapped deployments. It is read from the config file only: a document cannot
+choose which host the converter contacts. The value must be an `http` or
+`https` base URL without credentials, query or fragment; a trailing slash makes
+no difference (`/icons` and `/icons/` are the same server). Fetched icons are
+cached in `~/.cache/mdforge/iconify/`, separately for each server.
+
+```yaml
+iconify_api: https://icons.internal.example/
+```
+
 ## PDF Metadata
 
 ```yaml

@@ -69,6 +69,6 @@ Icons work inline: Click :icon[mdi:home]{size=16} to go home, or :icon[mdi:cog]{
 
 ## Notes
 
-- Icons are fetched from Iconify API and cached in `~/.cache/mdforge/icons/`
+- Icons are fetched from Iconify API and cached in `~/.cache/mdforge/iconify/` (separately for each icon server)
 - First run may be slower while icons are downloaded
 - Subsequent runs use cached icons

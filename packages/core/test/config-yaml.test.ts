@@ -224,6 +224,23 @@ toc_options:
     assert.deepEqual(paths(fromFrontMatter.issues), ["launch_options"]);
   });
 
+  it("only accepts a valid iconify_api from the config file", async () => {
+    const yaml = "iconify_api: https://icons.example/api";
+
+    const fromFile = await parse(yaml, "config-file");
+    const fromFrontMatter = await parse(yaml, "front-matter");
+
+    assert.equal(fromFile.config.iconify_api, "https://icons.example/api");
+    assert.deepEqual(fromFrontMatter.config, {});
+    assert.deepEqual(paths(fromFrontMatter.issues), ["iconify_api"]);
+
+    for (const bad of ["file:///etc", "https://u:p@host/", "https://host/?a=1", "not a url"]) {
+      const parsed = await parse(`iconify_api: "${bad}"`, "config-file");
+      assert.deepEqual(parsed.config, {}, bad);
+      assert.deepEqual(paths(parsed.issues), ["iconify_api"], bad);
+    }
+  });
+
   it("lets neither source choose the output target or format", async () => {
     const yaml =
       "dest: elsewhere.pdf\nas_html: true\npdf_options:\n  path: copy.pdf\n  landscape: true";

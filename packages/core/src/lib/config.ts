@@ -258,7 +258,9 @@ export interface Config {
   /**
    * Iconify API endpoint for fetching icons.
    * Default: "https://api.iconify.design"
-   * Set to a self-hosted instance URL for air-gapped deployments.
+   * Set to a self-hosted instance URL for air-gapped deployments. Must be an
+   * http(s) base URL without credentials, query or fragment. YAML can set it
+   * only from the config file, never front matter.
    */
   iconify_api?: string;
 }

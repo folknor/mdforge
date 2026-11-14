@@ -27,6 +27,9 @@
  *   stylesheet is always a CSS file, tagged as its path.
  * - `launch_options` is only read from the config file: one browser is shared
  *   by every document of a run, so a per-document setting could not apply.
+ * - `iconify_api` is only read from the config file: the icon server is a
+ *   deployment setting, and a document must not choose which host the
+ *   converter contacts.
  * - Neither source can say where the output goes or whether it is PDF or HTML
  *   (no `dest`, `as_html` or `pdf_options.path`): those belong to the caller's
  *   invocation, and a document must not redirect what an application such as
@@ -71,6 +74,7 @@ import {
   isFontPairingPreset,
 } from "./fonts.ts";
 import type { HeadingNumbersConfig } from "./heading-numbers.ts";
+import { iconifyBase } from "./icons.ts";
 import type { TemplatesConfig } from "./includes.ts";
 import type { TOCOptions, TOCStyle } from "./toc.ts";
 
@@ -628,6 +632,28 @@ const launchOptions: Decoder<Partial<YamlLaunchOptions>> = async (ctx, path, val
         "can only be set in the config file: one browser is shared by every document",
       );
 
+const iconifyApi: Decoder<string> = async (ctx, path, value) => {
+  if (ctx.source !== "config-file") {
+    return report(
+      ctx,
+      path,
+      "can only be set in the config file: the icon server is a deployment setting",
+    );
+  }
+
+  const api = await literal(ctx, path, value);
+
+  if (api === undefined) return undefined;
+
+  try {
+    iconifyBase(api);
+  } catch (error) {
+    return report(ctx, path, error instanceof Error ? error.message : String(error));
+  }
+
+  return api;
+};
+
 const TOC_STYLES = ["bullet", "ordered", "table"] as const satisfies readonly TOCStyle[];
 
 const tableHeaders: Decoder<[string, string]> = async (ctx, path, value) => {
@@ -771,7 +797,7 @@ const configFields = record<YamlConfig>({
   constants,
   constants_locale: literal,
   constants_precision: number({ integer: true, min: 0, max: 20 }),
-  iconify_api: literal,
+  iconify_api: iconifyApi,
 });
 
 // --

@@ -445,11 +445,11 @@ export async function prepareConversion(
 
   // Process :icon[prefix:name] syntax - fetch and inline SVGs from Iconify
   try {
-    processedMd = await processIcons(processedMd, config.iconify_api);
+    processedMd = await processIcons(processedMd, { apiUrl: config.iconify_api });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    info.warnings.push(`Icon processing failed: ${message} (continuing with placeholders)`);
+    info.warnings.push(`Icon processing failed: ${message} (icon references left as written)`);
   }
 
   // Process @see Section Name → [Section Name](#section-name)
