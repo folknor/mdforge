@@ -10,14 +10,14 @@ import type {
 /**
  * MIME types for image embedding
  */
-const MIME_TYPES: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".svg": "image/svg+xml",
-  ".webp": "image/webp",
-};
+const MIME_TYPES = new Map([
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".gif", "image/gif"],
+  [".svg", "image/svg+xml"],
+  [".webp", "image/webp"],
+]);
 
 /**
  * Format date with optional locale
@@ -46,7 +46,7 @@ async function imageToDataUri(
   try {
     const fullPath = resolve(baseDir, imagePath);
     const ext = extname(fullPath).toLowerCase();
-    const mimeType = MIME_TYPES[ext];
+    const mimeType = MIME_TYPES.get(ext);
 
     if (!mimeType) return null;
 
@@ -123,7 +123,7 @@ async function processImages(text: string, baseDir: string): Promise<string> {
 
       const fullPath = resolve(baseDir, src);
       const ext = extname(fullPath).toLowerCase();
-      const mimeType = MIME_TYPES[ext];
+      const mimeType = MIME_TYPES.get(ext);
 
       if (!mimeType) continue;
 
@@ -197,11 +197,17 @@ function variablesToCss(text: string, pageFormat?: PageNumberFormat): string {
   );
 }
 
+/** Text with its inline markdown removed, plus the CSS that replaces it. */
+interface MarkdownResult {
+  text: string;
+  styles: string[];
+}
+
 /**
  * Process inline markdown (bold, italic) to CSS-safe text
  * Returns the text and any detected styles
  */
-function processMarkdown(text: string): { text: string; styles: string[] } {
+function processMarkdown(text: string): MarkdownResult {
   const styles: string[] = [];
   const processed = text;
 
@@ -413,7 +419,7 @@ function processTextForHtml(text: string): string {
  * .header-left { color: red } → .pagedjs_page .pagedjs_margin-top-left { color: red }
  */
 function transformCssSelectors(css: string): string {
-  const selectorMap: Record<string, string> = {
+  const selectorMap = {
     ".header-left": ".pagedjs_page .pagedjs_margin-top-left",
     ".header-center": ".pagedjs_page .pagedjs_margin-top-center",
     ".header-right": ".pagedjs_page .pagedjs_margin-top-right",

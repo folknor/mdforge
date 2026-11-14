@@ -52,6 +52,9 @@ export interface ElectronAPI {
   selectFiles: () => Promise<string[]>;
   selectOutputDir: () => Promise<string | null>;
 
+  // Filesystem path of a dropped File, or "" when it is not backed by a file
+  getPathForFile: (file: File) => string;
+
   // Events
   onConversionProgress: (
     callback: (progress: ConversionProgress) => void,

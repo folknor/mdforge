@@ -5,6 +5,30 @@ import type { MarkedExtension, Tokens } from "marked";
  */
 type FieldType = "text" | "select" | "checklist" | "radiolist" | "textarea";
 
+/** One entry of a select, checklist or radiolist. */
+interface FieldOption {
+  text: string;
+  value: string;
+}
+
+/** Token for the list that follows a select/checklist/radiolist declaration. */
+interface FormFieldListToken extends Tokens.Generic {
+  type: "formFieldList";
+  fieldType: FieldType;
+  name: string;
+  label: string;
+  options: FieldOption[];
+}
+
+/** Token for an inline text input or textarea. */
+interface FormFieldInlineToken extends Tokens.Generic {
+  type: "formFieldInline";
+  fieldType: FieldType;
+  name: string;
+  label: string;
+  lineCount: number | undefined;
+}
+
 /**
  * Options for form fields extension.
  */
@@ -106,7 +130,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 
           return match?.index;
         },
-        tokenizer(src: string): Tokens.Generic | undefined {
+        tokenizer(src: string): FormFieldListToken | undefined {
           if (!pendingListConsumer) return;
 
           // Match the list using marked's default list pattern
@@ -126,7 +150,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
             /^[ \t]*[-*+\d.]+[ \t]+(.+?)(?:\n|$)/gm,
           );
 
-          const parsedOptions: Array<{ text: string; value: string }> = [];
+          const parsedOptions: FieldOption[] = [];
 
           for (const m of itemMatches) {
             const text = m[1]?.trim() ?? "";
@@ -153,17 +177,15 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
           };
         },
         renderer(token: Tokens.Generic): string {
+          // SAFETY: marked dispatches this renderer only for tokens whose
+          // `type` is "formFieldList", and only the tokenizer above creates
+          // them, always as a FormFieldListToken.
           const {
             fieldType,
             name,
             label,
             options: fieldOptions,
-          } = token as unknown as {
-            fieldType: FieldType;
-            name: string;
-            label: string;
-            options: Array<{ text: string; value: string }>;
-          };
+          } = token as FormFieldListToken;
 
           if (fieldType === "select") {
             if (fillable) {
@@ -241,7 +263,7 @@ ${itemsHtml}
         start(src: string): number | undefined {
           return src.indexOf("[");
         },
-        tokenizer(src: string): Tokens.Generic | undefined {
+        tokenizer(src: string): FormFieldInlineToken | undefined {
           // Text input: [Label ??](name) or [??](name)
           // Textarea: [Label ???](name) or [Label ???6](name) for 6 lines
           const match = /^\[([^\]]*?)(\?{2,3})(\d*)\]\(([^)]*)\)/.exec(src);
@@ -272,12 +294,11 @@ ${itemsHtml}
           return;
         },
         renderer(token: Tokens.Generic): string {
-          const { fieldType, name, label, lineCount } = token as unknown as {
-            fieldType: FieldType;
-            name: string;
-            label: string;
-            lineCount?: number;
-          };
+          // SAFETY: marked dispatches this renderer only for tokens whose
+          // `type` is "formFieldInline", and only the tokenizer above creates
+          // them, always as a FormFieldInlineToken.
+          const { fieldType, name, label, lineCount } =
+            token as FormFieldInlineToken;
 
           const dataAttrs = fillable
             ? `data-form-field data-field-name="${name}" data-field-type="${fieldType}"`

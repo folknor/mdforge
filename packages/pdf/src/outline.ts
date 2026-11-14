@@ -7,7 +7,14 @@
  * page a given heading ended up on.
  */
 
-import { PDFArray, PDFDict, PDFDocument, PDFName } from "@folknor/pdf-lib";
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFString,
+} from "@folknor/pdf-lib";
 
 /** A heading from the PDF outline, with the page it appears on. */
 export interface OutlineEntry {
@@ -52,12 +59,13 @@ export async function readOutline(
 
     while (child) {
       // Titles are PDF strings (literal or hex), never names, so look them up
-      // untyped and decode whatever came back.
+      // untyped and decode whichever string kind came back. A typed lookup
+      // would throw on a malformed entry instead of skipping it.
       const rawTitle = child.lookup(PDFName.of("Title"));
 
       const text =
-        rawTitle && "decodeText" in rawTitle
-          ? (rawTitle as { decodeText(): string }).decodeText()
+        rawTitle instanceof PDFString || rawTitle instanceof PDFHexString
+          ? rawTitle.decodeText()
           : "";
 
       const dest = child.lookupMaybe(PDFName.of("Dest"), PDFArray);

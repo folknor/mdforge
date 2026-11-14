@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import type { PreparedConversion } from "@mdforge/core/prepare";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
-import puppeteer, { type Browser } from "puppeteer";
+import { type Browser, launch } from "puppeteer";
 
 /**
  * Result of rendering a document.
@@ -93,7 +93,7 @@ export async function render(
     }
 
     if (!browserPromise) {
-      browserPromise = puppeteer.launch(config.launch_options);
+      browserPromise = launch(config.launch_options);
     }
 
     return browserPromise;
@@ -173,13 +173,13 @@ export async function render(
       for (let i = 0; i < selects.length; i++) {
         const select = selects[i];
 
-        if (!select) continue;
+        if (!(select instanceof HTMLSelectElement)) continue;
         const wrapper = select.closest("[data-form-field]");
         const name = wrapper?.getAttribute("data-field-name");
 
         if (!name) continue;
 
-        const options = Array.from((select as HTMLSelectElement).options).map(
+        const options = Array.from(select.options).map(
           (opt) => opt.value || opt.text,
         );
 
@@ -221,31 +221,25 @@ export async function render(
     }
   }
 
-  let outputFileContent: string | Buffer | Uint8Array;
-
   if (config.as_html) {
-    outputFileContent = await page.content();
-  } else {
-    await page.emulateMediaType(config.page_media_type);
+    const html = await page.content();
+    await page.close();
 
-    const pdfOptions = {
-      ...prepared.pdfOptions,
-      outline: true,
-    };
-
-    outputFileContent = await page.pdf(pdfOptions);
-  }
-
-  await page.close();
-
-  if (config.as_html) {
     return {
-      content: outputFileContent as string,
+      content: html,
     };
   }
+
+  await page.emulateMediaType(config.page_media_type);
+
+  const pdfOptions = {
+    ...prepared.pdfOptions,
+    outline: true,
+  };
 
   // Post-process PDF
-  let pdfContent = outputFileContent as Buffer | Uint8Array;
+  let pdfContent: Buffer | Uint8Array = await page.pdf(pdfOptions);
+  await page.close();
 
   // Inject PDF metadata if configured
   if (config.metadata) {

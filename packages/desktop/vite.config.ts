@@ -13,6 +13,8 @@ const dir: string = import.meta.dirname;
 
 const electronArgv: string[] = [".", "--no-sandbox"];
 
+// SAFETY: this reads the package's own checked-in package.json, whose
+// dependencies field, when present, maps package names to version strings.
 const pkg = JSON.parse(readFileSync(resolve(dir, "package.json"), "utf-8")) as {
   dependencies?: Record<string, string>;
 };
@@ -81,6 +83,9 @@ export default defineConfig({
         onstart({ startup, reload }: OnStartArgs): void {
           // The plugin stores the running child on process.electronApp but
           // does not declare it on the Process type.
+          // SAFETY: the assertion only adds an optional property of type
+          // unknown, which every object satisfies, and the value is only
+          // tested for truthiness.
           if ((process as { electronApp?: unknown }).electronApp) {
             reload();
           } else {

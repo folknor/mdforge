@@ -1,4 +1,4 @@
-import postcss from "postcss";
+import { CssSyntaxError, parse } from "postcss";
 
 export interface CssValidationResult {
   valid: boolean;
@@ -31,26 +31,14 @@ export function validateCss(
   const errors: CssError[] = [];
 
   try {
-    postcss.parse(css, { from: filename });
+    parse(css, { from: filename });
   } catch (error) {
-    if (error && typeof error === "object" && "name" in error) {
-      const cssError = error as {
-        name: string;
-        message: string;
-        reason?: string;
-        line?: number;
-        column?: number;
-      };
-
-      if (cssError.name === "CssSyntaxError") {
-        errors.push({
-          message: cssError.reason || cssError.message,
-          line: cssError.line,
-          column: cssError.column,
-        });
-      } else {
-        errors.push({ message: String(error) });
-      }
+    if (error instanceof CssSyntaxError) {
+      errors.push({
+        message: error.reason || error.message,
+        line: error.line,
+        column: error.column,
+      });
     } else {
       errors.push({ message: String(error) });
     }

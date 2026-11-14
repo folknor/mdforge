@@ -29,7 +29,7 @@ export async function convertFile(
   const outputPath = config.outputPath ?? "";
 
   try {
-    const mergedConfig: Partial<Config> = {
+    const mergedConfig: Config = {
       ...defaultConfig,
       dest: outputPath,
     };
@@ -51,10 +51,7 @@ export async function convertFile(
 
     log("Calling convertMdToPdf...");
 
-    const result = await convertMdToPdf(
-      { path: filePath },
-      mergedConfig as Config,
-    );
+    const result = await convertMdToPdf({ path: filePath }, mergedConfig);
 
     log("convertMdToPdf returned successfully");
 
@@ -66,7 +63,7 @@ export async function convertFile(
       outputPath: result.filename ?? outputPath,
     };
   } catch (error) {
-    const err = error as Error;
+    const err = error instanceof Error ? error : new Error(String(error));
     log("Conversion error:", err.message, err.stack);
 
     return {
@@ -115,7 +112,7 @@ export async function generatePreview(
   log("generatePreview called:", filePath);
 
   try {
-    const mergedConfig: Partial<Config> = {
+    const mergedConfig: Config = {
       ...defaultConfig,
       // Don't write to file - we just want the buffer. This must be an empty
       // string, not undefined: prepareConversion replaces an undefined dest
@@ -138,10 +135,7 @@ export async function generatePreview(
 
     log("Generating preview with config:", JSON.stringify(mergedConfig));
 
-    const result = await convertMdToPdf(
-      { path: filePath },
-      mergedConfig as Config,
-    );
+    const result = await convertMdToPdf({ path: filePath }, mergedConfig);
 
     log("Preview generated, size:", result.content.length);
 
@@ -158,7 +152,7 @@ export async function generatePreview(
       pdfData,
     };
   } catch (error) {
-    const err = error as Error;
+    const err = error instanceof Error ? error : new Error(String(error));
     log("Preview error:", err.message, err.stack);
 
     return {

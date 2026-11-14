@@ -36,10 +36,6 @@ export const isHttpUrl = (input: string): boolean => {
  * Get a margin object from a CSS-like margin string.
  */
 export const getMarginObject = (margin: string): PDFOptions["margin"] => {
-  if (typeof margin !== "string") {
-    throw new TypeError(`margin needs to be a string.`);
-  }
-
   const [top, right, bottom, left, ...remaining] = margin.split(" ");
 
   if (remaining.length > 0) {
@@ -71,13 +67,18 @@ export async function resolveFileRefs<T>(
 ): Promise<T> {
   if (typeof value === "string" && value.startsWith("@")) {
     const filePath = resolve(baseDir, value.slice(1));
+    // SAFETY: this branch only runs when `value` is a string, so T admits a
+    // string here; the reference is replaced by the file's string contents.
     const content = (await fs.readFile(filePath, "utf-8")) as T;
+
     seen?.push(filePath);
 
     return content;
   }
 
   if (Array.isArray(value)) {
+    // SAFETY: `value` is an array and each element is mapped through this
+    // shape-preserving function, so the resolved array has the same shape T.
     return Promise.all(
       value.map((item) => resolveFileRefs(item, baseDir, seen)),
     ) as Promise<T>;
@@ -90,6 +91,8 @@ export async function resolveFileRefs<T>(
       result[key] = await resolveFileRefs(val, baseDir, seen);
     }
 
+    // SAFETY: `result` has exactly the own enumerable keys of `value`, each
+    // mapped through this shape-preserving function, so it has the shape T.
     return result as T;
   }
 
@@ -106,12 +109,17 @@ export function extractFirstHeading(md: string): string | null {
 }
 
 /**
- * Parse YAML front-matter from markdown content.
+ * Markdown content split into its YAML front-matter and the remaining body.
  */
-export function parseFrontMatter(content: string): {
+export interface FrontMatter {
   data: Record<string, unknown>;
   content: string;
-} {
+}
+
+/**
+ * Parse YAML front-matter from markdown content.
+ */
+export function parseFrontMatter(content: string): FrontMatter {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(content);
 
   if (!match) return { data: {}, content };

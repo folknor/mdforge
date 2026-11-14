@@ -93,6 +93,20 @@ function parseMarkerUrl(
   }
 }
 
+/** Narrow a marker's `type` parameter to a field type we know how to build. */
+function parseFieldType(type: string): FieldPosition["type"] | null {
+  switch (type) {
+    case "text":
+    case "textarea":
+    case "select":
+    case "checkbox":
+    case "radio":
+      return type;
+    default:
+      return null;
+  }
+}
+
 /**
  * Extract marker annotations from a PDF and convert to field positions.
  * Also removes the marker annotations from the PDF.
@@ -128,17 +142,21 @@ function extractAndRemoveMarkers(pdfDoc: PDFDocument): FieldPosition[] {
       if (!markerInfo) continue;
 
       const rect = link.getRectangle();
+      const type = parseFieldType(markerInfo.type);
 
-      fields.push({
-        name: markerInfo.name,
-        type: markerInfo.type as FieldPosition["type"],
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-        pageIndex,
-        value: markerInfo.value,
-      });
+      // A marker with an unknown type gets no field, but is still removed.
+      if (type) {
+        fields.push({
+          name: markerInfo.name,
+          type,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          pageIndex,
+          value: markerInfo.value,
+        });
+      }
 
       page.removeAnnotation(link);
     }
@@ -213,10 +231,14 @@ export async function addAcroFormFields(
 
     if (fontData) {
       try {
-        pdfDoc.registerFontkit(fontkit as any);
-        customFont = await pdfDoc.embedFont(
-          fontData.data as Uint8Array<ArrayBuffer>,
+        // SAFETY: @pdf-lib/fontkit is the fontkit build registerFontkit is
+        // documented to take. The fork declares its own copy of the Fontkit
+        // interface, which only differs in typing path.toFunction() as an
+        // unknown-args function rather than Function.
+        pdfDoc.registerFontkit(
+          fontkit as Parameters<PDFDocument["registerFontkit"]>[0],
         );
+        customFont = await pdfDoc.embedFont(new Uint8Array(fontData.data));
       } catch {
         // Font embedding failed - continue with default Helvetica
       }

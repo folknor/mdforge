@@ -203,10 +203,14 @@ async function main(args: typeof cliFlags): Promise<void> {
     return results;
   };
 
-  const initial = await render(files).catch(async (error: unknown) => {
+  let initial: Map<string, ConvertResult>;
+
+  try {
+    initial = await render(files);
+  } catch (error) {
     await closeBrowser();
     throw error;
-  });
+  }
 
   if (!args["--watch"]) {
     await closeBrowser();

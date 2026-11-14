@@ -155,6 +155,10 @@ export async function prepareConversion(
   // sanitize frontmatter array options
   for (const option of arrayOptions) {
     if (!Array.isArray(config[option])) {
+      // SAFETY: front matter is merged into `config` without being parsed, so
+      // a single entry may arrive here as a bare scalar despite the declared
+      // array type; wrapping it (and dropping an empty value) restores the
+      // array the rest of this function relies on.
       config[option] = [config[option]].filter(Boolean) as any;
     }
   }
@@ -199,10 +203,12 @@ export async function prepareConversion(
         typeof s === "string" && !s.includes("\n") && !s.startsWith("http"),
     );
 
-    if (files.length > 0) {
+    const [firstFile] = files;
+
+    if (firstFile !== undefined) {
       info.stylesheet = {
         type: "specified",
-        path: basename(files[0] as string),
+        path: basename(firstFile),
         paths: files.map((s) => basename(s)),
       };
       info.dependencies.push(...files);
@@ -394,8 +400,9 @@ export async function prepareConversion(
   try {
     processedMd = await processIncludes(md, baseDir, config.templates);
   } catch (error) {
-    const err = error as Error;
-    throw new IncludeError("", err.message);
+    const message = error instanceof Error ? error.message : String(error);
+
+    throw new IncludeError("", message, { cause: error });
   }
 
   // Substitute {{ constant }} / {{ constant * 1.5 }} placeholders.
@@ -415,9 +422,10 @@ export async function prepareConversion(
   try {
     processedMd = await processIcons(processedMd, config.iconify_api);
   } catch (error) {
-    const err = error as Error;
+    const message = error instanceof Error ? error.message : String(error);
+
     info.warnings.push(
-      `Icon processing failed: ${err.message} (continuing with placeholders)`,
+      `Icon processing failed: ${message} (continuing with placeholders)`,
     );
   }
 
@@ -499,9 +507,10 @@ export async function prepareConversion(
 
         validatedStylesheets.push({ type: "path", value: stylesheet });
       } catch (error) {
-        const err = error as NodeJS.ErrnoException;
+        const isMissing =
+          error instanceof Error && "code" in error && error.code === "ENOENT";
 
-        if (err.code === "ENOENT") {
+        if (isMissing) {
           info.warnings.push(`Stylesheet not found: ${stylesheet}`);
         } else {
           info.warnings.push(`Stylesheet not readable: ${stylesheet}`);

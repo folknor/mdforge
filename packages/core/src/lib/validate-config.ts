@@ -1,4 +1,4 @@
-import { type Config, type Theme, themes } from "./config.js";
+import { type Config, themes } from "./config.js";
 import { fontPairings } from "./fonts.js";
 
 interface ValidationError {
@@ -7,40 +7,70 @@ interface ValidationError {
   value?: unknown;
 }
 
+/** Expected shape of one top-level config key. */
+interface SchemaEntry {
+  /** `|`-separated kinds: string, number, boolean, array, object */
+  type: string;
+  values?: readonly string[];
+}
+
+/** Any value a top-level config key can hold. */
+type ConfigValue = Config[keyof Config];
+
 /**
  * Known config keys and their expected types
  */
-const CONFIG_SCHEMA: Record<
-  string,
-  { type: string; values?: readonly string[] }
-> = {
-  as_html: { type: "boolean" },
-  basedir: { type: "string" },
-  dest: { type: "string" },
-  theme: { type: "string|boolean", values: [...themes, "false"] },
-  print_urls: { type: "boolean" },
-  stylesheet: { type: "string|array" },
-  script: { type: "array" },
-  document_title: { type: "string" },
-  body_class: { type: "array" },
-  page_media_type: { type: "string", values: ["screen", "print"] },
-  code_block_style: { type: "string" },
-  pdf_options: { type: "object" },
-  launch_options: { type: "object" },
-  toc_options: { type: "object" },
-  header: { type: "string|object" },
-  footer: { type: "string|object" },
-  metadata: { type: "object" },
-  fonts: { type: "string|object" },
-  font_scale: { type: "number" },
-  templates: { type: "object" },
-  page_numbers: { type: "object" },
-  heading_numbers: { type: "object" },
-  fillable: { type: "boolean" },
-  constants: { type: "object" },
-  constants_locale: { type: "string" },
-  constants_precision: { type: "number" },
-};
+const CONFIG_SCHEMA = new Map<string, SchemaEntry>([
+  ["as_html", { type: "boolean" }],
+  ["basedir", { type: "string" }],
+  ["dest", { type: "string" }],
+  ["theme", { type: "string|boolean", values: [...themes, "false"] }],
+  ["print_urls", { type: "boolean" }],
+  ["stylesheet", { type: "string|array" }],
+  ["script", { type: "array" }],
+  ["document_title", { type: "string" }],
+  ["body_class", { type: "array" }],
+  ["page_media_type", { type: "string", values: ["screen", "print"] }],
+  ["code_block_style", { type: "string" }],
+  ["pdf_options", { type: "object" }],
+  ["launch_options", { type: "object" }],
+  ["toc_options", { type: "object" }],
+  ["header", { type: "string|object" }],
+  ["footer", { type: "string|object" }],
+  ["metadata", { type: "object" }],
+  ["fonts", { type: "string|object" }],
+  ["font_scale", { type: "number" }],
+  ["templates", { type: "object" }],
+  ["page_numbers", { type: "object" }],
+  ["heading_numbers", { type: "object" }],
+  ["fillable", { type: "boolean" }],
+  ["constants", { type: "object" }],
+  ["constants_locale", { type: "string" }],
+  ["constants_precision", { type: "number" }],
+]);
+
+/*
+ * Runtime guards. The config arrives from user YAML / front matter typed as
+ * Config but unchecked, so these are the one place its runtime
+ * representation is inspected; everything below branches on their results.
+ */
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number";
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
+}
+
+/** Non-null object, arrays included. */
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
 
 /**
  * Known pdf_options keys (Puppeteer PDFOptions)
@@ -67,19 +97,26 @@ const PDF_OPTIONS_KEYS: Set<string> = new Set([
 /**
  * Check if a value matches the expected type
  */
-function matchesType(value: unknown, typeSpec: string): boolean {
-  const types = typeSpec.split("|");
-  const actualType = Array.isArray(value) ? "array" : typeof value;
+function matchesType(value: ConfigValue, typeSpec: string): boolean {
+  return typeSpec.split("|").some((kind) => matchesKind(value, kind));
+}
 
-  for (const t of types) {
-    if (t === "array" && Array.isArray(value)) return true;
-
-    if (t === actualType) return true;
-
-    if (t === "boolean" && value === false) return true;
+function matchesKind(value: ConfigValue, kind: string): boolean {
+  switch (kind) {
+    case "array":
+      return Array.isArray(value);
+    case "object":
+      // `null` counts as an object here, as `typeof null` does
+      return value === null || (isObject(value) && !Array.isArray(value));
+    case "string":
+      return isString(value);
+    case "number":
+      return isNumber(value);
+    case "boolean":
+      return isBoolean(value);
+    default:
+      return false;
   }
-
-  return false;
 }
 
 /**
@@ -87,21 +124,22 @@ function matchesType(value: unknown, typeSpec: string): boolean {
  */
 export function validateConfig(config: Partial<Config>): ValidationError[] {
   const errors: ValidationError[] = [];
+  const entries = new Map<string, ConfigValue>(Object.entries(config));
 
   // Check for unknown top-level keys
-  for (const key of Object.keys(config)) {
-    if (!(key in CONFIG_SCHEMA)) {
+  for (const [key, value] of entries) {
+    if (!CONFIG_SCHEMA.has(key)) {
       errors.push({
         path: key,
         message: `Unknown config option "${key}"`,
-        value: config[key as keyof Config],
+        value,
       });
     }
   }
 
   // Validate known keys
-  for (const [key, schema] of Object.entries(CONFIG_SCHEMA)) {
-    const value = config[key as keyof Config];
+  for (const [key, schema] of CONFIG_SCHEMA) {
+    const value = entries.get(key);
 
     if (value === undefined) continue;
 
@@ -109,6 +147,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     if (!matchesType(value, schema.type)) {
       errors.push({
         path: key,
+        // `typeof` names the runtime type the user actually wrote
         message: `"${key}" should be ${schema.type}, got ${typeof value}`,
         value,
       });
@@ -116,7 +155,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     }
 
     // Value check for enums
-    if (schema.values && typeof value === "string") {
+    if (schema.values && isString(value)) {
       if (!schema.values.includes(value)) {
         errors.push({
           path: key,
@@ -128,27 +167,22 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   }
 
   // Validate theme specifically
-  if (config.theme !== undefined && config.theme !== false) {
-    if (
-      typeof config.theme === "string" &&
-      !themes.includes(config.theme as Theme)
-    ) {
-      errors.push({
-        path: "theme",
-        message: `Unknown theme "${config.theme}". Available: ${themes.join(", ")}`,
-        value: config.theme,
-      });
-    }
+  if (isString(config.theme) && !themes.includes(config.theme)) {
+    errors.push({
+      path: "theme",
+      message: `Unknown theme "${config.theme}". Available: ${themes.join(", ")}`,
+      value: config.theme,
+    });
   }
 
   // Validate pdf_options keys
-  if (config.pdf_options && typeof config.pdf_options === "object") {
-    for (const key of Object.keys(config.pdf_options)) {
+  if (isObject(config.pdf_options)) {
+    for (const [key, value] of Object.entries(config.pdf_options)) {
       if (!PDF_OPTIONS_KEYS.has(key)) {
         errors.push({
           path: `pdf_options.${key}`,
           message: `Unknown pdf_options key "${key}"`,
-          value: config.pdf_options[key as keyof typeof config.pdf_options],
+          value,
         });
       }
     }
@@ -156,19 +190,15 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     // Validate margin structure
     const margin = config.pdf_options.margin;
 
-    if (
-      margin !== undefined &&
-      typeof margin !== "string" &&
-      typeof margin === "object"
-    ) {
+    if (isObject(margin)) {
       const validMarginKeys = new Set(["top", "right", "bottom", "left"]);
 
-      for (const key of Object.keys(margin)) {
+      for (const [key, value] of Object.entries(margin)) {
         if (!validMarginKeys.has(key)) {
           errors.push({
             path: `pdf_options.margin.${key}`,
             message: `Unknown margin key "${key}". Use: top, right, bottom, left`,
-            value: margin[key as keyof typeof margin],
+            value,
           });
         }
       }
@@ -177,9 +207,9 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 
   // Validate header/footer structure
   for (const field of ["header", "footer"] as const) {
-    const value = config[field];
+    const fieldValue = config[field];
 
-    if (value && typeof value === "object") {
+    if (isObject(fieldValue)) {
       const validKeys = new Set([
         "left",
         "center",
@@ -188,12 +218,12 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
         "firstPage",
       ]);
 
-      for (const key of Object.keys(value)) {
+      for (const [key, value] of Object.entries(fieldValue)) {
         if (!validKeys.has(key)) {
           errors.push({
             path: `${field}.${key}`,
             message: `Unknown ${field} key "${key}". Use: left, center, right`,
-            value: value[key as keyof typeof value],
+            value,
           });
         }
       }
@@ -201,7 +231,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   }
 
   // Validate metadata structure
-  if (config.metadata && typeof config.metadata === "object") {
+  if (isObject(config.metadata)) {
     const validMetadataKeys = new Set([
       "title",
       "author",
@@ -211,12 +241,12 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
       "producer",
     ]);
 
-    for (const key of Object.keys(config.metadata)) {
+    for (const [key, value] of Object.entries(config.metadata)) {
       if (!validMetadataKeys.has(key)) {
         errors.push({
           path: `metadata.${key}`,
           message: `Unknown metadata key "${key}". Use: title, author, subject, keywords, creator, producer`,
-          value: config.metadata[key as keyof typeof config.metadata],
+          value,
         });
       }
     }
@@ -247,7 +277,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 
   // Validate fonts (string preset or object config)
   if (config.fonts) {
-    if (typeof config.fonts === "string") {
+    if (isString(config.fonts)) {
       // Validate preset name
       if (!(config.fonts in fontPairings)) {
         errors.push({
@@ -256,16 +286,16 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
           value: config.fonts,
         });
       }
-    } else if (typeof config.fonts === "object") {
+    } else if (isObject(config.fonts)) {
       // Validate object structure
       const validFontKeys = new Set(["heading", "body", "mono"]);
 
-      for (const key of Object.keys(config.fonts)) {
+      for (const [key, value] of Object.entries(config.fonts)) {
         if (!validFontKeys.has(key)) {
           errors.push({
             path: `fonts.${key}`,
             message: `Unknown fonts key "${key}". Use: heading, body, mono`,
-            value: config.fonts[key as keyof typeof config.fonts],
+            value,
           });
         }
       }
@@ -273,9 +303,9 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   }
 
   // Validate templates structure (all values must be strings)
-  if (config.templates && typeof config.templates === "object") {
+  if (isObject(config.templates)) {
     for (const [key, value] of Object.entries(config.templates)) {
-      if (typeof value !== "string") {
+      if (!isString(value)) {
         errors.push({
           path: `templates.${key}`,
           message: `Template "${key}" must be a string (file path)`,
@@ -286,7 +316,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   }
 
   // Validate page_numbers structure
-  if (config.page_numbers && typeof config.page_numbers === "object") {
+  if (isObject(config.page_numbers)) {
     const validPageNumbersKeys = new Set(["format", "start"]);
 
     const validFormats = [
@@ -297,12 +327,12 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
       "alpha-upper",
     ];
 
-    for (const key of Object.keys(config.page_numbers)) {
+    for (const [key, value] of Object.entries(config.page_numbers)) {
       if (!validPageNumbersKeys.has(key)) {
         errors.push({
           path: `page_numbers.${key}`,
           message: `Unknown page_numbers key "${key}". Use: format, start`,
-          value: config.page_numbers[key as keyof typeof config.page_numbers],
+          value,
         });
       }
     }
@@ -322,7 +352,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     // Validate start is a positive number
     if (config.page_numbers.start !== undefined) {
       if (
-        typeof config.page_numbers.start !== "number" ||
+        !isNumber(config.page_numbers.start) ||
         config.page_numbers.start < 1
       ) {
         errors.push({
@@ -335,7 +365,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   }
 
   // Validate heading_numbers structure
-  if (config.heading_numbers && typeof config.heading_numbers === "object") {
+  if (isObject(config.heading_numbers)) {
     const validHeadingNumbersKeys = new Set([
       "format",
       "start_depth",
@@ -352,13 +382,12 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
       "alpha-upper",
     ];
 
-    for (const key of Object.keys(config.heading_numbers)) {
+    for (const [key, value] of Object.entries(config.heading_numbers)) {
       if (!validHeadingNumbersKeys.has(key)) {
         errors.push({
           path: `heading_numbers.${key}`,
           message: `Unknown heading_numbers key "${key}". Use: format, start_depth, max_depth, separator, skip_first_h1`,
-          value:
-            config.heading_numbers[key as keyof typeof config.heading_numbers],
+          value,
         });
       }
     }
@@ -378,7 +407,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     // Validate start_depth is a number between 1-6
     if (config.heading_numbers.start_depth !== undefined) {
       if (
-        typeof config.heading_numbers.start_depth !== "number" ||
+        !isNumber(config.heading_numbers.start_depth) ||
         config.heading_numbers.start_depth < 1 ||
         config.heading_numbers.start_depth > 6
       ) {
@@ -393,7 +422,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     // Validate max_depth is a number between 1-6
     if (config.heading_numbers.max_depth !== undefined) {
       if (
-        typeof config.heading_numbers.max_depth !== "number" ||
+        !isNumber(config.heading_numbers.max_depth) ||
         config.heading_numbers.max_depth < 1 ||
         config.heading_numbers.max_depth > 6
       ) {
@@ -408,7 +437,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     // Validate separator is a string
     if (
       config.heading_numbers.separator !== undefined &&
-      typeof config.heading_numbers.separator !== "string"
+      !isString(config.heading_numbers.separator)
     ) {
       errors.push({
         path: "heading_numbers.separator",
@@ -420,7 +449,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     // Validate skip_first_h1 is a boolean
     if (
       config.heading_numbers.skip_first_h1 !== undefined &&
-      typeof config.heading_numbers.skip_first_h1 !== "boolean"
+      !isBoolean(config.heading_numbers.skip_first_h1)
     ) {
       errors.push({
         path: "heading_numbers.skip_first_h1",
@@ -431,7 +460,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   }
 
   // Validate constants are flat name → number|string pairs
-  if (config.constants && typeof config.constants === "object") {
+  if (isObject(config.constants)) {
     for (const [key, value] of Object.entries(config.constants)) {
       if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
         errors.push({
@@ -441,7 +470,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
         });
       }
 
-      if (typeof value !== "number" && typeof value !== "string") {
+      if (!isNumber(value) && !isString(value)) {
         errors.push({
           path: `constants.${key}`,
           message: "Constants must be a number or a string",

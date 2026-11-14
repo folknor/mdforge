@@ -32,8 +32,7 @@ export default function DropZone({
         const file = items[i];
 
         if (file) {
-          // Get the path from the File object (available in Electron)
-          const path = (file as File & { path?: string }).path;
+          const path = window.electron.getPathForFile(file);
 
           if (path && (path.endsWith(".md") || path.endsWith(".markdown"))) {
             paths.push(path);

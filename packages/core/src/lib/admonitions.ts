@@ -22,6 +22,18 @@ const ADMONITION_TYPES = [
 
 type AdmonitionType = (typeof ADMONITION_TYPES)[number];
 
+function isAdmonitionType(value: string): value is AdmonitionType {
+  return ADMONITION_TYPES.some((type) => type === value);
+}
+
+/** Token produced by the admonition tokenizer and consumed by its renderer. */
+interface AdmonitionToken extends Tokens.Generic {
+  type: "admonition";
+  admonitionType: AdmonitionType;
+  title: string;
+  tokens: Token[];
+}
+
 /**
  * Marked extension for admonitions using Python-Markdown syntax.
  *
@@ -59,18 +71,14 @@ export function admonitions(): MarkedExtension {
             lexer: { blockTokens: (src: string, tokens: Token[]) => Token[] };
           },
           src: string,
-        ): Tokens.Generic | undefined {
+        ): AdmonitionToken | undefined {
           const match = startPattern.exec(src);
 
           if (!match) return;
 
           const typeRaw = match[1]?.toLowerCase() ?? "note";
 
-          const type: AdmonitionType = ADMONITION_TYPES.includes(
-            typeRaw as AdmonitionType,
-          )
-            ? (typeRaw as AdmonitionType)
-            : "note";
+          const type = isAdmonitionType(typeRaw) ? typeRaw : "note";
 
           // Title: custom if provided, empty string means no title, undefined means use type
           const customTitle = match[2];
@@ -126,11 +134,10 @@ export function admonitions(): MarkedExtension {
           this: { parser: { parse: (tokens: Token[]) => string } },
           token: Tokens.Generic,
         ): string {
-          const { admonitionType, title, tokens } = token as unknown as {
-            admonitionType: AdmonitionType;
-            title: string;
-            tokens: Token[];
-          };
+          // SAFETY: marked dispatches this renderer only for tokens whose
+          // `type` is "admonition", and only the tokenizer above creates
+          // them, always as an AdmonitionToken.
+          const { admonitionType, title, tokens } = token as AdmonitionToken;
 
           const titleHtml = title
             ? `<p class="admonition-title">${title}</p>\n`

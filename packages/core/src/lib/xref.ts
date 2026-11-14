@@ -246,6 +246,13 @@ export function hasPageRefs(html: string): boolean {
   return html.includes(`${PAGEREF_ATTR}="`);
 }
 
+/** Result of one page-reference resolution pass. */
+export interface PageRefResolution {
+  html: string;
+  /** False once the page numbers have settled. */
+  changed: boolean;
+}
+
 /**
  * Fill resolved page numbers into the placeholders left by `@pageof(...)`.
  *
@@ -259,7 +266,7 @@ export function hasPageRefs(html: string): boolean {
 export function resolvePageRefs(
   html: string,
   headingPages: Map<string, number>,
-): { html: string; changed: boolean } {
+): PageRefResolution {
   const pageBySlug = new Map<string, number>();
   // Fallbacks for outline titles carrying an automatic heading number: the
   // heading's id is built from the un-numbered text, so "8. Avvik" in the

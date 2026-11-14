@@ -66,9 +66,13 @@ export async function convertMdToPdf(
     // read the outline back and render again with the real numbers in place.
     if (!prepared.config.as_html && hasPageRefs(prepared.html)) {
       for (let pass = 1; pass < MAX_PAGEREF_PASSES; pass++) {
-        const outline = await readOutline(
-          output.content as Buffer | Uint8Array,
-        );
+        // Buffer extends Uint8Array, so this only rejects HTML output, which
+        // the as_html check above already rules out.
+        if (!(output.content instanceof Uint8Array)) {
+          throw new Error("Expected PDF output while resolving page references");
+        }
+
+        const outline = await readOutline(output.content);
 
         const headingPages = new Map(
           outline.map((entry) => [entry.title, entry.page] as const),
@@ -85,7 +89,7 @@ export async function convertMdToPdf(
       }
     }
   } catch (error) {
-    const err = error as Error;
+    const err = error instanceof Error ? error : new Error(String(error));
     const outputType = prepared.config.as_html ? "HTML" : "PDF";
 
     // Provide context about what failed

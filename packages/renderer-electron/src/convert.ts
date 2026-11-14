@@ -60,7 +60,7 @@ export async function convertMdToPdf(
     output = await render(prepared);
     log("Render succeeded");
   } catch (error) {
-    const err = error as Error;
+    const err = error instanceof Error ? error : new Error(String(error));
     log("Render failed:", err.message);
     const outputType = prepared.config.as_html ? "HTML" : "PDF";
     throw new GenerationError(

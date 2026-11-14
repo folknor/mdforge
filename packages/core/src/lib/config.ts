@@ -15,7 +15,7 @@ export type { HeadingNumbersConfig } from "./heading-numbers.js";
 
 export { type Theme, themes };
 
-const __dirname: string = fileURLToPath(new URL(".", import.meta.url));
+const moduleDir: string = fileURLToPath(new URL(".", import.meta.url));
 
 export interface HeaderFooterColumn {
   left?: string;
@@ -48,7 +48,7 @@ export interface PageNumbersConfig {
   start?: number;
 }
 
-export const themesDir: string = resolve(__dirname, "..", "..", "themes");
+export const themesDir: string = resolve(moduleDir, "..", "..", "themes");
 
 export const defaultConfig: Config = {
   basedir: process.cwd(),

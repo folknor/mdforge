@@ -47,14 +47,15 @@ async function readFile(filePath: string): Promise<string> {
   try {
     return await fs.readFile(filePath, "utf-8");
   } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    if (err.code === "ENOENT") {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       throw new Error(`Include file not found: ${filePath}`, { cause: error });
     }
 
-    throw new Error(
-      `Failed to read include file: ${filePath} - ${err.message}`,
-    );
+    const message = error instanceof Error ? error.message : String(error);
+
+    throw new Error(`Failed to read include file: ${filePath} - ${message}`, {
+      cause: error,
+    });
   }
 }
 

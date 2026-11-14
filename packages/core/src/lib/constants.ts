@@ -250,7 +250,8 @@ export function processConstants(
 
   if (options.locale) {
     try {
-      new Intl.NumberFormat(options.locale);
+      // Throws RangeError on a malformed BCP 47 tag, as NumberFormat would
+      Intl.getCanonicalLocales(options.locale);
     } catch {
       warnings.push(
         `Invalid constants_locale "${options.locale}" — numbers will be unformatted`,

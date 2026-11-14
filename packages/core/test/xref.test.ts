@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { HeadingNumbersConfig } from "../dist/lib/heading-numbers.js";
 import {
   pageRefSpan,
   resolveNumberRefs,
@@ -7,19 +8,16 @@ import {
 } from "../dist/lib/xref.js";
 
 /** Resolve a single page reference and return the text it ended up showing. */
-function resolve(
-  slug: string,
-  headings: Record<string, number>,
-): { text: string; changed: boolean } {
+function resolve(slug: string, headings: Record<string, number>) {
   const { html, changed } = resolvePageRefs(
     pageRefSpan(slug),
     new Map(Object.entries(headings)),
   );
 
-  const match = /<span[^>]*>([^<]*)<\/span>/.exec(html);
-  assert.ok(match, `no page-reference span left in: ${html}`);
+  const text = /<span[^>]*>([^<]*)<\/span>/.exec(html)?.[1];
+  assert.ok(text !== undefined, `no page-reference span left in: ${html}`);
 
-  return { text: match[1] as string, changed };
+  return { text, changed };
 }
 
 describe("resolvePageRefs", () => {
@@ -134,7 +132,7 @@ const DOC = [
 /** Resolve a single `@numberof(...)` against {@link DOC}. */
 function numberOf(
   reference: string,
-  config: Record<string, unknown> | false = {},
+  config: HeadingNumbersConfig | false = {},
   doc = DOC,
 ): string {
   return resolveNumberRefs(`${doc}\nse punkt @numberof(${reference}).`, config);

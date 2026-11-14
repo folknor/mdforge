@@ -167,10 +167,12 @@ describe("TOC filtering", () => {
   });
 });
 
-describe("TOC page numbers", () => {
-  const pageRef = (slug: string): string =>
-    `<span class="mdforge-pageref" data-mdforge-pageref="${slug}">??</span>`;
+/** The unresolved page-reference span the TOC emits for a heading slug. */
+function pageRef(slug: string): string {
+  return `<span class="mdforge-pageref" data-mdforge-pageref="${slug}">??</span>`;
+}
 
+describe("TOC page numbers", () => {
   it("appends a page reference span pointing at the heading slug", () => {
     const body = tocBody(DOC, { page_numbers: true, maxdepth: 2 });
     assert.equal(

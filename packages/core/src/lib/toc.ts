@@ -127,6 +127,9 @@ class MarkedAdapter {
       return;
     }
 
+    // SAFETY: tokens come from `marked.lexer`, which only emits `type:
+    // "heading"` for Tokens.Heading; the check above cannot narrow because
+    // Token also includes Tokens.Generic, whose `type` is any string.
     const headingToken = token as Tokens.Heading;
     const headingDepth = headingToken.depth;
 
@@ -155,16 +158,22 @@ class MarkedAdapter {
     this.headings.push(heading);
   }
 
+  // The assertions below rely on marked's lexer emitting each built-in `type`
+  // only for its matching token interface. Checking `type` cannot narrow on
+  // its own because Token also includes Tokens.Generic (`type: string`).
   private getTokenText(token: Token): string {
     if (token.type === "heading") {
+      // SAFETY: the lexer emits `type: "heading"` only for Tokens.Heading.
       return (token as Tokens.Heading).text;
     }
 
     if (token.type === "text") {
+      // SAFETY: the lexer emits `type: "text"` only for Tokens.Text.
       return (token as Tokens.Text).text;
     }
 
     if (token.type === "link") {
+      // SAFETY: the lexer emits `type: "link"` only for Tokens.Link.
       const linkToken = token as Tokens.Link;
 
       return linkToken.text || linkToken.href;
@@ -175,6 +184,8 @@ class MarkedAdapter {
       token.type === "em" ||
       token.type === "codespan"
     ) {
+      // SAFETY: the lexer emits these three types only for the matching
+      // Tokens.Strong, Tokens.Em and Tokens.Codespan interfaces.
       return (token as Tokens.Strong | Tokens.Em | Tokens.Codespan).text;
     }
 
@@ -340,12 +351,13 @@ export function insertToc(
     throw new Error("mdforge only supports one Table of Contents per file.");
   }
 
-  const last = sections[sections.length - 1] as string;
+  // At least two sections exist here, so neither fallback below is ever used.
+  const last = sections.at(-1) ?? "";
   // Headings before the opening marker still consume slugs and heading
   // numbers. Only sections[0] is document text: when both markers are present
   // sections[1] is the previously generated TOC body, which must not be
   // re-parsed or its links would consume slugs a second time.
-  const preceding = sections[0] as string;
+  const preceding = sections[0] ?? "";
 
   const tocContent = toc(
     last,

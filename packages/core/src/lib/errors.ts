@@ -6,8 +6,8 @@
  * Base error class for mdforge errors
  */
 export class MdforgeError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "MdforgeError";
   }
 }
@@ -55,8 +55,8 @@ export class GenerationError extends MdforgeError {
 export class IncludeError extends MdforgeError {
   readonly path: string;
 
-  constructor(path: string, reason: string) {
-    super(`Include error: ${reason}`);
+  constructor(path: string, reason: string, options?: ErrorOptions) {
+    super(`Include error: ${reason}`, options);
     this.name = "IncludeError";
     this.path = path;
   }

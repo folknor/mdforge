@@ -99,6 +99,24 @@ async function buildCompleteHtml(
   );
 }
 
+/** Electron's named page sizes, keyed by lowercased Puppeteer paper format. */
+const ELECTRON_PAGE_SIZES = new Map<
+  string,
+  Exclude<Electron.PrintToPDFOptions["pageSize"], Electron.Size | undefined>
+>([
+  ["a0", "A0"],
+  ["a1", "A1"],
+  ["a2", "A2"],
+  ["a3", "A3"],
+  ["a4", "A4"],
+  ["a5", "A5"],
+  ["a6", "A6"],
+  ["letter", "Letter"],
+  ["legal", "Legal"],
+  ["tabloid", "Tabloid"],
+  ["ledger", "Ledger"],
+]);
+
 /**
  * Map Puppeteer PDF options to Electron printToPDF options.
  */
@@ -113,8 +131,13 @@ function mapPdfOptions(
 
   // Map page size
   if (pdfOptions.format) {
-    options.pageSize =
-      pdfOptions.format.toUpperCase() as Electron.PrintToPDFOptions["pageSize"];
+    const pageSize = ELECTRON_PAGE_SIZES.get(pdfOptions.format.toLowerCase());
+
+    if (!pageSize) {
+      throw new Error(`Invalid pageSize ${pdfOptions.format}`);
+    }
+
+    options.pageSize = pageSize;
   } else if (pdfOptions.width && pdfOptions.height) {
     // Custom size - Electron expects microns for custom sizes
     // Puppeteer uses CSS units, so we need to convert
@@ -166,19 +189,19 @@ function mapPdfOptions(
 function parseCssToMicrons(value: string | number | undefined): number {
   if (value === undefined) return 0;
 
-  if (typeof value === "number") return value * 25400; // Assume inches
+  // A bare number has no unit suffix, so it falls through to inches below.
+  const text = String(value);
+  const num = parseFloat(text);
 
-  const num = parseFloat(value);
+  if (text.endsWith("mm")) return num * 1000;
 
-  if (value.endsWith("mm")) return num * 1000;
+  if (text.endsWith("cm")) return num * 10000;
 
-  if (value.endsWith("cm")) return num * 10000;
+  if (text.endsWith("in")) return num * 25400;
 
-  if (value.endsWith("in")) return num * 25400;
+  if (text.endsWith("px")) return num * (25400 / 96); // 96 DPI
 
-  if (value.endsWith("px")) return num * (25400 / 96); // 96 DPI
-
-  if (value.endsWith("pt")) return num * (25400 / 72); // 72 points per inch
+  if (text.endsWith("pt")) return num * (25400 / 72); // 72 points per inch
 
   return num * 25400; // Default to inches
 }
@@ -189,19 +212,19 @@ function parseCssToMicrons(value: string | number | undefined): number {
 function parseCssToInches(value: string | number | undefined): number {
   if (value === undefined) return 0;
 
-  if (typeof value === "number") return value;
+  // A bare number has no unit suffix, so it falls through to inches below.
+  const text = String(value);
+  const num = parseFloat(text);
 
-  const num = parseFloat(value);
+  if (text.endsWith("mm")) return num / 25.4;
 
-  if (value.endsWith("mm")) return num / 25.4;
+  if (text.endsWith("cm")) return num / 2.54;
 
-  if (value.endsWith("cm")) return num / 2.54;
+  if (text.endsWith("in")) return num;
 
-  if (value.endsWith("in")) return num;
+  if (text.endsWith("px")) return num / 96;
 
-  if (value.endsWith("px")) return num / 96;
-
-  if (value.endsWith("pt")) return num / 72;
+  if (text.endsWith("pt")) return num / 72;
 
   return num; // Default to inches
 }
@@ -320,32 +343,32 @@ export async function render(
       }
     }
 
-    let outputFileContent: string | Buffer | Uint8Array;
-
     if (config.as_html) {
       log("Extracting HTML output...");
-      outputFileContent = await win.webContents.executeJavaScript(
+
+      const html: string = await win.webContents.executeJavaScript(
         "document.documentElement.outerHTML",
       );
-      log("HTML extracted, length:", (outputFileContent as string).length);
-    } else {
-      // Generate PDF using Electron's printToPDF
-      log("Generating PDF...");
-      const pdfOptions = mapPdfOptions(prepared.pdfOptions);
-      log("PDF options:", JSON.stringify(pdfOptions));
-      outputFileContent = await win.webContents.printToPDF(pdfOptions);
-      log("PDF generated, size:", (outputFileContent as Buffer).length);
-    }
 
-    if (config.as_html) {
+      log("HTML extracted, length:", html.length);
+
       return {
-        content: outputFileContent as string,
+        content: html,
       };
     }
 
+    // Generate PDF using Electron's printToPDF
+    log("Generating PDF...");
+    const pdfOptions = mapPdfOptions(prepared.pdfOptions);
+    log("PDF options:", JSON.stringify(pdfOptions));
+
+    let pdfContent: Buffer | Uint8Array =
+      await win.webContents.printToPDF(pdfOptions);
+
+    log("PDF generated, size:", pdfContent.length);
+
     // Post-process PDF
     log("Post-processing PDF...");
-    let pdfContent = outputFileContent as Buffer | Uint8Array;
 
     // Inject PDF metadata if configured
     if (config.metadata) {

@@ -12,11 +12,11 @@ import { getFonts } from "font-list";
  * Downloaded fonts are cached in ~/.cache/mdforge/fonts/
  */
 
-const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const moduleDir: string = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR: string = join(homedir(), ".cache", "mdforge", "fonts");
 
 const GOOGLE_FONTS_LIST: string = join(
-  __dirname,
+  moduleDir,
   "..",
   "data",
   "google-fonts.json",
@@ -99,7 +99,7 @@ async function ensureCacheDir(): Promise<void> {
  * Generate cache key for a font request
  */
 function getCacheKey(fontNames: string[], weights: number[]): string {
-  const input = `${fontNames.sort((a, b) => a.localeCompare(b)).join(",")}:${weights.sort((a, b) => a - b).join(",")}`;
+  const input = `${fontNames.toSorted((a, b) => a.localeCompare(b)).join(",")}:${weights.toSorted((a, b) => a - b).join(",")}`;
 
   return createHash("md5").update(input).digest("hex");
 }
@@ -221,9 +221,10 @@ async function fetchAndEmbedFonts(
 
     return { css, warnings };
   } catch (error) {
-    const err = error as Error;
+    const message = error instanceof Error ? error.message : String(error);
+
     warnings.push(
-      `Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${err.message}`,
+      `Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${message}`,
     );
 
     return { css: null, warnings };
@@ -266,14 +267,18 @@ export async function getGoogleFontsCss(
 
   // Download and embed fonts not installed locally
   if (fontsToDownload.length > 0) {
-    const cacheKey = getCacheKey(fontsToDownload, weights);
+    // Request families and weights in the same sorted order that keys the
+    // cache (the Google Fonts css2 API expects ascending weight values).
+    const sortedFonts = fontsToDownload.toSorted((a, b) => a.localeCompare(b));
+    const sortedWeights = weights.toSorted((a, b) => a - b);
+    const cacheKey = getCacheKey(sortedFonts, sortedWeights);
 
     // Check cache first
     let downloadedCss = await getCachedCss(cacheKey);
 
     if (!downloadedCss) {
       // Fetch and embed fonts
-      const result = await fetchAndEmbedFonts(fontsToDownload, weights);
+      const result = await fetchAndEmbedFonts(sortedFonts, sortedWeights);
       warnings.push(...result.warnings);
       downloadedCss = result.css;
 

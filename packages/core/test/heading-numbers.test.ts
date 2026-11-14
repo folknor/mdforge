@@ -26,13 +26,15 @@ function renderedHeadingTexts(
   config: HeadingNumbersConfig = {},
 ): string[] {
   const marked = new Marked(headingNumbers(config));
-  const html = marked.parse(markdown, { async: false }) as string;
+  const html = marked.parse(markdown, { async: false });
   const texts: string[] = [];
   const regex = /<h[1-6][^>]*>(.*?)<\/h[1-6]>/g;
   let match = regex.exec(html);
 
   while (match !== null) {
-    texts.push(match[1] as string);
+    const text = match[1];
+    assert.ok(text !== undefined, "heading without captured text");
+    texts.push(text);
     match = regex.exec(html);
   }
 
@@ -139,43 +141,33 @@ describe("HeadingNumberer", () => {
 describe("headingNumbers() extension", () => {
   it("derives heading ids from the un-numbered text", () => {
     const marked = new Marked(headingNumbers());
-    const html = marked.parse("## Avvik\n", { async: false }) as string;
+    const html = marked.parse("## Avvik\n", { async: false });
     assert.match(html, /<h2 id="avvik">1\. Avvik<\/h2>/);
   });
 
   it("de-duplicates ids for repeated heading text", () => {
     const marked = new Marked(headingNumbers());
 
-    const html = marked.parse("## Notes\n\n## Notes\n", {
-      async: false,
-    }) as string;
+    const html = marked.parse("## Notes\n\n## Notes\n", { async: false });
 
     assert.match(html, /<h2 id="notes">1\. Notes<\/h2>/);
     assert.match(html, /<h2 id="notes-1">2\. Notes<\/h2>/);
   });
 
   it("produces the same numbers as HeadingNumberer for the same headings", () => {
-    const markdown = [
-      "# Title",
-      "## Alpha",
-      "### Beta",
-      "### Gamma",
-      "## Delta",
-      "#### Deep",
-      "### Epsilon",
-    ].join("\n\n");
-
-    const depths = [1, 2, 3, 3, 2, 4, 3];
-
-    const titles = [
-      "Title",
-      "Alpha",
-      "Beta",
-      "Gamma",
-      "Delta",
-      "Deep",
-      "Epsilon",
+    const headings: [depth: number, title: string][] = [
+      [1, "Title"],
+      [2, "Alpha"],
+      [3, "Beta"],
+      [3, "Gamma"],
+      [2, "Delta"],
+      [4, "Deep"],
+      [3, "Epsilon"],
     ];
+
+    const markdown = headings
+      .map(([depth, title]) => `${"#".repeat(depth)} ${title}`)
+      .join("\n\n");
 
     for (const config of [
       {},
@@ -185,8 +177,8 @@ describe("headingNumbers() extension", () => {
     ] satisfies HeadingNumbersConfig[]) {
       const numberer = new HeadingNumberer(config);
 
-      const expected = depths.map((depth, i) =>
-        numberer.apply(depth, titles[i] as string),
+      const expected = headings.map(([depth, title]) =>
+        numberer.apply(depth, title),
       );
 
       assert.deepEqual(

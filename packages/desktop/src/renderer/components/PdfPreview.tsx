@@ -9,6 +9,14 @@ interface PdfPreviewProps {
   generatedAt: Date | null;
 }
 
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 export default function PdfPreview({
   pdfData,
   isLoading,
@@ -21,7 +29,8 @@ export default function PdfPreview({
   // Create blob URL when PDF data changes
   useEffect(() => {
     if (pdfData) {
-      // pdfData arrives over IPC, so it is always backed by a plain
+      // SAFETY: pdfData only ever comes from the generatePreview IPC result,
+      // and IPC structured-clones it into a Uint8Array backed by a plain
       // ArrayBuffer rather than a SharedArrayBuffer, which Blob requires.
       const blob = new Blob([pdfData as Uint8Array<ArrayBuffer>], {
         type: "application/pdf",
@@ -40,14 +49,6 @@ export default function PdfPreview({
 
     return;
   }, [pdfData]);
-
-  function formatTime(date: Date): string {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  }
 
   return (
     <div className="h-full bg-white rounded-lg shadow overflow-hidden flex flex-col">

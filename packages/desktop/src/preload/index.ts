@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type {
   ConversionConfig,
   ConversionProgress,
@@ -21,6 +21,9 @@ const electronAPI: ElectronAPI = {
   // File dialogs
   selectFiles: () => ipcRenderer.invoke("select-files"),
   selectOutputDir: () => ipcRenderer.invoke("select-output-dir"),
+
+  // File.path was removed in Electron 32; webUtils is its replacement.
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
 
   // Events
   onConversionProgress: (callback: (progress: ConversionProgress) => void) => {
