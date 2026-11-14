@@ -5,11 +5,9 @@
  * to provide the same API as the original convertMdToPdf().
  */
 
-import { promises as fs } from "node:fs";
-import process from "node:process";
 import type { Config, ConversionInfo } from "@mdforge/core";
 import { GenerationError } from "@mdforge/core/errors";
-import { type ConvertOptions, prepareConversion } from "@mdforge/core/prepare";
+import { type ConvertOptions, prepareConversion, writeOutput } from "@mdforge/core/prepare";
 import { hasPageRefs, resolvePageRefs } from "@mdforge/core/xref";
 import { readOutline } from "@mdforge/pdf";
 import type { Browser } from "puppeteer";
@@ -26,6 +24,7 @@ const MAX_PAGEREF_PASSES = 3;
 
 /** Output from convertMdToPdf */
 export interface ConvertResult {
+  /** The file written, when the output target was a file */
   filename: string | undefined;
   content: Buffer | Uint8Array | string;
   info: ConversionInfo;
@@ -39,22 +38,16 @@ export interface ConvertResult {
  *
  * @param input - Markdown file path or content
  * @param config - Configuration
- * @param options - Optional arguments and browser instance
+ * @param options - Output format and target, fillable override, and browser
  * @returns The conversion result
  */
 export async function convertMdToPdf(
   input: { path: string } | { content: string },
   config: Config,
-  {
-    args = {},
-    browser,
-  }: {
-    args?: ConvertOptions;
-    browser?: Browser;
-  } = {},
+  { browser, ...options }: ConvertOptions & { browser?: Browser } = {},
 ): Promise<ConvertResult> {
   // Prepare the conversion (no browser needed)
-  const prepared = await prepareConversion(input, config, args);
+  const prepared = await prepareConversion(input, config, options);
 
   // Render the document
   let output: Awaited<ReturnType<typeof render>>;
@@ -64,10 +57,10 @@ export async function convertMdToPdf(
 
     // Page references need a laid-out PDF before they can be resolved, so
     // read the outline back and render again with the real numbers in place.
-    if (!prepared.config.as_html && hasPageRefs(prepared.html)) {
+    if (prepared.format === "pdf" && hasPageRefs(prepared.html)) {
       for (let pass = 1; pass < MAX_PAGEREF_PASSES; pass++) {
         // Buffer extends Uint8Array, so this only rejects HTML output, which
-        // the as_html check above already rules out.
+        // the format check above already rules out.
         if (!(output.content instanceof Uint8Array)) {
           throw new Error("Expected PDF output while resolving page references");
         }
@@ -88,7 +81,7 @@ export async function convertMdToPdf(
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    const outputType = prepared.config.as_html ? "HTML" : "PDF";
+    const outputType = prepared.format.toUpperCase();
 
     // Provide context about what failed
     if (err.message.includes("Browser") || err.message.includes("browser")) {
@@ -108,24 +101,16 @@ export async function convertMdToPdf(
     throw new GenerationError(`Failed to create ${outputType}: ${err.message}`, err);
   }
 
-  // Write output file if destination is set
-  if (prepared.dest) {
-    if (prepared.dest === "stdout") {
-      process.stdout.write(output.content);
-    } else {
-      await fs.writeFile(prepared.dest, output.content);
-    }
-  }
+  await writeOutput(prepared.output, output.content);
 
-  // Track output info
-  if (prepared.dest) {
-    prepared.info.output = {
-      path: prepared.dest,
-    };
+  const filename = prepared.output.kind === "file" ? prepared.output.path : undefined;
+
+  if (filename !== undefined) {
+    prepared.info.output = { path: filename };
   }
 
   return {
-    filename: prepared.dest,
+    filename,
     content: output.content,
     info: prepared.info,
   };

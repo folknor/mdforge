@@ -24,9 +24,6 @@ mdforge *.md
 
 # Output HTML instead (for debugging)
 mdforge --as-html document.md
-
-# Pipe from stdin
-cat document.md | mdforge > output.pdf
 ```
 
 ## Using Front-matter

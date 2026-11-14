@@ -161,7 +161,7 @@ export async function render(
   let formFontInfo: { fontFamily: string; fontSize: number } | undefined;
   let embeddedFonts = prepared.embeddedFonts;
 
-  if (config.fillable && !config.as_html) {
+  if (config.fillable && prepared.format === "pdf") {
     // Extract select options (not encoded in marker URLs)
     const selectData = await page.evaluate(() => {
       const selects = document.querySelectorAll(
@@ -217,7 +217,7 @@ export async function render(
     }
   }
 
-  if (config.as_html) {
+  if (prepared.format === "html") {
     const html = await page.content();
     await page.close();
 

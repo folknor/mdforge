@@ -27,6 +27,10 @@
  *   contents are always CSS.
  * - `launch_options` is only read from the config file: one browser is shared
  *   by every document of a run, so a per-document setting could not apply.
+ * - Neither source can say where the output goes or whether it is PDF or HTML
+ *   (no `dest`, `as_html` or `pdf_options.path`): those belong to the caller's
+ *   invocation, and a document must not redirect what an application such as
+ *   the desktop preview receives.
  */
 
 import { promises as fs } from "node:fs";
@@ -38,7 +42,6 @@ import type {
   LaunchOptions,
   LowerCasePaperFormat,
   PDFMargin,
-  PDFOptions,
   SupportedBrowser,
 } from "puppeteer";
 import {
@@ -55,6 +58,7 @@ import {
   type HeaderFooterColumn,
   type PageNumberFormat,
   type PageNumbersConfig,
+  type PdfOptions,
   type StylesheetEntry,
   type Theme,
   themes,
@@ -547,7 +551,7 @@ const PAPER_FORMATS = [
   "a6",
 ] as const satisfies readonly LowerCasePaperFormat[];
 
-const pdfOptions = record<PDFOptions>({
+const pdfOptions = record<PdfOptions>({
   scale: number({ min: 0.1, max: 2 }),
   displayHeaderFooter: boolean,
   headerTemplate: text,
@@ -560,7 +564,6 @@ const pdfOptions = record<PDFOptions>({
   height: length,
   preferCSSPageSize: boolean,
   margin,
-  path: literal,
   omitBackground: boolean,
   tagged: boolean,
   outline: boolean,
@@ -736,9 +739,7 @@ const constants = dictionary(constantValue, {
 const templates: Decoder<TemplatesConfig> = dictionary(literal);
 
 const configFields = record<YamlConfig>({
-  as_html: boolean,
   basedir: literal,
-  dest: literal,
   theme,
   print_urls: boolean,
   stylesheet: oneOrMany(stylesheetEntry),

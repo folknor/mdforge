@@ -212,6 +212,18 @@ toc_options:
     assert.deepEqual(paths(fromFrontMatter.issues), ["launch_options"]);
   });
 
+  it("lets neither source choose the output target or format", async () => {
+    const yaml =
+      "dest: elsewhere.pdf\nas_html: true\npdf_options:\n  path: copy.pdf\n  landscape: true";
+
+    for (const source of ["config-file", "front-matter"] as const) {
+      const { config, issues } = await parse(yaml, source);
+
+      assert.deepEqual(config, { pdf_options: { landscape: true } });
+      assert.deepEqual(paths(issues), ["dest", "as_html", "pdf_options.path"]);
+    }
+  });
+
   it("rejects the whole document on a syntax error", async () => {
     const { config, issues } = await parse("theme: [unclosed");
 

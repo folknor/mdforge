@@ -13,6 +13,7 @@ export type { PdfMetadata } from "@mdforge/pdf";
 export {
   type Config,
   defaultConfig,
+  type PdfOptions,
   type StylesheetEntry,
   type Theme,
   themes,
@@ -47,7 +48,14 @@ export {
 export type { TemplatesConfig } from "./lib/includes.js";
 
 // Preparation function (the main API for renderers)
-export { type ConvertOptions, type PreparedConversion, prepareConversion } from "./lib/prepare.js";
+export {
+  type ConvertOptions,
+  type OutputFormat,
+  type OutputTarget,
+  type PreparedConversion,
+  prepareConversion,
+  writeOutput,
+} from "./lib/prepare.js";
 
 // Parsing user YAML (config files, front matter) into configuration
 export {

@@ -1,1 +1,2 @@
-as_html: true
+# The output format is not configuration; scripts/regenerate-examples.js
+# renders the variant named "html" with --as-html.

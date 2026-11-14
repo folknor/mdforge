@@ -7,11 +7,12 @@ import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
 import process from "node:process";
-import type { FrameAddScriptTagOptions, PDFOptions } from "puppeteer";
+import type { FrameAddScriptTagOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
 import {
   type Config,
   type HeaderFooterColumn,
+  type PdfOptions,
   type StylesheetEntry,
   themes,
   themesDir,
@@ -42,10 +43,49 @@ function summarize(columns: HeaderFooterColumn | undefined): string | undefined 
   return [columns?.left, columns?.center, columns?.right].filter(Boolean).join(" | ") || undefined;
 }
 
-/** Options that can be passed from CLI or other callers */
+/** What the conversion produces. */
+export type OutputFormat = "pdf" | "html";
+
+/**
+ * Where the result goes. `none` only returns it to the caller. A `file` path
+ * is always a file, even one named "stdout"; an empty path is an error from
+ * the write, not a way to say `none`.
+ */
+export type OutputTarget = { kind: "file"; path: string } | { kind: "stdout" } | { kind: "none" };
+
+/**
+ * The invocation's own choices, which the document cannot override: front
+ * matter and config files are Config, and Config has no say in these.
+ */
 export interface ConvertOptions {
-  "--as-html"?: boolean;
-  "--fillable"?: boolean;
+  /** Default: "pdf". */
+  format?: OutputFormat;
+  /**
+   * Default: a file beside a path input, with the format's extension, or
+   * stdout for content input.
+   */
+  output?: OutputTarget;
+  /** Overrides the document's `fillable` when set. */
+  fillable?: boolean;
+}
+
+/** Write a converted document to its target. */
+export async function writeOutput(
+  target: OutputTarget,
+  content: Buffer | Uint8Array | string,
+): Promise<void> {
+  switch (target.kind) {
+    case "file":
+      await fs.writeFile(target.path, content);
+
+      return;
+    case "stdout":
+      process.stdout.write(content);
+
+      return;
+    case "none":
+      return;
+  }
 }
 
 /**
@@ -63,7 +103,7 @@ export interface PreparedConversion {
   scripts: FrameAddScriptTagOptions[];
 
   /** PDF options for the renderer */
-  pdfOptions: PDFOptions;
+  pdfOptions: PdfOptions;
 
   /** Base URL for resolving relative paths */
   baseUrl: string;
@@ -77,8 +117,11 @@ export interface PreparedConversion {
   /** Conversion info for CLI output */
   info: ConversionInfo;
 
-  /** Output destination path */
-  dest: string | undefined;
+  /** What to produce, as the invocation chose it */
+  format: OutputFormat;
+
+  /** Where the result goes, as the invocation chose it or its default */
+  output: OutputTarget;
 }
 
 /**
@@ -86,7 +129,8 @@ export interface PreparedConversion {
  *
  * This function:
  * - Reads and parses the markdown file
- * - Merges config from defaults, config file, front matter, and CLI args
+ * - Merges the caller's config with front matter, then applies the
+ *   invocation's options, which front matter cannot override
  * - Resolves themes, fonts, stylesheets
  * - Processes includes, icons, cross-references
  * - Generates header/footer CSS or templates
@@ -99,16 +143,23 @@ export interface PreparedConversion {
  *
  * @param input - Markdown file path or content
  * @param config - Configuration
- * @param args - CLI arguments
+ * @param options - Output format, target and fillable override
  * @returns Everything needed for rendering
  */
 export async function prepareConversion(
   input: { path: string } | { content: string },
   config: Config,
-  args: ConvertOptions = {},
+  options: ConvertOptions = {},
 ): Promise<PreparedConversion> {
   // Track conversion info for CLI output
   const info = createConversionInfo();
+
+  const format = options.format ?? "pdf";
+
+  // Preparation reassigns config fields and writes into pdf_options; a
+  // caller may share one config across concurrent conversions (the CLI does),
+  // so each conversion works on its own copy.
+  config = { ...config, pdf_options: { ...config.pdf_options } };
 
   const mdFileContent =
     "content" in input ? input.content : await fs.readFile(input.path, { encoding: "utf-8" });
@@ -381,21 +432,15 @@ export async function prepareConversion(
     config.document_title = extractFirstHeading(processedMd) ?? "";
   }
 
-  // merge --as-html from CLI args
-  if (args["--as-html"]) {
-    config.as_html = true;
+  if (options.fillable !== undefined) {
+    config.fillable = options.fillable;
   }
 
-  // merge --fillable from CLI args
-  if (args["--fillable"]) {
-    config.fillable = true;
-  }
-
-  // set output destination
-  if (config.dest === undefined) {
-    config.dest =
-      "path" in input ? getOutputFilePath(input.path, config.as_html ? "html" : "pdf") : "stdout";
-  }
+  const output: OutputTarget =
+    options.output ??
+    ("path" in input
+      ? { kind: "file", path: getOutputFilePath(input.path, format) }
+      : { kind: "stdout" });
 
   const highlightStylesheet = resolve(
     dirname(require.resolve("highlight.js")),
@@ -457,7 +502,7 @@ export async function prepareConversion(
   // Page numbers are read back from a laid-out PDF, so HTML output has nothing
   // to resolve them against and the "??" placeholders survive into the file.
   // Say so rather than letting the user discover it in the output.
-  if (config.as_html && hasPageRefs(html)) {
+  if (format === "html" && hasPageRefs(html)) {
     info.warnings.push(
       "Page references (@pageof / toc_options.page_numbers) cannot be resolved for HTML output; they render as '??' placeholders.",
     );
@@ -482,6 +527,7 @@ export async function prepareConversion(
     config,
     embeddedFonts,
     info,
-    dest: config.dest,
+    format,
+    output,
   };
 }

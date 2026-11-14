@@ -6,6 +6,7 @@ import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
 import {
   type Config,
+  type ConvertOptions,
   type ConvertResult,
   closeBrowser,
   convertMdToPdf,
@@ -48,7 +49,8 @@ const help = (): void =>
     footer:
       center: "{title}"
 
-  Front-matter in markdown files can override config settings.
+  Front-matter in markdown files can override config settings, but not
+  the output path or format, which only the options above choose.
 `);
 
 // --
@@ -112,11 +114,28 @@ async function main(args: typeof cliFlags): Promise<void> {
   // re-renders every input when one of them changes.
   const configDependencies: string[] = [];
 
+  // The invocation's output choices; neither the config file nor front matter
+  // can change them.
+  const convertOptions: ConvertOptions = {
+    format: args["--as-html"] ? "html" : "pdf",
+  };
+
+  const output = args["--output"];
+
+  if (output) {
+    convertOptions.output = { kind: "file", path: resolve(output) };
+  }
+
+  // Left unset when the flag is absent, so a document can still ask for forms
+  if (args["--fillable"]) {
+    convertOptions.fillable = true;
+  }
+
   // Launch options of the last load, to notice when they change under watch
   let launchOptions: string | undefined;
 
   /**
-   * Build the run's config: defaults, then the config file, then --output.
+   * Build the run's config: defaults, then the config file.
    * Called before every render so watch mode picks up config file edits.
    */
   const loadConfig = async (): Promise<Config> => {
@@ -158,11 +177,6 @@ async function main(args: typeof cliFlags): Promise<void> {
       }
     }
 
-    // CLI --output flag overrides config dest
-    if (args["--output"]) {
-      config.dest = resolve(args["--output"]);
-    }
-
     // The browser is shared across renders; relaunch it when the config file
     // changed how it should be launched.
     const launch = JSON.stringify(config.launch_options);
@@ -183,9 +197,9 @@ async function main(args: typeof cliFlags): Promise<void> {
     const results: Map<string, ConvertResult> = new Map();
 
     const getListrTask = (file: string): Listr.ListrTask => ({
-      title: `generating ${args["--as-html"] ? "HTML" : "PDF"} from ${basename(file)}`,
+      title: `generating ${convertOptions.format === "html" ? "HTML" : "PDF"} from ${basename(file)}`,
       task: async (): Promise<ConvertResult> => {
-        const result = await convertMdToPdf({ path: file }, config, { args });
+        const result = await convertMdToPdf({ path: file }, config, convertOptions);
         results.set(file, result);
 
         return result;
@@ -216,7 +230,7 @@ async function main(args: typeof cliFlags): Promise<void> {
         console.log(infoText);
       }
 
-      if (result.info.output?.path && result.info.output.path !== "stdout") {
+      if (result.info.output) {
         console.log(`  → ${result.info.output.path}`);
       }
     }

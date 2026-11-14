@@ -78,7 +78,6 @@ export const defaultConfig: Config = {
     },
   },
   launch_options: {},
-  as_html: false,
   marked_extensions: [],
   toc_options: {
     skip_first_h1: false,
@@ -88,20 +87,24 @@ export const defaultConfig: Config = {
   },
 };
 
+/**
+ * Puppeteer's PDF options without `path`. mdforge writes the output itself, to
+ * the target its caller chose (see ConvertOptions); a `path` here would make
+ * Puppeteer write a second, unpostprocessed copy wherever it pointed.
+ */
+export type PdfOptions = Omit<PDFOptions, "path">;
+
+/**
+ * How a document is rendered. Where the result goes and whether it is PDF or
+ * HTML are not configuration: the caller decides them per invocation
+ * (ConvertOptions `output` and `format`), so a document's front matter cannot
+ * redirect or reshape what an application receives.
+ */
 export interface Config {
-  /**
-   * If true, generate HTML output instead of PDF output. Default: `false`.
-   */
-  as_html: boolean;
   /**
    * Base directory to be served by the file server.
    */
   basedir: string;
-
-  /**
-   * Optional destination path for the output file (including the extension).
-   */
-  dest?: string;
 
   /**
    * Built-in theme to use. Available: "beryl", "tufte", "buttondown", "pandoc".
@@ -155,7 +158,7 @@ export interface Config {
    *
    * @see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagepdfoptions
    */
-  pdf_options: PDFOptions;
+  pdf_options: PdfOptions;
 
   /**
    * Launch options for Puppeteer.
@@ -238,7 +241,7 @@ export interface Config {
    * If true, generate fillable PDF forms with real AcroForm fields.
    * Form fields rendered by marked-forms will become interactive in PDF readers.
    * Default: false (renders print-friendly static forms).
-   * Note: Ignored when as_html is true.
+   * Note: Ignored for HTML output.
    */
   fillable?: boolean;
 

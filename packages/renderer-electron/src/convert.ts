@@ -4,11 +4,10 @@
  * This wraps prepareConversion() from @mdforge/core and render() from this package.
  */
 
-import { promises as fs } from "node:fs";
 import process from "node:process";
 import type { Config, ConversionInfo } from "@mdforge/core";
 import { GenerationError } from "@mdforge/core/errors";
-import { type ConvertOptions, prepareConversion } from "@mdforge/core/prepare";
+import { type ConvertOptions, prepareConversion, writeOutput } from "@mdforge/core/prepare";
 import { render } from "./render.js";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
@@ -22,6 +21,7 @@ function log(...args: unknown[]): void {
 
 /** Output from convertMdToPdf */
 export interface ConvertResult {
+  /** The file written, when the output target was a file */
   filename: string | undefined;
   content: Buffer | Uint8Array | string;
   info: ConversionInfo;
@@ -32,25 +32,20 @@ export interface ConvertResult {
  *
  * @param input - Markdown file path or content
  * @param config - Configuration
- * @param options - Optional arguments
+ * @param options - Output format and target, fillable override
  * @returns The conversion result
  */
 export async function convertMdToPdf(
   input: { path: string } | { content: string },
   config: Config,
-  {
-    args = {},
-  }: {
-    args?: ConvertOptions;
-  } = {},
+  options: ConvertOptions = {},
 ): Promise<ConvertResult> {
   log("convertMdToPdf called", "path" in input ? input.path : "(content)");
-  log("Config dest:", config.dest);
 
   // Prepare the conversion (no browser needed)
   log("Preparing conversion...");
-  const prepared = await prepareConversion(input, config, args);
-  log("Preparation complete, dest:", prepared.dest);
+  const prepared = await prepareConversion(input, config, options);
+  log("Preparation complete, output:", JSON.stringify(prepared.output));
 
   // Render the document using Electron
   log("Starting render...");
@@ -62,32 +57,20 @@ export async function convertMdToPdf(
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     log("Render failed:", err.message);
-    const outputType = prepared.config.as_html ? "HTML" : "PDF";
+    const outputType = prepared.format.toUpperCase();
     throw new GenerationError(`Failed to create ${outputType}: ${err.message}`, err);
   }
 
-  // Write output file if destination is set
-  if (prepared.dest) {
-    log("Writing output to:", prepared.dest);
+  await writeOutput(prepared.output, output.content);
 
-    if (prepared.dest === "stdout") {
-      process.stdout.write(output.content);
-    } else {
-      await fs.writeFile(prepared.dest, output.content);
-    }
+  const filename = prepared.output.kind === "file" ? prepared.output.path : undefined;
 
-    log("Output written");
-  }
-
-  // Track output info
-  if (prepared.dest) {
-    prepared.info.output = {
-      path: prepared.dest,
-    };
+  if (filename !== undefined) {
+    prepared.info.output = { path: filename };
   }
 
   return {
-    filename: prepared.dest,
+    filename,
     content: output.content,
     info: prepared.info,
   };

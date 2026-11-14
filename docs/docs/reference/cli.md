@@ -14,6 +14,7 @@ mdforge [options] <files...>
 | `-v, --version` | Show version |
 | `-o, --output <path>` | Output file path (single file only) |
 | `--as-html` | Output HTML instead of PDF |
+| `--fillable` | Generate fillable PDF form fields (overrides the document's `fillable`) |
 | `--config-file <path>` | Path to YAML configuration file |
 | `-w, --watch` | Re-render when an input file or its stylesheet changes |
 
@@ -38,10 +39,11 @@ mdforge --as-html document.md
 
 # Re-render on every save (ctrl-c to stop)
 mdforge --watch document.md
-
-# Pipe from stdin
-cat document.md | mdforge > output.pdf
 ```
+
+The output path and format are chosen only here: neither a config file nor a
+document's front matter can set them. Without `-o`, each input is written
+beside itself with a `.pdf` (or `.html`) extension.
 
 ## Watch mode
 
@@ -56,19 +58,29 @@ single render. Press ctrl-c to stop.
 ## Programmatic API
 
 ```typescript
-import { mdToPdf } from "mdforge";
+import { convertMdToPdf, defaultConfig } from "@mdforge/renderer-puppeteer";
 
-// From file
-const result = await mdToPdf({ path: "document.md" });
+// From file: writes document.pdf beside it
+const result = await convertMdToPdf({ path: "document.md" }, defaultConfig);
 
-// From string
-const result = await mdToPdf(
+// From string, to memory only
+const html = await convertMdToPdf(
   { content: "# Hello\n\nWorld" },
-  { theme: "tufte", pdf_options: { format: "Letter" } }
+  { ...defaultConfig, theme: "tufte" },
+  { format: "html", output: { kind: "none" } },
 );
 
-// result.content is Buffer (PDF) or string (HTML)
-// result.filename is the output path
+// result.content is a Buffer (PDF) or string (HTML)
+// result.filename is the file written, if the output was a file
 ```
 
-The API also supports `marked_extensions` for custom [Marked extensions](https://marked.js.org/using_pro#extensions).
+The third argument holds the invocation's choices, which front matter cannot
+override:
+
+- `format`: `"pdf"` (default) or `"html"`.
+- `output`: `{ kind: "file", path }`, `{ kind: "stdout" }` or `{ kind: "none" }`.
+  Default: a file beside a path input, stdout for content input.
+- `fillable`: overrides the document's `fillable` when set.
+
+`pdf_options` takes Puppeteer's PDF options except `path`; mdforge writes the
+output itself. The API also supports `marked_extensions` for custom [Marked extensions](https://marked.js.org/using_pro#extensions).

@@ -4,6 +4,7 @@
 export {
   type Config,
   defaultConfig,
+  type PdfOptions,
   type StylesheetEntry,
   type Theme,
   themes,
@@ -32,6 +33,8 @@ export type { TemplatesConfig } from "@mdforge/core/includes";
 // Export prepare types
 export {
   type ConvertOptions,
+  type OutputFormat,
+  type OutputTarget,
   type PreparedConversion,
   prepareConversion,
 } from "@mdforge/core/prepare";

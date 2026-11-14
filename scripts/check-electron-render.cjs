@@ -49,7 +49,9 @@ app.on("ready", async () => {
 
     const { defaultConfig } = await import(join(repoRoot, "packages/core/dist/index.js"));
 
-    const result = await convertMdToPdf({ path: input }, { ...defaultConfig, dest: output });
+    const result = await convertMdToPdf({ path: input }, defaultConfig, {
+      output: { kind: "file", path: output },
+    });
 
     const content = Buffer.from(result.content);
     await fs.writeFile(output, content);

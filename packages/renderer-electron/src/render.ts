@@ -227,7 +227,7 @@ function parseCssToInches(value: string | number | undefined): number {
 export async function render(prepared: PreparedConversion): Promise<RenderResult> {
   const { config } = prepared;
 
-  log("Starting render, as_html:", config.as_html, "fillable:", config.fillable);
+  log("Starting render, format:", prepared.format, "fillable:", config.fillable);
 
   // Create a hidden BrowserWindow for rendering
   const win = new BrowserWindow({
@@ -267,7 +267,7 @@ export async function render(prepared: PreparedConversion): Promise<RenderResult
     let formFontInfo: { fontFamily: string; fontSize: number } | undefined;
     let embeddedFonts = prepared.embeddedFonts;
 
-    if (config.fillable && !config.as_html) {
+    if (config.fillable && prepared.format === "pdf") {
       // Extract select options
       const selectData = await win.webContents.executeJavaScript(`
         (function() {
@@ -322,7 +322,7 @@ export async function render(prepared: PreparedConversion): Promise<RenderResult
       }
     }
 
-    if (config.as_html) {
+    if (prepared.format === "html") {
       log("Extracting HTML output...");
 
       const html: string = await win.webContents.executeJavaScript(

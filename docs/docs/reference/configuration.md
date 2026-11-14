@@ -13,6 +13,11 @@ config file or the markdown document). A config file also sets `basedir` to
 its own directory unless it sets `basedir` itself. Other paths (`templates`,
 `script` paths) are taken as they are.
 
+Neither source chooses where the output goes or whether it is PDF or HTML:
+that is up to whoever runs the conversion (`-o` and `--as-html` on the
+[CLI](cli.md)), so a document cannot redirect or reshape it. `pdf_options.path`
+is not accepted for the same reason.
+
 ### Invalid values
 
 Both sources are parsed against the options below. An unknown option, or a

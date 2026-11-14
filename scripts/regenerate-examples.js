@@ -26,23 +26,20 @@ async function getExampleOutputs(examplePath) {
 
   const defaultConfigFile = hasDefaultConfig ? join(examplePath, "config.yaml") : null;
 
-  // Find variant config files (*.yaml but not config.yaml)
-  const variantConfigs = await Promise.all(
-    entries
-      .filter((e) => e.isFile() && e.name.endsWith(".yaml") && e.name !== "config.yaml")
-      .map(async (e) => {
-        const configPath = join(examplePath, e.name);
-        const configContent = await fs.readFile(configPath, "utf-8");
-        // Simple check for as_html: true (avoid adding yaml dependency)
-        const isHtml = /^as_html:\s*true\s*$/m.test(configContent);
+  // Find variant config files (*.yaml but not config.yaml). The output format
+  // is a CLI choice, not configuration, so the variant named "html" is the one
+  // rendered with --as-html.
+  const variantConfigs = entries
+    .filter((e) => e.isFile() && e.name.endsWith(".yaml") && e.name !== "config.yaml")
+    .map((e) => {
+      const name = e.name.replace(/\.yaml$/, "");
 
-        return {
-          name: e.name.replace(/\.yaml$/, ""),
-          path: configPath,
-          isHtml,
-        };
-      }),
-  );
+      return {
+        name,
+        path: join(examplePath, e.name),
+        isHtml: name === "html",
+      };
+    });
 
   const outputs = [];
 
@@ -69,6 +66,7 @@ async function getExampleOutputs(examplePath) {
         output: join(examplePath, `${baseName}-${variant.name}.${ext}`),
         name: `${entry.name} (${variant.name})`,
         configFile: variant.path,
+        isHtml: variant.isHtml,
       });
     }
   }
@@ -117,14 +115,18 @@ async function regenerateExamples() {
 
       console.log(`${dir}/`);
 
-      for (const { input, output, name, configFile } of outputs) {
+      for (const { input, output, name, configFile, isHtml } of outputs) {
         try {
           const configArg = configFile ? `--config-file "${configFile}"` : "";
+          const formatArg = isHtml ? "--as-html" : "";
 
-          const result = execSync(`node "${cliPath}" ${configArg} "${input}" -o "${output}"`, {
-            encoding: "utf-8",
-            stdio: ["pipe", "pipe", "pipe"],
-          });
+          const result = execSync(
+            `node "${cliPath}" ${configArg} ${formatArg} "${input}" -o "${output}"`,
+            {
+              encoding: "utf-8",
+              stdio: ["pipe", "pipe", "pipe"],
+            },
+          );
 
           // Print CLI output (skip the "generating" lines, show the info)
           const lines = result

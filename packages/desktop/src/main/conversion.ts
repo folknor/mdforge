@@ -26,10 +26,7 @@ export async function convertFile(
   const outputPath = config.outputPath ?? "";
 
   try {
-    const mergedConfig: Config = {
-      ...defaultConfig,
-      dest: outputPath,
-    };
+    const mergedConfig: Config = { ...defaultConfig };
 
     if (config.theme) {
       mergedConfig.theme = config.theme;
@@ -49,7 +46,11 @@ export async function convertFile(
 
     log("Calling convertMdToPdf...");
 
-    const result = await convertMdToPdf({ path: filePath }, mergedConfig);
+    // No output path means convert without writing, as it always has
+    const result = await convertMdToPdf({ path: filePath }, mergedConfig, {
+      format: "pdf",
+      output: config.outputPath ? { kind: "file", path: config.outputPath } : { kind: "none" },
+    });
 
     log("convertMdToPdf returned successfully");
 
@@ -110,14 +111,7 @@ export async function generatePreview(
   log("generatePreview called:", filePath);
 
   try {
-    const mergedConfig: Config = {
-      ...defaultConfig,
-      // Don't write to file - we just want the buffer. This must be an empty
-      // string, not undefined: prepareConversion replaces an undefined dest
-      // with a path next to the input, while convertMdToPdf skips writing
-      // when dest is empty.
-      dest: "",
-    };
+    const mergedConfig: Config = { ...defaultConfig };
 
     if (config.theme) {
       mergedConfig.theme = config.theme;
@@ -134,16 +128,21 @@ export async function generatePreview(
 
     log("Generating preview with config:", JSON.stringify(mergedConfig));
 
-    const result = await convertMdToPdf({ path: filePath }, mergedConfig);
+    // The preview only wants the bytes. Format and target are invocation
+    // options, which the document's front matter cannot override.
+    const result = await convertMdToPdf({ path: filePath }, mergedConfig, {
+      format: "pdf",
+      output: { kind: "none" },
+    });
 
     log("Preview generated, size:", result.content.length);
 
-    // Convert Buffer to Uint8Array for IPC transfer. Buffer extends
-    // Uint8Array, so only string output (HTML) needs encoding.
-    const pdfData =
-      result.content instanceof Uint8Array
-        ? result.content
-        : new TextEncoder().encode(result.content);
+    // Buffer extends Uint8Array; PDF output is never a string.
+    if (!(result.content instanceof Uint8Array)) {
+      throw new Error("Expected PDF bytes from the preview conversion");
+    }
+
+    const pdfData = result.content;
 
     return {
       success: true,
