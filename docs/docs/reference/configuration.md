@@ -276,6 +276,11 @@ heading_numbers:
   skip_first_h1: true # Skip first h1
 ```
 
+Both depths must be integers from 1 to 6, with `start_depth` less than or
+equal to `max_depth`. Omitted depths default to 2 and 6 respectively. YAML
+with a reversed range reports an issue and drops the entire `heading_numbers`
+value.
+
 A level skipped in the document counts as an implicit section 1: an h4
 directly under the first h2 is `1.1.1.`, and a following h3 is `1.2.`. The
 same holds for sections under a skipped first h1 when `start_depth` is 1, so

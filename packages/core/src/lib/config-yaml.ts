@@ -750,8 +750,19 @@ const headingNumberFields = record<HeadingNumbersConfig>({
   skip_first_h1: boolean,
 });
 
-const headingNumbers: Decoder<HeadingNumbersConfig | false> = async (ctx, path, value) =>
-  value === false ? false : headingNumberFields(ctx, path, value);
+const headingNumbers: Decoder<HeadingNumbersConfig | false> = async (ctx, path, value) => {
+  if (value === false) return false;
+
+  const decoded = await headingNumberFields(ctx, path, value);
+
+  if (decoded === undefined) return;
+
+  if ((decoded.start_depth ?? 2) > (decoded.max_depth ?? 6)) {
+    return report(ctx, path, "start_depth must be less than or equal to max_depth");
+  }
+
+  return decoded;
+};
 
 const constantValue: Decoder<Constant> = async (ctx, path, value) => {
   if (isNumber(value)) {

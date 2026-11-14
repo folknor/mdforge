@@ -51,6 +51,40 @@ constants:
     });
   });
 
+  it("rejects reversed heading numbering depths, including defaults", async () => {
+    for (const source of ["front-matter", "config-file"] as const) {
+      for (const fields of ["start_depth: 4\n  max_depth: 3", "max_depth: 1"]) {
+        const { config, issues } = await parse(
+          `theme: tufte\nheading_numbers:\n  ${fields}\n  format: roman`,
+          source,
+        );
+
+        assert.deepEqual(config, { theme: "tufte" });
+        assert.deepEqual(issues, [
+          {
+            path: "heading_numbers",
+            message: "start_depth must be less than or equal to max_depth",
+          },
+        ]);
+      }
+    }
+  });
+
+  it("accepts ordered and equal heading numbering depths without inserting defaults", async () => {
+    for (const depths of [
+      {},
+      { start_depth: 6 },
+      { max_depth: 2 },
+      { start_depth: 1, max_depth: 1 },
+      { start_depth: 2, max_depth: 4 },
+    ]) {
+      const { config, issues } = await parse(`heading_numbers: ${JSON.stringify(depths)}`);
+
+      assert.deepEqual(config.heading_numbers, depths);
+      assert.deepEqual(issues, []);
+    }
+  });
+
   it("decodes a plain header string as the centered column", async () => {
     const { config } = await parse('header: "{title}"\nfooter: ""');
 
