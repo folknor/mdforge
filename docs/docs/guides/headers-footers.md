@@ -80,7 +80,23 @@ footer:
 
 ## Styling with CSS
 
-Text-only headers and footers are drawn in the page's margin boxes, which
-stylesheet selectors cannot reach: rules such as `.header-left { color: red; }`
-currently have no effect on them. Use markdown (`**bold**`, `*italic*`) for
-emphasis.
+Text-only headers and footers are drawn in the page's margin boxes. Element
+selectors such as `.header-left` cannot reach them; style them with `@page`
+margin rules in your stylesheet instead:
+
+```css
+@page {
+  @top-left {
+    color: #dc2626;
+  }
+}
+```
+
+The margin boxes are `@top-left`, `@top-center`, `@top-right`,
+`@bottom-left`, `@bottom-center` and `@bottom-right`. Your stylesheets come
+after the generated header/footer rules, so your declarations (including
+`@page { margin: ... }`) override the defaults. Markdown (`**bold**`,
+`*italic*`) in a column still works for simple emphasis.
+
+When the header or footer has a background image, both are rendered as
+templates instead, and these rules do not apply to them.

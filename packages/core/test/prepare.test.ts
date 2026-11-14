@@ -125,6 +125,31 @@ describe("prepareConversion stylesheets", () => {
     // The highlight.js sheet is appended as text
     assert.equal(prepared.stylesheets.at(-1)?.type, "content");
   });
+
+  // A user `@page { @top-left { ... } }` rule must beat the generated margin
+  // box defaults at equal specificity, so the generated sheet comes first.
+  it("places the generated header/footer sheet before the user's stylesheets", async () => {
+    const userSheet = join(fixtures, "user.css");
+
+    const prepared = await prepareConversion(
+      { content: "# Title\n", baseDir: fixtures },
+      {
+        ...config(),
+        stylesheet: [{ type: "path", value: userSheet }],
+        header: { left: "**Bold**" },
+      },
+      { output: { kind: "none" } },
+    );
+
+    const pagedIndex = prepared.stylesheets.findIndex(
+      (s) => s.type === "content" && s.value.includes("@top-left"),
+    );
+
+    const userIndex = prepared.stylesheets.findIndex((s) => s.type === "path");
+
+    assert.notEqual(pagedIndex, -1);
+    assert.ok(pagedIndex < userIndex);
+  });
 });
 
 describe("prepareConversion dependencies", () => {

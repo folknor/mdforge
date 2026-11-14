@@ -324,21 +324,6 @@ export async function prepareConversion(
     info.fontScale = config.font_scale;
   }
 
-  config.stylesheet = [...baseStylesheets, ...config.stylesheet];
-
-  // add print-urls body class and CSS if enabled
-  if (config.print_urls) {
-    config.body_class = [...config.body_class, "print-urls"];
-
-    const printUrlsCss = `.print-urls a[href^="http"]:after {
-	content: " (" attr(href) ")";
-	font-size: 85%;
-	color: var(--color-text-muted, #666);
-}`;
-
-    config.stylesheet = [...config.stylesheet, { type: "content", value: printUrlsCss }];
-  }
-
   // Process simplified header/footer config
   // Empty headers/footers are dropped here, so everything below sees only
   // ones with content (see hasContent).
@@ -371,11 +356,14 @@ export async function prepareConversion(
         footer: summarize(footer),
       };
     } else {
-      // Text-only headers/footers: CSS @page margin boxes
-      const pagedCss = await generatePagedCss(headerFooterConfig, baseDir);
-
-      // Add paged CSS to stylesheets (uses native Chrome @page margin boxes)
-      config.stylesheet = [...config.stylesheet, { type: "content", value: pagedCss }];
+      // Text-only headers/footers: CSS @page margin boxes. The generated sheet
+      // goes after the package's sheets and before the user's, so a user rule
+      // such as `@page { @top-left { color: red; } }` (or `@page { margin }`)
+      // overrides the defaults it sets.
+      baseStylesheets.push({
+        type: "content",
+        value: await generatePagedCss(headerFooterConfig, baseDir),
+      });
 
       // Chrome 131+ supports @page margin boxes natively, no paged.js needed
       // Set Puppeteer margins to 0 - the @page rule handles margins
@@ -397,6 +385,21 @@ export async function prepareConversion(
     }
   } else {
     info.headerFooter = { type: "none" };
+  }
+
+  config.stylesheet = [...baseStylesheets, ...config.stylesheet];
+
+  // add print-urls body class and CSS if enabled
+  if (config.print_urls) {
+    config.body_class = [...config.body_class, "print-urls"];
+
+    const printUrlsCss = `.print-urls a[href^="http"]:after {
+	content: " (" attr(href) ")";
+	font-size: 85%;
+	color: var(--color-text-muted, #666);
+}`;
+
+    config.stylesheet = [...config.stylesheet, { type: "content", value: printUrlsCss }];
   }
 
   // Auto-enable displayHeaderFooter if raw templates are set via pdf_options

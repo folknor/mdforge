@@ -390,8 +390,9 @@ function processTextForHtml(text: string): string {
  * are not read or copied here: a copy would come later in the cascade than
  * the sheets it was taken from and resolve their relative `url()` and
  * `@import` against the document instead of each sheet's own directory.
- * (Chrome's native margin boxes cannot be selected, so `.header-left` and
- * similar rules in user CSS do not style them.)
+ * Element selectors such as `.header-left` cannot reach margin boxes; users
+ * style them with `@page { @top-left { ... } }`, which prepare.ts makes win by
+ * placing this sheet before the user's stylesheets.
  */
 export async function generatePagedCss(config: PagedCssConfig, baseDir: string): Promise<string> {
   const header = config.header ?? {};
@@ -401,12 +402,19 @@ export async function generatePagedCss(config: PagedCssConfig, baseDir: string):
 
   const marginRules: string[] = [];
 
-  // Helper to build margin rule with optional extra styles
+  // Common margin box styling, then the column's own markdown styles, then
+  // its content, all built as one declaration list.
+  const marginStyle = [
+    "font-family: var(--font-body, system-ui, sans-serif)",
+    "font-size: calc(var(--font-size, 12pt) * 0.7)",
+    "color: var(--color-text, #333)",
+  ];
+
   const addMarginRule = async (position: string, text: string): Promise<void> => {
     const { content, styles } = await buildContentValue(text, baseDir, pageFormat);
 
-    const extraStyles = styles.length > 0 ? `${styles.join("; ")}; ` : "";
-    marginRules.push(`@${position} { ${extraStyles}content: ${content}; }`);
+    const declarations = [...marginStyle, ...styles, `content: ${content}`];
+    marginRules.push(`@${position} {\n    ${declarations.join(";\n    ")};\n  }`);
   };
 
   // Header positions
@@ -422,17 +430,6 @@ export async function generatePagedCss(config: PagedCssConfig, baseDir: string):
   if (footer.center) await addMarginRule("bottom-center", footer.center);
 
   if (footer.right) await addMarginRule("bottom-right", footer.right);
-
-  // Common margin box styling
-  const marginStyle = `
-    font-family: var(--font-body, system-ui, sans-serif);
-    font-size: calc(var(--font-size, 12pt) * 0.7);
-    color: var(--color-text, #333);`;
-
-  // Add styling to each margin rule
-  const styledMarginRules = marginRules.map((rule) =>
-    rule.replace("{ content:", `{${marginStyle}\n    content:`),
-  );
 
   // Counter reset for custom start value (subtract 1 because counter increments before first page)
   const counterReset =
@@ -453,7 +450,7 @@ export async function generatePagedCss(config: PagedCssConfig, baseDir: string):
   size: A4;
   margin: 25mm 20mm;${counterReset}
 
-  ${styledMarginRules.join("\n  ")}
+  ${marginRules.join("\n  ")}
 }
 
 /* First page exceptions */

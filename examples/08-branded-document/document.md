@@ -26,15 +26,17 @@ header:
 
 ### Custom Colors via CSS
 
-Use simple selectors to style header/footer positions:
+Style header/footer positions with `@page` margin rules in your stylesheet:
 
 ```css
-.header-left {
-  color: #dc2626;
+@page {
+  @top-left {
+    color: #dc2626;
+  }
 }
 ```
 
-Available selectors: `.header-left`, `.header-center`, `.header-right`, `.footer-left`, `.footer-center`, `.footer-right`.
+Available margin boxes: `@top-left`, `@top-center`, `@top-right`, `@bottom-left`, `@bottom-center`, `@bottom-right`.
 
 ### Images in Headers
 
