@@ -117,8 +117,11 @@ export async function generatePreview(
   try {
     const mergedConfig: Partial<Config> = {
       ...defaultConfig,
-      // Don't write to file - we just want the buffer
-      dest: undefined,
+      // Don't write to file - we just want the buffer. This must be an empty
+      // string, not undefined: prepareConversion replaces an undefined dest
+      // with a path next to the input, while convertMdToPdf skips writing
+      // when dest is empty.
+      dest: "",
     };
 
     if (config.theme) {
