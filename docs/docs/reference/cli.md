@@ -77,9 +77,10 @@ import { convertMdToPdf, defaultConfig } from "@mdforge/renderer-puppeteer";
 // From file: writes document.pdf beside it
 const result = await convertMdToPdf({ path: "document.md" }, defaultConfig);
 
-// From string, to memory only
+// From string, to memory only. Relative references in it (images, @file,
+// includes) resolve against baseDir, default the working directory.
 const html = await convertMdToPdf(
-  { content: "# Hello\n\nWorld" },
+  { content: "# Hello\n\nWorld", baseDir: "docs" },
   { ...defaultConfig, theme: "tufte" },
   { format: "html", output: { kind: "none" } },
 );

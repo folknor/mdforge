@@ -49,7 +49,9 @@ export type { TemplatesConfig } from "./lib/includes.js";
 
 // Preparation function (the main API for renderers)
 export {
+  baseElement,
   type ConvertOptions,
+  type MarkdownInput,
   type OutputFormat,
   type OutputTarget,
   type PreparedConversion,

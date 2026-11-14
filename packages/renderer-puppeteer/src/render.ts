@@ -10,7 +10,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
-import type { PreparedConversion } from "@mdforge/core/prepare";
+import { baseElement, type PreparedConversion } from "@mdforge/core/prepare";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
 import { type Browser, type Page, launch } from "puppeteer";
 
@@ -148,7 +148,11 @@ async function renderPage(
   const { config } = prepared;
 
   // Inject <base> tag so relative paths in markdown resolve correctly
-  const htmlWithBase = prepared.html.replace("<head>", `<head><base href="${prepared.baseUrl}">`);
+  const htmlWithBase = prepared.html.replace(
+    "<head>",
+    // A callback, so `$&` and friends in a directory name stay literal
+    () => `<head>${baseElement(prepared.baseUrl)}`,
+  );
 
   // Load the page from a real file:// URL rather than via setContent. A page
   // populated by setContent has an about:blank origin, and Chromium refuses to

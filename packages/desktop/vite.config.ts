@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import type { ElectronOptions } from "vite-plugin-electron";
 import electron from "vite-plugin-electron/simple";
 
@@ -33,6 +33,36 @@ const external: string[] = [
   "electron-store",
 ];
 
+// The packaged renderer page gets a Content-Security-Policy. It is added at
+// build time only: the dev server injects inline scripts (HMR, React refresh)
+// that this policy would block. It is prepended so it precedes every script,
+// stylesheet and modulepreload Vite emits. frame-src allows the blob: URL the
+// PDF preview iframe loads; nothing else in the page needs more than 'self'.
+const contentSecurityPolicy: Plugin = {
+  name: "mdforge-content-security-policy",
+  apply: "build",
+  transformIndexHtml: () => [
+    {
+      tag: "meta",
+      attrs: {
+        "http-equiv": "Content-Security-Policy",
+        content: [
+          "default-src 'self'",
+          "script-src 'self'",
+          "style-src 'self'",
+          "img-src 'self' data: blob:",
+          "font-src 'self' data:",
+          "frame-src blob:",
+          "object-src 'none'",
+          "base-uri 'none'",
+          "form-action 'none'",
+        ].join("; "),
+      },
+      injectTo: "head-prepend",
+    },
+  ],
+};
+
 // The renderer is the Vite root; vite-plugin-electron builds the main and
 // preload processes alongside it and starts Electron in dev. Output paths are
 // pinned to out/{main,preload,renderer} because electron-builder.yml packages
@@ -50,6 +80,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    contentSecurityPolicy,
     electron({
       main: {
         entry: resolve(dir, "src/main/index.ts"),
@@ -97,15 +128,15 @@ export default defineConfig({
         vite: {
           build: {
             outDir: resolve(dir, "out/preload"),
-            // The plugin decides CJS vs ESM from config.root, which is
-            // src/renderer here and holds no package.json, so it assumed CJS
-            // and emitted `require` calls into a .mjs file. Electron parses
-            // .mjs as ESM, the preload threw, and the contextBridge was never
-            // set up, leaving the window blank. Pin the format instead.
+            // The main window is sandboxed, and a sandboxed preload runs as a
+            // plain script: it cannot be an ES module. Pin CommonJS and the
+            // .cjs name the main process loads, rather than letting the plugin
+            // pick either from config.root (src/renderer, no package.json).
+            // A mismatch leaves contextBridge unset and the window blank.
             rolldownOptions: {
               platform: "node",
               external,
-              output: { format: "es" },
+              output: { format: "cjs", entryFileNames: "index.cjs" },
             },
           },
         },

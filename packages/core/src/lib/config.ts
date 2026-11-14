@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type { MarkedExtension } from "marked";
@@ -58,7 +57,6 @@ export interface PageNumbersConfig {
 export const themesDir: string = resolve(moduleDir, "..", "..", "themes");
 
 export const defaultConfig: Config = {
-  basedir: process.cwd(),
   theme: "beryl",
   print_urls: false,
   stylesheet: [],
@@ -101,11 +99,6 @@ export type PdfOptions = Omit<PDFOptions, "path">;
  * redirect or reshape what an application receives.
  */
 export interface Config {
-  /**
-   * Base directory to be served by the file server.
-   */
-  basedir: string;
-
   /**
    * Built-in theme to use. Available: "beryl", "tufte", "buttondown", "pandoc".
    * Default: "beryl". Set to false to disable built-in themes.

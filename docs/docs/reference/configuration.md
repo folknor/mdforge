@@ -9,9 +9,10 @@ Options can be set via:
 
 Front-matter overrides config file. Relative `stylesheet` paths and `@file`
 references resolve against the directory of the file they are written in (the
-config file or the markdown document). A config file also sets `basedir` to
-its own directory unless it sets `basedir` itself. Other paths (`templates`,
-`script` paths) are taken as they are.
+config file or the markdown document). Other paths (`templates`, `script`
+paths) are taken as they are. Relative links, images and includes in the
+document resolve against the document's own directory; neither source can
+change that.
 
 Neither source chooses where the output goes or whether it is PDF or HTML:
 that is up to whoever runs the conversion (`-o` and `--as-html` on the
@@ -31,8 +32,8 @@ aliases (`*name`) and tags outside YAML 1.2's core schema (`!!set`,
 A free-text value written as `"@path"` is replaced by the contents of that
 file: stylesheets, `header`/`footer` text, `pdf_options.headerTemplate` and
 `footerTemplate`, `metadata`, `toc_options` labels, `constants` strings and
-`script` content. Names, enums and paths (`theme`, `format`, `basedir`,
-`templates`, ...) are taken literally.
+`script` content. Names, enums and paths (`theme`, `format`, `templates`,
+...) are taken literally.
 
 ### Stylesheet entries
 

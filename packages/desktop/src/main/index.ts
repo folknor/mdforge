@@ -11,6 +11,20 @@ const currentDir: string = import.meta.dirname;
 
 let mainWindow: BrowserWindow | null = null;
 
+const externalProtocols: ReadonlySet<string> = new Set(["http:", "https:", "mailto:"]);
+
+async function openExternalIfSafe(url: string): Promise<void> {
+  if (!URL.canParse(url) || !externalProtocols.has(new URL(url).protocol)) {
+    return;
+  }
+
+  try {
+    await shell.openExternal(url);
+  } catch {
+    console.error("Failed to open external URL:", url);
+  }
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -20,8 +34,11 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(currentDir, "../preload/index.mjs"),
-      sandbox: false,
+      // A sandboxed preload runs as a plain script, not an ES module, so it is
+      // built as CommonJS (vite.config.ts). It only needs contextBridge,
+      // ipcRenderer and webUtils, which the sandbox provides.
+      preload: join(currentDir, "../preload/index.cjs"),
+      sandbox: true,
     },
   });
 
@@ -29,10 +46,25 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
+  // The window only ever shows the app's own page. Links opened from it go to
+  // the system handler, but only for schemes that hand the URL to a browser or
+  // mail client rather than to an arbitrary registered application.
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    void openExternalIfSafe(details.url);
 
     return { action: "deny" };
+  });
+
+  // The top frame never leaves the app's page. A reload of that page (Vite's
+  // full reload in dev calls location.reload(), which arrives here) is let
+  // through. This guards the top frame only; navigation inside the PDF
+  // preview's iframe is the viewer's own.
+  const contents = mainWindow.webContents;
+
+  contents.on("will-navigate", (event) => {
+    if (event.url !== contents.getURL()) {
+      event.preventDefault();
+    }
   });
 
   // Load the renderer. vite-plugin-electron exposes the dev server URL as

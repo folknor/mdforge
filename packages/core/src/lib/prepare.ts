@@ -5,8 +5,9 @@
 
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, relative, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import type { FrameAddScriptTagOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
 import {
@@ -67,6 +68,30 @@ export interface ConvertOptions {
   output?: OutputTarget;
   /** Overrides the document's `fillable` when set. */
   fillable?: boolean;
+}
+
+/**
+ * The document to convert. Its directory is where relative references in it
+ * resolve (`@file`, includes, header/footer images, relative URLs in the
+ * page): a path input's own directory, or for content the caller's `baseDir`,
+ * default the working directory. Like the output target, this belongs to the
+ * invocation, so neither front matter nor a config file can move it.
+ */
+export type MarkdownInput = { path: string } | { content: string; baseDir?: string };
+
+/**
+ * The `<base>` element for a prepared document's `baseUrl`. A file URL keeps
+ * `&` and `'` as they are, and `&` would start a character reference inside
+ * the attribute, so the value is HTML-escaped here.
+ */
+export function baseElement(baseUrl: string): string {
+  const escaped = baseUrl
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+  return `<base href="${escaped}">`;
 }
 
 /** Write a converted document to its target. */
@@ -147,7 +172,7 @@ export interface PreparedConversion {
  * @returns Everything needed for rendering
  */
 export async function prepareConversion(
-  input: { path: string } | { content: string },
+  input: MarkdownInput,
   config: Config,
   options: ConvertOptions = {},
 ): Promise<PreparedConversion> {
@@ -169,9 +194,10 @@ export async function prepareConversion(
   // Extract title early for header/footer {title} variable
   const docTitle = extractFirstHeading(md) ?? "";
 
-  // @file references and relative stylesheets in front matter resolve
-  // against the markdown file's directory
-  const baseDir = "path" in input ? dirname(resolve(input.path)) : process.cwd();
+  // The document's directory: @file references, relative stylesheets,
+  // includes and the page's <base href> all resolve against it
+  const baseDir =
+    "path" in input ? dirname(resolve(input.path)) : resolve(input.baseDir ?? process.cwd());
 
   if (yaml !== undefined) {
     const frontMatter = await parseConfigYaml(yaml, {
@@ -515,13 +541,16 @@ export async function prepareConversion(
 
   // The <base href> must point at the directory containing the document, not
   // at the document itself — otherwise a relative image resolves to
-  // "…/doc.md/image.jpg" and fails to load.
-  const baseDirForUrl =
-    "path" in input
-      ? dirname(resolve(config.basedir, relative(config.basedir, input.path)))
-      : resolve(config.basedir);
+  // "…/doc.md/image.jpg" and fails to load. pathToFileURL percent-encodes
+  // characters such as `"`, `#` and `?` that would otherwise end the path; the
+  // renderers still HTML-escape it where they write it into the page.
+  const directoryUrl = pathToFileURL(baseDir);
 
-  const baseUrl = `file://${baseDirForUrl}/`;
+  if (!directoryUrl.pathname.endsWith("/")) {
+    directoryUrl.pathname += "/";
+  }
+
+  const baseUrl = directoryUrl.href;
 
   return {
     html,

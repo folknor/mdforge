@@ -744,7 +744,6 @@ const constants = dictionary(constantValue, {
 const templates: Decoder<TemplatesConfig> = dictionary(literal);
 
 const configFields = record<YamlConfig>({
-  basedir: literal,
   theme,
   print_urls: boolean,
   stylesheet: oneOrMany(stylesheetEntry),

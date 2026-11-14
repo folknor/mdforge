@@ -7,7 +7,12 @@
 
 import type { Config, ConversionInfo } from "@mdforge/core";
 import { GenerationError } from "@mdforge/core/errors";
-import { type ConvertOptions, prepareConversion, writeOutput } from "@mdforge/core/prepare";
+import {
+  type ConvertOptions,
+  type MarkdownInput,
+  prepareConversion,
+  writeOutput,
+} from "@mdforge/core/prepare";
 import { hasPageRefs, resolvePageRefs } from "@mdforge/core/xref";
 import { readOutline } from "@mdforge/pdf";
 import type { Browser } from "puppeteer";
@@ -42,7 +47,7 @@ export interface ConvertResult {
  * @returns The conversion result
  */
 export async function convertMdToPdf(
-  input: { path: string } | { content: string },
+  input: MarkdownInput,
   config: Config,
   { browser, ...options }: ConvertOptions & { browser?: Browser } = {},
 ): Promise<ConvertResult> {

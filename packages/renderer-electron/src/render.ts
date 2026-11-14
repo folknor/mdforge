@@ -9,7 +9,7 @@ import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import process from "node:process";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
-import type { PreparedConversion } from "@mdforge/core/prepare";
+import { baseElement, type PreparedConversion } from "@mdforge/core/prepare";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
 import { BrowserWindow } from "electron";
 
@@ -89,7 +89,12 @@ async function buildCompleteHtml(prepared: PreparedConversion): Promise<string> 
   // Inject stylesheets and base URL into head
   const stylesHtml = styleParts.join("\n");
 
-  return prepared.html.replace("<head>", `<head><base href="${prepared.baseUrl}">\n${stylesHtml}`);
+  // A callback, so `$&` and friends in a directory name or stylesheet stay
+  // literal
+  return prepared.html.replace(
+    "<head>",
+    () => `<head>${baseElement(prepared.baseUrl)}\n${stylesHtml}`,
+  );
 }
 
 /** Electron's named page sizes, keyed by lowercased Puppeteer paper format. */

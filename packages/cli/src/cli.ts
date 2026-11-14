@@ -164,8 +164,6 @@ async function main(args: typeof cliFlags): Promise<void> {
 
         config = {
           ...config,
-          // basedir defaults to the config file's directory
-          basedir: configDir,
           ...configFile.config,
           pdf_options: {
             ...config.pdf_options,

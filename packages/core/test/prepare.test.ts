@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { type Config, defaultConfig } from "../dist/lib/config.js";
-import { prepareConversion } from "../dist/lib/prepare.js";
+import { baseElement, prepareConversion } from "../dist/lib/prepare.js";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "prepare");
 
@@ -55,6 +55,45 @@ describe("prepareConversion output choices", () => {
     await prepareConversion({ content: "# Two\n" }, shared);
 
     assert.deepEqual(shared, before);
+  });
+});
+
+describe("prepareConversion base directory", () => {
+  it("uses a path input's own directory", async () => {
+    const prepared = await prepareConversion({ path: join(fixtures, "doc.md") }, config(), {
+      output: { kind: "none" },
+    });
+
+    assert.equal(prepared.baseUrl, pathToFileURL(join(fixtures, "/")).href);
+  });
+
+  it("uses a content input's baseDir and rejects basedir in front matter", async () => {
+    const prepared = await prepareConversion(
+      { content: "---\nbasedir: /etc\n---\n# Title\n", baseDir: fixtures },
+      config(),
+      { output: { kind: "none" } },
+    );
+
+    assert.equal(prepared.baseUrl, pathToFileURL(join(fixtures, "/")).href);
+    assert.equal(prepared.info.warnings.length, 1);
+    assert.match(prepared.info.warnings[0] ?? "", /basedir/);
+  });
+
+  it("percent-encodes characters that would end the URL path", async () => {
+    const dir = join(fixtures, 'a"b#c?d');
+
+    const prepared = await prepareConversion({ content: "# Title\n", baseDir: dir }, config(), {
+      output: { kind: "none" },
+    });
+
+    assert.ok(prepared.baseUrl.endsWith("/a%22b%23c%3Fd/"));
+    assert.equal(fileURLToPath(prepared.baseUrl), join(dir, "/"));
+  });
+});
+
+describe("baseElement", () => {
+  it("escapes the URL for an HTML attribute", () => {
+    assert.equal(baseElement("file:///docs/a&copy;b/"), '<base href="file:///docs/a&amp;copy;b/">');
   });
 });
 

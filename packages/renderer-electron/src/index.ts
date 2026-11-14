@@ -33,6 +33,7 @@ export type { TemplatesConfig } from "@mdforge/core/includes";
 // Export prepare types
 export {
   type ConvertOptions,
+  type MarkdownInput,
   type OutputFormat,
   type OutputTarget,
   type PreparedConversion,
