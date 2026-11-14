@@ -25,12 +25,18 @@ interface FileItem {
   status: "pending" | "converting" | "done" | "error";
   progress: number;
   error?: string;
+  /** From the last finished conversion of this file. */
+  warnings: string[];
 }
 
-/** The last PDF that generated successfully for the selected file. */
+/**
+ * The last PDF that generated successfully for the selected file. Its warnings
+ * belong to it, so they are replaced only with it.
+ */
 interface PreviewDocument {
   data: Uint8Array;
   generatedAt: Date;
+  warnings: string[];
 }
 
 /** The latest preview attempt that finished, successful or not. */
@@ -67,7 +73,7 @@ type AppAction =
   | { type: "fontPairingChanged"; fontPairing: string }
   | { type: "authorChanged"; author: string }
   | { type: "sourceChanged" }
-  | { type: "previewSucceeded"; generation: number; data: Uint8Array }
+  | { type: "previewSucceeded"; generation: number; data: Uint8Array; warnings: string[] }
   | { type: "previewFailed"; generation: number; error: string }
   | { type: "conversionStarted" }
   | { type: "conversionProgressed"; progress: ConversionProgress }
@@ -117,6 +123,7 @@ function reducer(state: AppState, action: AppAction): AppState {
           name: path.split(/[/\\]/).pop() ?? path,
           status: "pending",
           progress: 0,
+          warnings: [],
         }));
 
       const next = { ...state, files: [...state.files, ...added] };
@@ -161,7 +168,7 @@ function reducer(state: AppState, action: AppAction): AppState {
 
       return {
         ...state,
-        document: { data: action.data, generatedAt: new Date() },
+        document: { data: action.data, generatedAt: new Date(), warnings: action.warnings },
         outcome: { generation: action.generation, error: null },
       };
 
@@ -173,22 +180,24 @@ function reducer(state: AppState, action: AppAction): AppState {
     case "conversionStarted":
       return {
         ...state,
-        files: state.files.map((f) => ({ ...f, status: "converting", progress: 0 })),
+        files: state.files.map((f) => ({
+          ...f,
+          status: "converting",
+          progress: 0,
+          error: undefined,
+          warnings: [],
+        })),
       };
 
     case "conversionProgressed": {
       const { progress } = action;
 
+      // Only conversionFinished marks a file done: that is when its result,
+      // warnings included, is known.
       return {
         ...state,
         files: state.files.map((f) =>
-          f.path === progress.file
-            ? {
-                ...f,
-                status: progress.progress === 100 ? "done" : "converting",
-                progress: progress.progress,
-              }
-            : f,
+          f.path === progress.file ? { ...f, progress: progress.progress } : f,
         ),
       };
     }
@@ -206,6 +215,7 @@ function reducer(state: AppState, action: AppAction): AppState {
             status: result.success ? "done" : "error",
             progress: 100,
             error: result.error,
+            warnings: result.warnings,
           };
         }),
       };
@@ -266,14 +276,14 @@ export default function App(): React.ReactElement {
       try {
         const result = await window.electron.generatePreview(selectedFile, config);
 
-        action =
-          result.success && result.pdfData
-            ? { type: "previewSucceeded", generation, data: result.pdfData }
-            : {
-                type: "previewFailed",
-                generation,
-                error: result.error ?? "Failed to generate preview",
-              };
+        action = result.success
+          ? {
+              type: "previewSucceeded",
+              generation,
+              data: result.pdfData,
+              warnings: result.warnings,
+            }
+          : { type: "previewFailed", generation, error: result.error };
       } catch (error) {
         // The main process reports conversion errors in the result; this is
         // the IPC invocation itself failing.
@@ -391,6 +401,7 @@ export default function App(): React.ReactElement {
             selectedFile ? (files.find((f) => f.path === selectedFile)?.name ?? null) : null
           }
           generatedAt={previewDocument?.generatedAt ?? null}
+          warnings={previewDocument?.warnings ?? []}
           watchProblems={watchProblems}
         />
       </div>

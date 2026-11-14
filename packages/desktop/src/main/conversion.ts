@@ -60,6 +60,7 @@ export async function convertFile(
       success: true,
       inputPath: filePath,
       outputPath: result.filename ?? outputPath,
+      warnings: result.info.warnings,
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -70,6 +71,7 @@ export async function convertFile(
       inputPath: filePath,
       outputPath,
       error: err.message,
+      warnings: [],
     };
   }
 }
@@ -154,7 +156,7 @@ export async function generatePreview(
     const pdfData = result.content;
 
     return {
-      result: { success: true, filePath, pdfData },
+      result: { success: true, filePath, pdfData, warnings: result.info.warnings },
       dependencies: result.info.dependencies,
     };
   } catch (error) {

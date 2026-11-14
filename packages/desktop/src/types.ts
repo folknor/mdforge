@@ -19,14 +19,13 @@ export interface ConversionResult {
   inputPath: string;
   outputPath: string;
   error?: string;
+  /** What the conversion reported but survived; empty when it failed. */
+  warnings: string[];
 }
 
-export interface PreviewResult {
-  success: boolean;
-  filePath: string;
-  pdfData?: Uint8Array;
-  error?: string;
-}
+export type PreviewResult =
+  | { success: true; filePath: string; pdfData: Uint8Array; warnings: string[] }
+  | { success: false; filePath: string; error: string };
 
 export interface ConversionProgress {
   file: string;

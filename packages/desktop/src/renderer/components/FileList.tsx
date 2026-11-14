@@ -6,6 +6,7 @@ interface FileItem {
   status: "pending" | "converting" | "done" | "error";
   progress: number;
   error?: string;
+  warnings: string[];
 }
 
 interface FileListProps {
@@ -50,7 +51,7 @@ export default function FileList({
               <button
                 type="button"
                 onClick={(): void => onSelect(file.path)}
-                className="flex-1 p-3 flex items-center gap-3 text-left"
+                className="flex-1 min-w-0 p-3 flex items-center gap-3 text-left"
               >
                 <StatusIcon status={file.status} />
 
@@ -73,6 +74,15 @@ export default function FileList({
                   {file.error != null ? (
                     <p className="text-xs text-red-600 mt-1">{file.error}</p>
                   ) : null}
+                  {file.warnings.map((warning, index) => (
+                    // Warnings can repeat, and the list is only ever replaced whole
+                    <p
+                      key={index}
+                      className="text-xs text-amber-700 mt-1 whitespace-pre-wrap wrap-anywhere"
+                    >
+                      {warning}
+                    </p>
+                  ))}
                 </div>
               </button>
 

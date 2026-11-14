@@ -10,6 +10,8 @@ interface PdfPreviewProps {
   generatedAt: Date | null;
   /** Files live preview cannot currently watch, so their edits may be missed. */
   watchProblems: WatchProblem[];
+  /** What the conversion of the shown PDF reported but survived. */
+  warnings: string[];
 }
 
 function formatTime(date: Date): string {
@@ -27,6 +29,7 @@ export default function PdfPreview({
   fileName,
   generatedAt,
   watchProblems,
+  warnings,
 }: PdfPreviewProps): React.ReactElement {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -78,7 +81,25 @@ export default function PdfPreview({
         </div>
       </div>
 
-      <div className="relative flex-1">
+      {/* The warnings belong to the PDF kept on screen, not to a later attempt
+          that failed, so they are hidden while that attempt's error shows. */}
+      {warnings.length > 0 && error == null ? (
+        <details className="border-b bg-amber-50 flex-shrink-0">
+          <summary className="px-3 py-1.5 text-xs text-amber-700 cursor-pointer">
+            {warnings.length} conversion warning{warnings.length !== 1 ? "s" : ""}
+          </summary>
+          <ul className="px-3 pb-2 max-h-40 overflow-y-auto space-y-1">
+            {warnings.map((warning, index) => (
+              // Warnings can repeat, and the list is only ever replaced whole
+              <li key={index} className="text-xs text-amber-700 whitespace-pre-wrap wrap-anywhere">
+                {warning}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
+      <div className="relative flex-1 min-h-0">
         {error != null ? (
           <div className="absolute inset-0 flex items-center justify-center bg-red-50">
             <div className="text-center p-4">
