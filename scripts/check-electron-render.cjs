@@ -70,6 +70,10 @@ app.on("ready", async () => {
     out(`wrote ${output} (${content.length} bytes), header ${header}`);
     out(`pages: ${pages}`);
 
+    for (const warning of result.info.warnings) {
+      out(`warning: ${warning}`);
+    }
+
     app.exit(header === "%PDF-" ? 0 : 1);
   } catch (err) {
     out(`render failed: ${err && err.stack ? err.stack : err}`);

@@ -1,7 +1,7 @@
 /**
  * Backward-compatible conversion function for Electron.
  *
- * This wraps prepareConversion() from @mdforge/core and render() from this package.
+ * This wraps prepareConversion() from @mdforge/core and open() from this package.
  */
 
 import process from "node:process";
@@ -15,7 +15,7 @@ import {
   writeOutput,
 } from "@mdforge/core/prepare";
 import { readDestinations } from "@mdforge/pdf";
-import { render } from "./render.js";
+import { open, type RenderResult } from "./render.js";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
@@ -56,10 +56,10 @@ export async function convertMdToPdf(
 
   // Render the document using Electron
   log("Starting render...");
-  let output: Awaited<ReturnType<typeof render>>;
+  let output: RenderResult;
 
   try {
-    output = await renderResolvingPageRefs(prepared, render, readDestinations);
+    output = await renderResolvingPageRefs(prepared, open, readDestinations);
     log("Render succeeded");
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

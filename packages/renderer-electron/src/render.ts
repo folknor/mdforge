@@ -8,11 +8,27 @@
 import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
-import { baseElement, type PreparedConversion, stylesheetLink } from "@mdforge/core/prepare";
+import {
+  buildPageHtml,
+  pageCall,
+  pageEndMarker,
+  RemoteLoad,
+  type ScratchPage,
+  takeEndMarker,
+  truncatedPageError,
+  writeScratchPage,
+} from "@mdforge/core/page-load";
+import type { LoadedPage } from "@mdforge/core/page-refs";
+import type { PreparedConversion } from "@mdforge/core/prepare";
+import {
+  PAGEREF_ATTR,
+  readShownPageRefs,
+  type ShownPageRef,
+  writeShownPageRefs,
+} from "@mdforge/core/xref";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
-import { BrowserWindow } from "electron";
+import { BrowserWindow, session } from "electron";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
@@ -64,33 +80,37 @@ async function detectSystemFont(fontFamily: string): Promise<EmbeddedFontData | 
   }
 }
 
+/** The session every render window uses, kept apart from the app's own. */
+const RENDER_PARTITION = "mdforge-render";
+
+/** The remote loads of live render windows, by webContents id. */
+const loads = new Map<number, RemoteLoad<number>>();
+
 /**
- * Build complete HTML with the stylesheets in cascade order: CSS text as
- * `<style>`, files and URLs as `<link>`, so a file's relative references
- * resolve against its own directory. A sheet that fails to load is left
- * unapplied.
+ * Route the render session's requests to the load of the window that made
+ * them. Electron keeps one listener per webRequest event per session, so this
+ * one dispatcher serves every render window; it is installed once.
  */
-function buildCompleteHtml(prepared: PreparedConversion): string {
-  const styleParts = prepared.stylesheets.map((stylesheet) => {
-    switch (stylesheet.type) {
-      case "content":
-        return `<style>${stylesheet.value}</style>`;
-      case "path":
-        return stylesheetLink(pathToFileURL(stylesheet.value).href);
-      case "url":
-        return stylesheetLink(stylesheet.value);
-    }
+let dispatching = false;
+
+function dispatchRequests(): void {
+  if (dispatching) return;
+  dispatching = true;
+
+  const { webRequest } = session.fromPartition(RENDER_PARTITION);
+
+  webRequest.onBeforeRequest((details, callback) => {
+    const load = details.webContentsId === undefined ? undefined : loads.get(details.webContentsId);
+    callback({ cancel: load ? !load.admit(details.id, details.url) : false });
   });
 
-  // Inject stylesheets and base URL into head
-  const stylesHtml = styleParts.join("\n");
+  webRequest.onCompleted(settleRequest);
+  webRequest.onErrorOccurred(settleRequest);
+}
 
-  // A callback, so `$&` and friends in a directory name or stylesheet stay
-  // literal
-  return prepared.html.replace(
-    "<head>",
-    () => `<head>${baseElement(prepared.baseUrl)}\n${stylesHtml}`,
-  );
+/** A render-session request finished or failed. */
+function settleRequest(details: { id: number; webContentsId?: number }): void {
+  if (details.webContentsId !== undefined) loads.get(details.webContentsId)?.settle(details.id);
 }
 
 /** Electron's named page sizes, keyed by lowercased Puppeteer paper format. */
@@ -225,17 +245,22 @@ function parseCssToInches(value: string | number | undefined): number {
 }
 
 /**
- * Render a prepared conversion to PDF or HTML using Electron.
+ * Load a prepared conversion into a hidden window, ready to print.
+ *
+ * The page is a file:// scratch copy of the document (see
+ * `@mdforge/core/page-load`), so it loads the document's local files like the
+ * Puppeteer renderer does and has no data: URL size cap. Every remote request
+ * it makes, in any frame, is bounded by one deadline; once loading has ended,
+ * new ones are refused.
  *
  * @param prepared - The prepared conversion from @mdforge/core
- * @returns The rendered content
+ * @returns The loaded page; the caller closes it
  */
-export async function render(prepared: PreparedConversion): Promise<RenderResult> {
-  const { config } = prepared;
+export async function open(prepared: PreparedConversion): Promise<LoadedPage<RenderResult>> {
+  log("Loading, format:", prepared.format, "fillable:", prepared.config.fillable);
 
-  log("Starting render, format:", prepared.format, "fillable:", config.fillable);
+  dispatchRequests();
 
-  // Create a hidden BrowserWindow for rendering
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -244,39 +269,96 @@ export async function render(prepared: PreparedConversion): Promise<RenderResult
       offscreen: true,
       nodeIntegration: false,
       contextIsolation: true,
+      partition: RENDER_PARTITION,
     },
   });
 
-  log("BrowserWindow created");
+  const { webContents } = win;
+  const webContentsId = webContents.id;
+  const load = new RemoteLoad<number>();
+  loads.set(webContentsId, load);
+
+  let scratch: ScratchPage | undefined;
+
+  const close = (): void => {
+    loads.delete(webContentsId);
+    win.destroy();
+  };
 
   try {
-    // Build complete HTML with inlined stylesheets
-    log("Building complete HTML...");
-    const completeHtml = buildCompleteHtml(prepared);
-    log("HTML built, length:", completeHtml.length);
+    const marker = pageEndMarker();
+    scratch = await writeScratchPage(prepared.baseUrl, buildPageHtml(prepared, marker));
+    const { url } = scratch;
+    log("Loading", url);
 
-    // Load the HTML from a data URI, given the document's directory as its
-    // base URL: a plain data: page may not load any file:// resource, so
-    // without it neither the document's images nor stylesheet files load.
-    const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(completeHtml)}`;
-    log("Loading data URI (length:", dataUri.length, ")...");
+    await load.run(
+      [
+        // Settles with the page's load event (did-finish-load)
+        () => win.loadURL(url),
+        async () => {
+          await webContents.executeJavaScript("document.fonts.ready.then(() => undefined)");
+        },
+      ],
+      () => {
+        webContents.stop();
 
-    // loadURL returns when load completes - no need for did-finish-load listener
-    await win.loadURL(dataUri, { baseURLForDataURL: prepared.baseUrl });
-    log("Page loaded");
+        return webContents.mainFrame.framesInSubtree.map(async (frame) => {
+          await frame.executeJavaScript("window.stop()");
+        });
+      },
+    );
+    log("Page loaded", load.timedOut ? "(cut short at the deadline)" : "");
 
-    // Additional wait for any async resources (fonts, images)
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    log("Waited for async resources");
+    const complete: unknown = await webContents.executeJavaScript(pageCall(takeEndMarker, marker));
 
-    // Extract form field info if fillable mode is enabled
-    let selectOptions: Map<string, string[]> | undefined;
-    let formFontInfo: { fontFamily: string; fontSize: number } | undefined;
-    let embeddedFonts = prepared.embeddedFonts;
+    if (load.timedOut && complete !== true) {
+      throw truncatedPageError(load);
+    }
 
-    if (config.fillable && prepared.format === "pdf") {
-      // Extract select options
-      const selectData = await win.webContents.executeJavaScript(`
+    // The page is loaded; the scratch HTML is no longer needed.
+    await scratch.dispose();
+    scratch = undefined;
+  } catch (error) {
+    // Cleanup failures must not replace the load's own error
+    await scratch?.dispose().catch(() => undefined);
+    close();
+    throw error;
+  }
+
+  return {
+    print: () => printPage(prepared, win),
+    readPageRefs: async () => {
+      const shown: ShownPageRef[] = await webContents.executeJavaScript(
+        pageCall(readShownPageRefs, PAGEREF_ATTR),
+      );
+
+      return shown;
+    },
+    writePageRefs: async (texts) => {
+      await webContents.executeJavaScript(
+        pageCall(writeShownPageRefs, { attr: PAGEREF_ATTR, texts: [...texts] }),
+      );
+    },
+    close: async () => {
+      log("Destroying BrowserWindow");
+      close();
+      prepared.info.warnings.push(...load.warnings());
+    },
+  };
+}
+
+/** Print a loaded window to PDF or HTML. */
+async function printPage(prepared: PreparedConversion, win: BrowserWindow): Promise<RenderResult> {
+  const { config } = prepared;
+
+  // Extract form field info if fillable mode is enabled
+  let selectOptions: Map<string, string[]> | undefined;
+  let formFontInfo: { fontFamily: string; fontSize: number } | undefined;
+  let embeddedFonts = prepared.embeddedFonts;
+
+  if (config.fillable && prepared.format === "pdf") {
+    // Extract select options
+    const selectData = await win.webContents.executeJavaScript(`
         (function() {
           const selects = document.querySelectorAll(
             "[data-form-field][data-field-type='select'] select"
@@ -297,14 +379,14 @@ export async function render(prepared: PreparedConversion): Promise<RenderResult
         })()
       `);
 
-      if (selectData.length > 0) {
-        selectOptions = new Map(
-          selectData.map((s: { name: string; options: string[] }) => [s.name, s.options]),
-        );
-      }
+    if (selectData.length > 0) {
+      selectOptions = new Map(
+        selectData.map((s: { name: string; options: string[] }) => [s.name, s.options]),
+      );
+    }
 
-      // Extract font info
-      formFontInfo = await win.webContents.executeJavaScript(`
+    // Extract font info
+    formFontInfo = await win.webContents.executeJavaScript(`
         (function() {
           const input = document.querySelector(
             "[data-form-field] input, [data-form-field] select, [data-form-field] textarea"
@@ -319,77 +401,72 @@ export async function render(prepared: PreparedConversion): Promise<RenderResult
         })()
       `);
 
-      // Try to detect system font if no embedded fonts
-      if ((!embeddedFonts || embeddedFonts.length === 0) && formFontInfo) {
-        const systemFontData = await detectSystemFont(formFontInfo.fontFamily);
+    // Try to detect system font if no embedded fonts
+    if ((!embeddedFonts || embeddedFonts.length === 0) && formFontInfo) {
+      const systemFontData = await detectSystemFont(formFontInfo.fontFamily);
 
-        if (systemFontData) {
-          embeddedFonts = [systemFontData];
-        }
+      if (systemFontData) {
+        embeddedFonts = [systemFontData];
       }
     }
+  }
 
-    if (prepared.format === "html") {
-      log("Extracting HTML output...");
+  if (prepared.format === "html") {
+    log("Extracting HTML output...");
 
-      const html: string = await win.webContents.executeJavaScript(
-        "document.documentElement.outerHTML",
-      );
+    const html: string = await win.webContents.executeJavaScript(
+      "document.documentElement.outerHTML",
+    );
 
-      log("HTML extracted, length:", html.length);
-
-      return {
-        content: html,
-      };
-    }
-
-    // Generate PDF using Electron's printToPDF
-    log("Generating PDF...");
-    const pdfOptions = mapPdfOptions(prepared.pdfOptions);
-    log("PDF options:", JSON.stringify(pdfOptions));
-
-    let pdfContent: Buffer | Uint8Array = await win.webContents.printToPDF(pdfOptions);
-
-    log("PDF generated, size:", pdfContent.length);
-
-    // Post-process PDF
-    log("Post-processing PDF...");
-
-    // Inject PDF metadata if configured
-    if (config.metadata) {
-      log("Injecting metadata...");
-
-      const metadata = {
-        ...config.metadata,
-        title: config.metadata.title || config.document_title || undefined,
-        creator: config.metadata.creator || "mdforge",
-      };
-
-      if (metadata.title || metadata.author || metadata.subject || metadata.keywords?.length) {
-        pdfContent = await injectPdfMetadata(Buffer.from(pdfContent), metadata);
-      }
-    }
-
-    // Add AcroForm fields if fillable mode is enabled
-    if (config.fillable) {
-      log("Adding AcroForm fields...");
-      pdfContent = await addAcroFormFields(Buffer.from(pdfContent), {
-        selectOptions,
-        formFontInfo,
-        embeddedFonts,
-      });
-      log("AcroForm fields added");
-    }
-
-    log("Render complete, final size:", pdfContent.length);
+    log("HTML extracted, length:", html.length);
 
     return {
-      content: pdfContent,
-      fillableData: selectOptions && formFontInfo ? { selectOptions, formFontInfo } : undefined,
+      content: html,
     };
-  } finally {
-    // Always close the window
-    log("Destroying BrowserWindow");
-    win.destroy();
   }
+
+  // Generate PDF using Electron's printToPDF
+  log("Generating PDF...");
+  const pdfOptions = mapPdfOptions(prepared.pdfOptions);
+  log("PDF options:", JSON.stringify(pdfOptions));
+
+  let pdfContent: Buffer | Uint8Array = await win.webContents.printToPDF(pdfOptions);
+
+  log("PDF generated, size:", pdfContent.length);
+
+  // Post-process PDF
+  log("Post-processing PDF...");
+
+  // Inject PDF metadata if configured
+  if (config.metadata) {
+    log("Injecting metadata...");
+
+    const metadata = {
+      ...config.metadata,
+      title: config.metadata.title || config.document_title || undefined,
+      creator: config.metadata.creator || "mdforge",
+    };
+
+    if (metadata.title || metadata.author || metadata.subject || metadata.keywords?.length) {
+      pdfContent = await injectPdfMetadata(Buffer.from(pdfContent), metadata);
+    }
+  }
+
+  // Add AcroForm fields if fillable mode is enabled
+  if (config.fillable) {
+    log("Adding AcroForm fields...");
+    pdfContent = await addAcroFormFields(Buffer.from(pdfContent), {
+      selectOptions,
+      formFontInfo,
+      embeddedFonts,
+    });
+    log("AcroForm fields added");
+  }
+
+  log("Render complete, final size:", pdfContent.length);
+
+  return {
+    content: pdfContent,
+    fillableData: selectOptions && formFontInfo ? { selectOptions, formFontInfo } : undefined,
+  };
 }

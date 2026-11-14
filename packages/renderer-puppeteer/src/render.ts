@@ -6,14 +6,21 @@
 
 import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
-import { baseElement, type PreparedConversion } from "@mdforge/core/prepare";
+import {
+  buildPageHtml,
+  pageEndMarker,
+  RemoteLoad,
+  type ScratchPage,
+  takeEndMarker,
+  truncatedPageError,
+  writeScratchPage,
+} from "@mdforge/core/page-load";
+import type { LoadedPage } from "@mdforge/core/page-refs";
+import type { PreparedConversion } from "@mdforge/core/prepare";
+import { PAGEREF_ATTR, readShownPageRefs, writeShownPageRefs } from "@mdforge/core/xref";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
-import { type Browser, type Page, launch } from "puppeteer";
+import { type Browser, type HTTPRequest, type Page, launch } from "puppeteer";
 
 /**
  * Result of rendering a document.
@@ -78,16 +85,21 @@ async function detectSystemFont(fontFamily: string): Promise<EmbeddedFontData | 
 }
 
 /**
- * Render a prepared conversion to PDF or HTML.
+ * Load a prepared conversion into a fresh page, ready to print.
+ *
+ * The page is a file:// scratch copy of the document (see
+ * `@mdforge/core/page-load`), loaded with every remote request it makes
+ * bounded by one deadline; request interception tracks them and, once loading
+ * has ended, refuses new ones, in iframes too.
  *
  * @param prepared - The prepared conversion from @mdforge/core
  * @param browserRef - Optional browser instance to reuse
- * @returns The rendered content
+ * @returns The loaded page; the caller closes it
  */
-export async function render(
+export async function open(
   prepared: PreparedConversion,
   browserRef?: Browser,
-): Promise<RenderResult> {
+): Promise<LoadedPage<RenderResult>> {
   const { config } = prepared;
 
   // Get or create browser
@@ -124,106 +136,95 @@ export async function render(
 
   const browser = await getBrowser();
   const page = await browser.newPage();
-
-  // Scratch files and directories renderPage creates, removed with the page
-  // whether or not the render succeeds
-  const scratch: string[] = [];
+  const load = new RemoteLoad<HTTPRequest>();
+  let scratch: ScratchPage | undefined;
 
   try {
-    return await renderPage(prepared, page, scratch);
-  } finally {
-    // Cleanup failures must not replace the render's own error
-    for (const path of scratch) {
-      await fs.rm(path, { force: true, recursive: true }).catch(() => undefined);
+    // The media type is set before loading, so the resources that load are
+    // the ones the printed media uses.
+    await page.emulateMediaType(config.page_media_type);
+
+    // Every request, in every frame, passes admission; a remote one refused
+    // once loading has ended is aborted.
+    page.on("request", (request) => {
+      const admitted = load.admit(request, request.url());
+      const resolution = admitted ? request.continue() : request.abort("blockedbyclient");
+      // A request whose page or frame has gone cannot be resolved
+      resolution.catch(() => undefined);
+    });
+    page.on("requestfinished", (request) => load.settle(request));
+    page.on("requestfailed", (request) => load.settle(request));
+    await page.setRequestInterception(true);
+
+    // Load the page from a real file:// URL rather than via setContent. A page
+    // populated by setContent has an about:blank origin, and Chromium refuses
+    // to load file:// subresources from it — so every relative <img>, every
+    // stylesheet file, and any local font or asset, silently fails to render.
+    const marker = pageEndMarker();
+    scratch = await writeScratchPage(prepared.baseUrl, buildPageHtml(prepared, marker));
+    const { url } = scratch;
+
+    await load.run(
+      [
+        // The deadline bounds navigation, not Puppeteer's own timeout
+        async () => {
+          await page.goto(url, { waitUntil: "load", timeout: 0 });
+        },
+        ...prepared.scripts.map((options) => async () => {
+          await page.addScriptTag(options);
+        }),
+        async () => {
+          await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        },
+      ],
+      () => [
+        (async () => {
+          const cdp = await page.createCDPSession();
+
+          try {
+            await cdp.send("Page.stopLoading");
+          } finally {
+            await cdp.detach();
+          }
+        })(),
+        ...page.frames().map(async (frame) => {
+          await frame.evaluate(() => window.stop());
+        }),
+      ],
+    );
+
+    const complete = await page.evaluate(takeEndMarker, marker);
+
+    if (load.timedOut && !complete) {
+      throw truncatedPageError(load);
     }
 
+    // The page is loaded; the scratch HTML is no longer needed.
+    await scratch.dispose();
+    scratch = undefined;
+  } catch (error) {
+    // Cleanup failures must not replace the load's own error
+    await scratch?.dispose().catch(() => undefined);
     await page.close().catch(() => undefined);
+    throw error;
   }
+
+  return {
+    print: () => printPage(prepared, page),
+    readPageRefs: () => page.evaluate(readShownPageRefs, PAGEREF_ATTR),
+    writePageRefs: async (texts) => {
+      await page.evaluate(writeShownPageRefs, { attr: PAGEREF_ATTR, texts: [...texts] });
+    },
+    close: async () => {
+      await page.close().catch(() => undefined);
+      prepared.info.warnings.push(...load.warnings());
+    },
+  };
 }
 
-/**
- * Write the page's HTML to a scratch file and return its path, recorded in
- * `scratch` for removal. The document's own directory is tried first; if it
- * is not writable, a fresh temporary directory. Either way the page gets a
- * file:// origin, and its `<base>` still points at the document.
- */
-async function writeScratchHtml(
-  prepared: PreparedConversion,
-  html: string,
-  scratch: string[],
-): Promise<string> {
-  const name = `.mdforge-${process.pid}-${Date.now()}.html`;
-  const inDocumentDir = join(fileURLToPath(prepared.baseUrl), name);
-
-  try {
-    scratch.push(inDocumentDir);
-    await fs.writeFile(inDocumentDir, html, "utf-8");
-
-    return inDocumentDir;
-  } catch {
-    const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-"));
-    scratch.push(dir);
-
-    const inTempDir = join(dir, name);
-    await fs.writeFile(inTempDir, html, "utf-8");
-
-    return inTempDir;
-  }
-}
-
-async function renderPage(
-  prepared: PreparedConversion,
-  page: Page,
-  scratch: string[],
-): Promise<RenderResult> {
+/** Print a loaded page to PDF or HTML. */
+async function printPage(prepared: PreparedConversion, page: Page): Promise<RenderResult> {
   const { config } = prepared;
-
-  // Inject <base> tag so relative paths in markdown resolve correctly
-  const htmlWithBase = prepared.html.replace(
-    "<head>",
-    // A callback, so `$&` and friends in a directory name stay literal
-    () => `<head>${baseElement(prepared.baseUrl)}`,
-  );
-
-  // Load the page from a real file:// URL rather than via setContent. A page
-  // populated by setContent has an about:blank origin, and Chromium refuses to
-  // load file:// subresources from it — so every relative <img>, every
-  // stylesheet file, and any local font or asset, silently fails to render.
-  const scratchHtmlPath = await writeScratchHtml(prepared, htmlWithBase, scratch);
-
-  await page.goto(pathToFileURL(scratchHtmlPath).href, {
-    waitUntil: "domcontentloaded",
-  });
-
-  // Add stylesheets in cascade order. Files are linked by their own URL, never
-  // injected as text, so their relative url() and @import resolve against
-  // their own directory rather than the document's.
-  for (const stylesheet of prepared.stylesheets) {
-    switch (stylesheet.type) {
-      case "url":
-        await page.addStyleTag({ url: stylesheet.value });
-        break;
-      case "content":
-        await page.addStyleTag({ content: stylesheet.value });
-        break;
-      case "path":
-        await page.addStyleTag({ url: pathToFileURL(stylesheet.value).href });
-        break;
-    }
-  }
-
-  // Add scripts
-  for (const scriptTagOptions of prepared.scripts) {
-    await page.addScriptTag(scriptTagOptions);
-  }
-
-  // Wait for network to be idle
-  await page.waitForNetworkIdle();
-
-  // The page is fully loaded; the scratch HTML is no longer needed.
-  for (const path of scratch.splice(0)) {
-    await fs.rm(path, { force: true, recursive: true });
-  }
 
   // Extract form field info if fillable mode is enabled
   let selectOptions: Map<string, string[]> | undefined;
@@ -293,8 +294,6 @@ async function renderPage(
       content: html,
     };
   }
-
-  await page.emulateMediaType(config.page_media_type);
 
   const pdfOptions = {
     ...prepared.pdfOptions,

@@ -40,6 +40,10 @@
       "default": "./dist/lib/includes.js",
       "types": "./dist/lib/includes.d.ts"
     },
+    "./page-load": {
+      "default": "./dist/lib/page-load.js",
+      "types": "./dist/lib/page-load.d.ts"
+    },
     "./page-refs": {
       "default": "./dist/lib/page-refs.js",
       "types": "./dist/lib/page-refs.d.ts"

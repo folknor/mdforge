@@ -123,10 +123,11 @@ table of contents or a printed reference that has to name a page:
 ```
 
 The number is only known once the document has been laid out, so mdforge
-renders the PDF, reads the heading positions back from it, and renders again
-with the real numbers filled in, repeating until the numbers stop changing (at
-most three renders; if they are still changing, the last render is kept with a
-warning that some numbers may be wrong). A reference that names a heading which
+renders the PDF, reads the heading positions back from it, fills the real
+numbers into the page it already loaded and renders again, repeating until the
+numbers stop changing (at most three renders; if they are still changing, the
+last render is kept with a warning that some numbers may be wrong). The page is
+loaded only once, so every render uses the same images and stylesheets. A reference that names a heading which
 does not exist is left as `??` with a warning, rather than failing the build.
 
 Headings are found by their anchor, not their title. When two headings share a

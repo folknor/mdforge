@@ -55,6 +55,17 @@ relative `url(...)` and `@import` references inside it resolve against the
 stylesheet's own location. Relative references in inline CSS resolve against
 the document's directory.
 
+### Remote content
+
+Anything the page itself fetches from `http://` or `https://` (a stylesheet
+URL, a remote image, a `url(...)` or `@import` in CSS, an iframe) must load
+within 15 seconds, counted once for the whole conversion. Whatever has not
+finished by then is left out and named in a warning, and the document is
+printed without it; anything the page asks for after loading has ended is left
+out the same way. If a stalled resource kept the browser from reading the rest
+of the document (a script after a stylesheet that never arrives, for example),
+the conversion fails instead of printing a cut-off document.
+
 ## All Options
 
 ```yaml

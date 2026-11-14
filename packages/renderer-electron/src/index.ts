@@ -54,5 +54,5 @@ export type { PdfMetadata } from "@mdforge/pdf";
 // Export backward-compatible convertMdToPdf
 export { type ConvertResult, convertMdToPdf } from "./convert.js";
 
-// Export render function
-export { type RenderResult, render } from "./render.js";
+// Export the page loader
+export { open, type RenderResult } from "./render.js";

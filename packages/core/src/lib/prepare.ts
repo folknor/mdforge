@@ -114,7 +114,7 @@ export async function writeOutput(
 
 /**
  * Everything needed to render the document.
- * This is the output of prepareConversion() and input to render().
+ * This is the output of prepareConversion() and input to a renderer's open().
  */
 export interface PreparedConversion {
   /** The complete HTML document */

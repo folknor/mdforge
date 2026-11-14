@@ -1,7 +1,7 @@
 /**
  * Backward-compatible conversion function.
  *
- * This wraps prepareConversion() from @mdforge/core and render() from this package
+ * This wraps prepareConversion() from @mdforge/core and open() from this package
  * to provide the same API as the original convertMdToPdf().
  */
 
@@ -16,7 +16,7 @@ import {
 import { renderResolvingPageRefs } from "@mdforge/core/page-refs";
 import { readDestinations } from "@mdforge/pdf";
 import type { Browser } from "puppeteer";
-import { render } from "./render.js";
+import { open, type RenderResult } from "./render.js";
 
 /** Output from convertMdToPdf */
 export interface ConvertResult {
@@ -46,12 +46,12 @@ export async function convertMdToPdf(
   const prepared = await prepareConversion(input, config, options);
 
   // Render the document
-  let output: Awaited<ReturnType<typeof render>>;
+  let output: RenderResult;
 
   try {
     output = await renderResolvingPageRefs(
       prepared,
-      (pass) => render(pass, browser),
+      (conversion) => open(conversion, browser),
       readDestinations,
     );
   } catch (error) {

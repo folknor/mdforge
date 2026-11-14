@@ -36,16 +36,6 @@ export const PAGEREF_ATTR = "data-mdforge-pageref";
 const PAGEREF_PLACEHOLDER = "??";
 
 /**
- * Matches one rendered page-reference span, capturing its opening (the span
- * tag plus its hidden target link, which every pass must keep), its slug, and
- * the number text that is replaced.
- */
-const PAGEREF_SPAN_REGEX = new RegExp(
-  `(<span[^>]*\\b${PAGEREF_ATTR}="([^"]+)"[^>]*>(?:<a [^>]*></a>)?)([^<]*)</span>`,
-  "g",
-);
-
-/**
  * Markup for one unresolved page reference pointing at `slug`.
  *
  * Exported so generators that run *after* {@link processXref} (the TOC, which
@@ -100,9 +90,17 @@ export function hasPageRefs(html: string): boolean {
   return html.includes(`${PAGEREF_ATTR}="`);
 }
 
+/** One page-reference span as the loaded page shows it. */
+export interface ShownPageRef {
+  slug: string;
+  /** The number text after the hidden target link */
+  text: string;
+}
+
 /** Result of one page-reference resolution pass. */
 export interface PageRefResolution {
-  html: string;
+  /** The text every reference to a slug should show */
+  texts: Map<string, string>;
   /** False once the page numbers have settled. */
   changed: boolean;
   /** Slugs of references no destination answered for, each listed once. */
@@ -110,12 +108,11 @@ export interface PageRefResolution {
 }
 
 /**
- * Fill resolved page numbers into the placeholders left by `@pageof(...)` and
- * the TOC.
+ * Work out the page numbers the references a page shows should have.
  *
  * `pageById` maps element ids to the 1-based page they landed on, as read from
- * the PDF's named destinations. Each placeholder's slug is the id of its
- * target, so it is looked up exactly: the second of two "Notes" headings (id
+ * the PDF's named destinations. Each reference's slug is the id of its target,
+ * so it is looked up exactly: the second of two "Notes" headings (id
  * `notes-1`) gets its own page, and a heading literally titled "Notes-1" (id
  * `notes-1-1`) gets its. Titles are never consulted - an earlier design matched
  * outline titles and so confused repeated and numbered headings.
@@ -123,37 +120,73 @@ export interface PageRefResolution {
  * A reference with no destination is reset to the `??` placeholder, so a
  * number from an earlier pass never survives once its target is gone.
  *
- * Returns the updated HTML, whether anything actually changed, and the
- * references left unresolved. An unchanged result means the numbers have
- * settled and no further pass is needed.
+ * `changed` compares against what the page actually shows, so an unchanged
+ * result means the numbers have settled and no further pass is needed.
  */
 export function resolvePageRefs(
-  html: string,
+  shown: readonly ShownPageRef[],
   pageById: ReadonlyMap<string, number>,
 ): PageRefResolution {
-  let changed = false;
+  const texts = new Map<string, string>();
   const unresolved = new Set<string>();
+  let changed = false;
 
-  const updated = html.replace(
-    PAGEREF_SPAN_REGEX,
-    (match, open: string, slug: string, body: string) => {
-      const page = pageById.get(slug);
+  for (const { slug, text } of shown) {
+    const page = pageById.get(slug);
 
-      if (page === undefined) {
-        unresolved.add(slug);
-      }
+    if (page === undefined) {
+      unresolved.add(slug);
+    }
 
-      const text = page === undefined ? PAGEREF_PLACEHOLDER : String(page);
+    const wanted = page === undefined ? PAGEREF_PLACEHOLDER : String(page);
+    texts.set(slug, wanted);
 
-      if (text === body) {
-        return match;
-      }
-
+    if (wanted !== text) {
       changed = true;
+    }
+  }
 
-      return `${open}${text}</span>`;
-    },
-  );
+  return { texts, changed, unresolved: [...unresolved] };
+}
 
-  return { html: updated, changed, unresolved: [...unresolved] };
+/**
+ * Browser-side: the page-reference spans in the page, in document order.
+ * Self-contained, for evaluation in the page.
+ */
+export function readShownPageRefs(attr: string): ShownPageRef[] {
+  return Array.from(document.querySelectorAll(`[${attr}]`), (span) => {
+    const last = span.lastChild;
+
+    return {
+      slug: span.getAttribute(attr) ?? "",
+      text: last?.nodeType === Node.TEXT_NODE ? (last.nodeValue ?? "") : "",
+    };
+  });
+}
+
+/**
+ * Browser-side: set the number text of every page-reference span whose slug
+ * has an entry, keeping the hidden target link. Self-contained, for evaluation
+ * in the page.
+ */
+export function writeShownPageRefs({
+  attr,
+  texts,
+}: {
+  attr: string;
+  texts: Array<[string, string]>;
+}): void {
+  const bySlug = new Map(texts);
+
+  for (const span of Array.from(document.querySelectorAll(`[${attr}]`))) {
+    const text = bySlug.get(span.getAttribute(attr) ?? "");
+
+    if (text === undefined) continue;
+
+    for (const node of Array.from(span.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) span.removeChild(node);
+    }
+
+    span.appendChild(document.createTextNode(text));
+  }
 }
