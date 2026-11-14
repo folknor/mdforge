@@ -29,6 +29,19 @@ file: stylesheets, `header`/`footer` text, `pdf_options.headerTemplate` and
 `script` content. Names, enums and paths (`theme`, `format`, `basedir`,
 `templates`, ...) are taken literally.
 
+### Stylesheet entries
+
+Each `stylesheet` entry is a file, a URL or CSS, decided as follows:
+
+- `"@path"`: the file's contents, used as CSS whatever they look like (a
+  single `@import url(...)` line included).
+- A value starting with `http://` or `https://`: a URL the page loads.
+- A value containing `{` or a line break: inline CSS.
+- Anything else: a CSS file path.
+
+CSS that itself starts with `@` cannot be written inline (it would be taken as
+a file reference); put it in a file and use `"@path"`.
+
 ## All Options
 
 ```yaml
@@ -101,7 +114,7 @@ heading_numbers: false
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `theme` | `string \| false` | `"beryl"` | Built-in theme or `false` to disable |
-| `stylesheet` | `string \| string[]` | auto | CSS file path(s), applied in order |
+| `stylesheet` | `string \| string[]` | auto | CSS file path(s), URLs or CSS, applied in order (see above) |
 | `document_title` | `string` | auto | PDF title |
 | `code_block_style` | `string` | `"github"` | highlight.js theme |
 | `print_urls` | `boolean` | `false` | Append URLs after links |

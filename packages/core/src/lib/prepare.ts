@@ -9,7 +9,13 @@ import { basename, dirname, relative, resolve } from "node:path";
 import process from "node:process";
 import type { FrameAddScriptTagOptions, PDFOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
-import { type Config, type HeaderFooterColumn, themes, themesDir } from "./config.js";
+import {
+  type Config,
+  type HeaderFooterColumn,
+  type StylesheetEntry,
+  themes,
+  themesDir,
+} from "./config.js";
 import { formatConfigIssues, parseConfigYaml, splitFrontMatter } from "./config-yaml.js";
 import { processConstants } from "./constants.js";
 import { type ConversionInfo, createConversionInfo } from "./conversion-info.js";
@@ -40,12 +46,6 @@ function summarize(columns: HeaderFooterColumn | undefined): string | undefined 
 export interface ConvertOptions {
   "--as-html"?: boolean;
   "--fillable"?: boolean;
-}
-
-/** Stylesheet entry - either a file path or inline CSS content */
-export interface StylesheetEntry {
-  type: "path" | "content" | "url";
-  value: string;
 }
 
 /**
@@ -151,13 +151,13 @@ export async function prepareConversion(
 
     try {
       await fs.access(candidateCss);
-      config.stylesheet = [candidateCss];
+      config.stylesheet = [{ type: "path", value: candidateCss }];
       info.stylesheet = { type: "auto", path: basename(candidateCss) };
       info.dependencies.push(candidateCss);
     } catch {
       try {
         await fs.access(indexCss);
-        config.stylesheet = [indexCss];
+        config.stylesheet = [{ type: "path", value: indexCss }];
         info.stylesheet = { type: "auto", path: "index.css" };
         info.dependencies.push(indexCss);
       } catch {
@@ -169,7 +169,7 @@ export async function prepareConversion(
     // User specified one or more stylesheets; they cascade in the order given,
     // so record all of them — the later sheets are what a layered theme uses to
     // override the base.
-    const files = config.stylesheet.filter((s) => !s.includes("\n") && !s.startsWith("http"));
+    const files = config.stylesheet.flatMap((s) => (s.type === "path" ? [s.value] : []));
 
     const [firstFile] = files;
 
@@ -221,20 +221,20 @@ export async function prepareConversion(
 
   // Build stylesheet list: theme, fonts, font_scale, built-in features, user stylesheets
   // Order matters: theme first, fonts override theme, user overrides all
-  const baseStylesheets: string[] = [];
+  const baseStylesheets: StylesheetEntry[] = [];
 
-  if (themeStylesheet) baseStylesheets.push(themeStylesheet);
+  if (themeStylesheet) baseStylesheets.push({ type: "path", value: themeStylesheet });
 
-  if (fontCss) baseStylesheets.push(fontCss);
+  if (fontCss) baseStylesheets.push({ type: "content", value: fontCss });
 
   // Add built-in extension CSS (always available)
-  baseStylesheets.push(formFieldsCss);
-  baseStylesheets.push(admonitionsCss);
+  baseStylesheets.push({ type: "content", value: formFieldsCss });
+  baseStylesheets.push({ type: "content", value: admonitionsCss });
 
   // Apply font_scale if set (scales the base 12pt size)
   if (config.font_scale && config.font_scale !== 1) {
     const scaledSize = 12 * config.font_scale;
-    baseStylesheets.push(`:root { --font-size: ${scaledSize}pt; }`);
+    baseStylesheets.push({ type: "content", value: `:root { --font-size: ${scaledSize}pt; }` });
     info.fontScale = config.font_scale;
   }
 
@@ -250,7 +250,7 @@ export async function prepareConversion(
 	color: var(--color-text-muted, #666);
 }`;
 
-    config.stylesheet = [...config.stylesheet, printUrlsCss];
+    config.stylesheet = [...config.stylesheet, { type: "content", value: printUrlsCss }];
   }
 
   // Process simplified header/footer config
@@ -289,22 +289,18 @@ export async function prepareConversion(
       // Collect all CSS for header/footer styling
       const cssContents: string[] = [];
 
+      // The highlight.js sheet is not in the list yet; it is appended below.
       for (const stylesheet of config.stylesheet) {
-        // Skip highlight.js stylesheets
-        if (stylesheet.includes("highlight.js")) continue;
-
-        // If it's already CSS content (from @file), use directly
-        if (stylesheet.includes("\n") || stylesheet.includes("{")) {
-          cssContents.push(stylesheet);
-        } else {
-          // Try to read the file
+        if (stylesheet.type === "content") {
+          cssContents.push(stylesheet.value);
+        } else if (stylesheet.type === "path") {
           try {
-            const css = await fs.readFile(stylesheet, "utf-8");
-            cssContents.push(css);
+            cssContents.push(await fs.readFile(stylesheet.value, "utf-8"));
           } catch {
-            // Stylesheet already validated, this is unexpected
+            // Reported by the validation pass below
           }
         }
+        // URLs are loaded by the page and cannot be read here
       }
 
       const allCss = cssContents.join("\n\n");
@@ -313,7 +309,7 @@ export async function prepareConversion(
       const pagedCss = await generatePagedCss(headerFooterConfig, allCss, baseDir);
 
       // Add paged CSS to stylesheets (uses native Chrome @page margin boxes)
-      config.stylesheet = [...config.stylesheet, pagedCss];
+      config.stylesheet = [...config.stylesheet, { type: "content", value: pagedCss }];
 
       // Chrome 131+ supports @page margin boxes natively, no paged.js needed
       // Set Puppeteer margins to 0 - the @page rule handles margins
@@ -408,50 +404,49 @@ export async function prepareConversion(
     `${config.code_block_style}.css`,
   );
 
-  config.stylesheet = [...new Set([...config.stylesheet, highlightStylesheet])];
+  // Appended unless the user already placed it; other repeats are kept, since
+  // dropping one would change the cascade.
+  const hasHighlight = config.stylesheet.some(
+    (s) => s.type === "path" && s.value === highlightStylesheet,
+  );
+
+  if (!hasHighlight) {
+    config.stylesheet = [...config.stylesheet, { type: "path", value: highlightStylesheet }];
+  }
 
   // Validate stylesheets exist and have valid syntax
   const validatedStylesheets: StylesheetEntry[] = [];
 
   for (const stylesheet of config.stylesheet) {
-    // Skip URLs
-    if (stylesheet.startsWith("http")) {
-      validatedStylesheets.push({ type: "url", value: stylesheet });
-      continue;
-    }
-
-    // Check if it's inline CSS content (from @file or generated)
-    const isInlineCss = stylesheet.includes("\n") || stylesheet.includes("{");
-
-    if (isInlineCss) {
-      // Validate inline CSS syntax
-      const result = validateCss(stylesheet);
+    if (stylesheet.type === "url") {
+      validatedStylesheets.push(stylesheet);
+    } else if (stylesheet.type === "content") {
+      const result = validateCss(stylesheet.value);
 
       if (!result.valid) {
         info.warnings.push(...formatCssErrors(result.errors, "inline CSS"));
       }
 
-      validatedStylesheets.push({ type: "content", value: stylesheet });
+      validatedStylesheets.push(stylesheet);
     } else {
-      // It's a file path - check if file exists
+      const file = stylesheet.value;
+
       try {
-        await fs.access(stylesheet);
-        // Read and validate CSS syntax
-        const css = await fs.readFile(stylesheet, "utf-8");
-        const result = validateCss(css, basename(stylesheet));
+        const css = await fs.readFile(file, "utf-8");
+        const result = validateCss(css, basename(file));
 
         if (!result.valid) {
-          info.warnings.push(...formatCssErrors(result.errors, basename(stylesheet)));
+          info.warnings.push(...formatCssErrors(result.errors, basename(file)));
         }
 
-        validatedStylesheets.push({ type: "path", value: stylesheet });
+        validatedStylesheets.push(stylesheet);
       } catch (error) {
         const isMissing = error instanceof Error && "code" in error && error.code === "ENOENT";
 
         if (isMissing) {
-          info.warnings.push(`Stylesheet not found: ${stylesheet}`);
+          info.warnings.push(`Stylesheet not found: ${file}`);
         } else {
-          info.warnings.push(`Stylesheet not readable: ${stylesheet}`);
+          info.warnings.push(`Stylesheet not readable: ${file}`);
         }
       }
     }

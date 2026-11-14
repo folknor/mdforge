@@ -1,3 +1,8 @@
 {
-  "ignorePatterns": ["**/*.md", "**/*.html", "packages/core/src/data/google-fonts.json"]
+  "ignorePatterns": [
+    "**/*.md",
+    "**/*.html",
+    "packages/core/src/data/google-fonts.json",
+    "packages/core/test/fixtures/config-yaml/import.css"
+  ]
 }

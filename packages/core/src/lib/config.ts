@@ -17,6 +17,15 @@ export { type Theme, themes };
 
 const moduleDir: string = fileURLToPath(new URL(".", import.meta.url));
 
+/**
+ * One stylesheet: a file to read (`path`, absolute or relative to the working
+ * directory), CSS text (`content`) or a URL for the page to load (`url`).
+ */
+export interface StylesheetEntry {
+  type: "path" | "content" | "url";
+  value: string;
+}
+
 export interface HeaderFooterColumn {
   left?: string;
   center?: string;
@@ -107,9 +116,10 @@ export interface Config {
   print_urls: boolean;
 
   /**
-   * List of css files to use for styling (in addition to or instead of theme).
+   * Stylesheets to apply after the theme, in cascade order. Each entry says
+   * what it is; nothing downstream inspects the text to guess.
    */
-  stylesheet: string[];
+  stylesheet: StylesheetEntry[];
 
   /**
    * List of scripts to load into the page.

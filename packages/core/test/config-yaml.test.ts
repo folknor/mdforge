@@ -133,8 +133,29 @@ stylesheet: style.css
 body_class: wide
 `);
 
-    assert.deepEqual(config.stylesheet, [resolve(fixtures, "style.css")]);
+    assert.deepEqual(config.stylesheet, [{ type: "path", value: resolve(fixtures, "style.css") }]);
     assert.deepEqual(config.body_class, ["wide"]);
+  });
+
+  // import.css is one line with no `{` and no trailing newline (it is kept out
+  // of oxfmt for that reason): the shape that used to be taken for a filename.
+  it("tags each stylesheet as path, URL or CSS", async () => {
+    const { config, issues, dependencies } = await parse(`
+stylesheet:
+  - "@import.css"
+  - https://example.com/a.css
+  - http-docs.css
+  - "body { margin: 0 }"
+`);
+
+    assert.deepEqual(issues, []);
+    assert.deepEqual(config.stylesheet, [
+      { type: "content", value: '@import url("https://example.com/b.css");' },
+      { type: "url", value: "https://example.com/a.css" },
+      { type: "path", value: resolve(fixtures, "http-docs.css") },
+      { type: "content", value: "body { margin: 0 }" },
+    ]);
+    assert.deepEqual(dependencies, [join(fixtures, "import.css")]);
   });
 
   it("treats an empty stylesheet as none", async () => {

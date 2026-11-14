@@ -22,14 +22,15 @@
  *   relative to the source's own directory, and only once: file contents that
  *   start with `@` are not followed again. Enums and path-valued fields take
  *   the string literally.
- * - Relative stylesheet paths are resolved against the source's directory.
- *   Stylesheet text read from an `@file` is left as it is.
+ * - Stylesheets are tagged path, URL or CSS here (see stylesheetEntry);
+ *   relative paths resolve against the source's directory, and `@file`
+ *   contents are always CSS.
  * - `launch_options` is only read from the config file: one browser is shared
  *   by every document of a run, so a per-document setting could not apply.
  */
 
 import { promises as fs } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type {
   ChromeReleaseChannel,
@@ -54,6 +55,7 @@ import {
   type HeaderFooterColumn,
   type PageNumberFormat,
   type PageNumbersConfig,
+  type StylesheetEntry,
   type Theme,
   themes,
 } from "./config.js";
@@ -468,21 +470,26 @@ function dictionary<T>(
 const theme: Decoder<Theme | false> = async (ctx, path, value) =>
   value === false ? false : oneOf(themes)(ctx, path, value);
 
-const stylesheetEntry: Decoder<string> = async (ctx, path, value) => {
+/**
+ * The one place a stylesheet's kind is read from its text. `@file` contents
+ * are CSS whatever they look like (a lone `@import url(...)` line included);
+ * otherwise an http(s) URL, text with `{` or a newline is inline CSS, and
+ * anything else is a path relative to the source's directory.
+ */
+const stylesheetEntry: Decoder<StylesheetEntry> = async (ctx, path, value) => {
   const entry = await readText(ctx, path, value);
 
   if (entry === undefined || entry.value === "") return;
 
   const { value: sheet } = entry;
 
-  const isPathLike =
-    !entry.fromFile &&
-    !isAbsolute(sheet) &&
-    !sheet.startsWith("http") &&
-    !sheet.includes("\n") &&
-    !sheet.includes("{");
+  if (entry.fromFile) return { type: "content", value: sheet };
 
-  return isPathLike ? resolve(ctx.baseDir, sheet) : sheet;
+  if (/^https?:\/\//i.test(sheet)) return { type: "url", value: sheet };
+
+  if (sheet.includes("{") || sheet.includes("\n")) return { type: "content", value: sheet };
+
+  return { type: "path", value: resolve(ctx.baseDir, sheet) };
 };
 
 const bodyClass: Decoder<string> = async (ctx, path, value) => {
