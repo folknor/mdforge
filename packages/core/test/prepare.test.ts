@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { type Config, defaultConfig } from "../src/lib/config.ts";
-import { baseElement, prepareConversion } from "../src/lib/prepare.ts";
+import { baseElement, prepareConversion, stylesheetLink } from "../src/lib/prepare.ts";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "prepare");
 
@@ -94,6 +94,36 @@ describe("prepareConversion base directory", () => {
 describe("baseElement", () => {
   it("escapes the URL for an HTML attribute", () => {
     assert.equal(baseElement("file:///docs/a&copy;b/"), '<base href="file:///docs/a&amp;copy;b/">');
+  });
+});
+
+describe("stylesheetLink", () => {
+  it("escapes the URL for an HTML attribute", () => {
+    assert.equal(
+      stylesheetLink("file:///css/a&copy;b.css"),
+      '<link rel="stylesheet" href="file:///css/a&amp;copy;b.css">',
+    );
+  });
+});
+
+describe("prepareConversion stylesheets", () => {
+  // User files must stay paths, which the renderers link by URL so a sheet's
+  // relative url() and @import resolve against its own directory. The
+  // package's own sheets travel as text so HTML output carries them.
+  it("keeps user stylesheet files as paths and inlines the package's own", async () => {
+    const userSheet = join(fixtures, "user.css");
+
+    const prepared = await prepareConversion(
+      { content: "# Title\n", baseDir: fixtures },
+      { ...config(), stylesheet: [{ type: "path", value: userSheet }] },
+      { output: { kind: "none" } },
+    );
+
+    const paths = prepared.stylesheets.filter((s) => s.type === "path");
+
+    assert.deepEqual(paths, [{ type: "path", value: userSheet }]);
+    // The highlight.js sheet is appended as text
+    assert.equal(prepared.stylesheets.at(-1)?.type, "content");
   });
 });
 

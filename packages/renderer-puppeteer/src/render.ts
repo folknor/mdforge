@@ -6,6 +6,7 @@
 
 import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -124,26 +125,56 @@ export async function render(
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  // The scratch HTML written below, removed with the page whether or not the
-  // render succeeds
-  const scratchHtmlPath = join(
-    fileURLToPath(prepared.baseUrl),
-    `.mdforge-${process.pid}-${Date.now()}.html`,
-  );
+  // Scratch files and directories renderPage creates, removed with the page
+  // whether or not the render succeeds
+  const scratch: string[] = [];
 
   try {
-    return await renderPage(prepared, page, scratchHtmlPath);
+    return await renderPage(prepared, page, scratch);
   } finally {
     // Cleanup failures must not replace the render's own error
-    await fs.rm(scratchHtmlPath, { force: true }).catch(() => undefined);
+    for (const path of scratch) {
+      await fs.rm(path, { force: true, recursive: true }).catch(() => undefined);
+    }
+
     await page.close().catch(() => undefined);
+  }
+}
+
+/**
+ * Write the page's HTML to a scratch file and return its path, recorded in
+ * `scratch` for removal. The document's own directory is tried first; if it
+ * is not writable, a fresh temporary directory. Either way the page gets a
+ * file:// origin, and its `<base>` still points at the document.
+ */
+async function writeScratchHtml(
+  prepared: PreparedConversion,
+  html: string,
+  scratch: string[],
+): Promise<string> {
+  const name = `.mdforge-${process.pid}-${Date.now()}.html`;
+  const inDocumentDir = join(fileURLToPath(prepared.baseUrl), name);
+
+  try {
+    scratch.push(inDocumentDir);
+    await fs.writeFile(inDocumentDir, html, "utf-8");
+
+    return inDocumentDir;
+  } catch {
+    const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-"));
+    scratch.push(dir);
+
+    const inTempDir = join(dir, name);
+    await fs.writeFile(inTempDir, html, "utf-8");
+
+    return inTempDir;
   }
 }
 
 async function renderPage(
   prepared: PreparedConversion,
   page: Page,
-  scratchHtmlPath: string,
+  scratch: string[],
 ): Promise<RenderResult> {
   const { config } = prepared;
 
@@ -156,28 +187,28 @@ async function renderPage(
 
   // Load the page from a real file:// URL rather than via setContent. A page
   // populated by setContent has an about:blank origin, and Chromium refuses to
-  // load file:// subresources from it — so every relative <img>, and any local
-  // font or asset, silently fails to render. Writing the HTML into the
-  // document's own directory gives the page a file:// origin and makes those
-  // relative paths resolve naturally. Falls back to setContent if the
-  // directory is not writable.
-  try {
-    await fs.writeFile(scratchHtmlPath, htmlWithBase, "utf-8");
-    await page.goto(pathToFileURL(scratchHtmlPath).href, {
-      waitUntil: "domcontentloaded",
-    });
-  } catch {
-    await page.setContent(htmlWithBase, { waitUntil: "domcontentloaded" });
-  }
+  // load file:// subresources from it — so every relative <img>, every
+  // stylesheet file, and any local font or asset, silently fails to render.
+  const scratchHtmlPath = await writeScratchHtml(prepared, htmlWithBase, scratch);
 
-  // Add stylesheets
+  await page.goto(pathToFileURL(scratchHtmlPath).href, {
+    waitUntil: "domcontentloaded",
+  });
+
+  // Add stylesheets in cascade order. Files are linked by their own URL, never
+  // injected as text, so their relative url() and @import resolve against
+  // their own directory rather than the document's.
   for (const stylesheet of prepared.stylesheets) {
-    if (stylesheet.type === "url") {
-      await page.addStyleTag({ url: stylesheet.value });
-    } else if (stylesheet.type === "content") {
-      await page.addStyleTag({ content: stylesheet.value });
-    } else {
-      await page.addStyleTag({ path: stylesheet.value });
+    switch (stylesheet.type) {
+      case "url":
+        await page.addStyleTag({ url: stylesheet.value });
+        break;
+      case "content":
+        await page.addStyleTag({ content: stylesheet.value });
+        break;
+      case "path":
+        await page.addStyleTag({ url: pathToFileURL(stylesheet.value).href });
+        break;
     }
   }
 
@@ -190,7 +221,9 @@ async function renderPage(
   await page.waitForNetworkIdle();
 
   // The page is fully loaded; the scratch HTML is no longer needed.
-  await fs.rm(scratchHtmlPath, { force: true });
+  for (const path of scratch.splice(0)) {
+    await fs.rm(path, { force: true, recursive: true });
+  }
 
   // Extract form field info if fillable mode is enabled
   let selectOptions: Map<string, string[]> | undefined;

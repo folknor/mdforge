@@ -138,7 +138,9 @@ body_class: wide
   });
 
   // import.css is one line with no `{` and no trailing newline (it is kept out
-  // of oxfmt for that reason): the shape that used to be taken for a filename.
+  // of oxfmt for that reason): an `@file` sheet is its file's path whatever
+  // the file holds, so the page loads it by URL and its relative references
+  // resolve against its own directory.
   it("tags each stylesheet as path, URL or CSS", async () => {
     const { config, issues, dependencies } = await parse(`
 stylesheet:
@@ -150,7 +152,7 @@ stylesheet:
 
     assert.deepEqual(issues, []);
     assert.deepEqual(config.stylesheet, [
-      { type: "content", value: '@import url("https://example.com/b.css");' },
+      { type: "path", value: join(fixtures, "import.css") },
       { type: "url", value: "https://example.com/a.css" },
       { type: "path", value: resolve(fixtures, "http-docs.css") },
       { type: "content", value: "body { margin: 0 }" },

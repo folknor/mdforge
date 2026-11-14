@@ -30,23 +30,30 @@ aliases (`*name`) and tags outside YAML 1.2's core schema (`!!set`,
 ### File references
 
 A free-text value written as `"@path"` is replaced by the contents of that
-file: stylesheets, `header`/`footer` text, `pdf_options.headerTemplate` and
+file: `header`/`footer` text, `pdf_options.headerTemplate` and
 `footerTemplate`, `metadata`, `toc_options` labels, `constants` strings and
-`script` content. Names, enums and paths (`theme`, `format`, `templates`,
+`script` content. In `stylesheet`, `"@path"` names a CSS file instead (see
+below). Names, enums and paths (`theme`, `format`, `templates`,
 ...) are taken literally.
 
 ### Stylesheet entries
 
 Each `stylesheet` entry is a file, a URL or CSS, decided as follows:
 
-- `"@path"`: the file's contents, used as CSS whatever they look like (a
-  single `@import url(...)` line included).
+- `"@path"`: a CSS file, whatever it contains (a single `@import url(...)`
+  line included). A missing or unreadable file is reported against the
+  option.
 - A value starting with `http://` or `https://`: a URL the page loads.
 - A value containing `{` or a line break: inline CSS.
 - Anything else: a CSS file path.
 
 CSS that itself starts with `@` cannot be written inline (it would be taken as
 a file reference); put it in a file and use `"@path"`.
+
+A stylesheet file or URL is loaded by the page from where it lives, so
+relative `url(...)` and `@import` references inside it resolve against the
+stylesheet's own location. Relative references in inline CSS resolve against
+the document's directory.
 
 ## All Options
 

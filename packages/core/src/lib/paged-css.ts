@@ -386,41 +386,14 @@ function processTextForHtml(text: string): string {
 }
 
 /**
- * Transform simple CSS selectors to paged.js margin box selectors
- * .header-left { color: red } → .pagedjs_page .pagedjs_margin-top-left { color: red }
+ * Generate CSS @page rules from simplified config. The document's stylesheets
+ * are not read or copied here: a copy would come later in the cascade than
+ * the sheets it was taken from and resolve their relative `url()` and
+ * `@import` against the document instead of each sheet's own directory.
+ * (Chrome's native margin boxes cannot be selected, so `.header-left` and
+ * similar rules in user CSS do not style them.)
  */
-function transformCssSelectors(css: string): string {
-  const selectorMap = {
-    ".header-left": ".pagedjs_page .pagedjs_margin-top-left",
-    ".header-center": ".pagedjs_page .pagedjs_margin-top-center",
-    ".header-right": ".pagedjs_page .pagedjs_margin-top-right",
-    ".footer-left": ".pagedjs_page .pagedjs_margin-bottom-left",
-    ".footer-center": ".pagedjs_page .pagedjs_margin-bottom-center",
-    ".footer-right": ".pagedjs_page .pagedjs_margin-bottom-right",
-  };
-
-  let transformed = css;
-
-  for (const [selector, pagedSelector] of Object.entries(selectorMap)) {
-    // Match: .header-left { ... }
-    const regex = new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`, "g");
-    transformed = transformed.replace(regex, (_, content) => `${pagedSelector} {${content}}`);
-  }
-
-  return transformed;
-}
-
-/**
- * Generate CSS @page rules from simplified config
- */
-export async function generatePagedCss(
-  config: PagedCssConfig,
-  themeCss: string,
-  baseDir: string,
-): Promise<string> {
-  // Transform simple selectors to @page rules
-  const processedCss = transformCssSelectors(themeCss);
-
+export async function generatePagedCss(config: PagedCssConfig, baseDir: string): Promise<string> {
   const header = config.header ?? {};
   const footer = config.footer ?? {};
   const pageFormat = config.page_numbers?.format;
@@ -470,9 +443,6 @@ export async function generatePagedCss(
 
   // Build the CSS
   const css = `
-/* Theme CSS */
-${processedCss}
-
 /* Document variables for header/footer content */
 :root {
   --doc-title: "${escapedTitle}";

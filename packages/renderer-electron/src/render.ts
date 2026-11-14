@@ -8,8 +8,9 @@
 import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
-import { baseElement, type PreparedConversion } from "@mdforge/core/prepare";
+import { baseElement, type PreparedConversion, stylesheetLink } from "@mdforge/core/prepare";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
 import { BrowserWindow } from "electron";
 
@@ -64,27 +65,22 @@ async function detectSystemFont(fontFamily: string): Promise<EmbeddedFontData | 
 }
 
 /**
- * Build complete HTML with stylesheets inlined.
- * Electron doesn't have addStyleTag like Puppeteer, so we inline everything.
+ * Build complete HTML with the stylesheets in cascade order: CSS text as
+ * `<style>`, files and URLs as `<link>`, so a file's relative references
+ * resolve against its own directory. A sheet that fails to load is left
+ * unapplied.
  */
-async function buildCompleteHtml(prepared: PreparedConversion): Promise<string> {
-  const styleParts: string[] = [];
-
-  for (const stylesheet of prepared.stylesheets) {
-    if (stylesheet.type === "content") {
-      styleParts.push(`<style>${stylesheet.value}</style>`);
-    } else if (stylesheet.type === "path") {
-      // Read file and inline it
-      try {
-        const css = await fs.readFile(stylesheet.value, "utf-8");
-        styleParts.push(`<style>${css}</style>`);
-      } catch {
-        // Skip missing stylesheets
-      }
-    } else if (stylesheet.type === "url") {
-      styleParts.push(`<link rel="stylesheet" href="${stylesheet.value}">`);
+function buildCompleteHtml(prepared: PreparedConversion): string {
+  const styleParts = prepared.stylesheets.map((stylesheet) => {
+    switch (stylesheet.type) {
+      case "content":
+        return `<style>${stylesheet.value}</style>`;
+      case "path":
+        return stylesheetLink(pathToFileURL(stylesheet.value).href);
+      case "url":
+        return stylesheetLink(stylesheet.value);
     }
-  }
+  });
 
   // Inject stylesheets and base URL into head
   const stylesHtml = styleParts.join("\n");
@@ -251,16 +247,17 @@ export async function render(prepared: PreparedConversion): Promise<RenderResult
   try {
     // Build complete HTML with inlined stylesheets
     log("Building complete HTML...");
-    const completeHtml = await buildCompleteHtml(prepared);
+    const completeHtml = buildCompleteHtml(prepared);
     log("HTML built, length:", completeHtml.length);
 
-    // Load the HTML content
-    // Use data URI to avoid file system dependencies
+    // Load the HTML from a data URI, given the document's directory as its
+    // base URL: a plain data: page may not load any file:// resource, so
+    // without it neither the document's images nor stylesheet files load.
     const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(completeHtml)}`;
     log("Loading data URI (length:", dataUri.length, ")...");
 
     // loadURL returns when load completes - no need for did-finish-load listener
-    await win.loadURL(dataUri);
+    await win.loadURL(dataUri, { baseURLForDataURL: prepared.baseUrl });
     log("Page loaded");
 
     // Additional wait for any async resources (fonts, images)

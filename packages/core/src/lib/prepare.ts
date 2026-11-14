@@ -80,18 +80,30 @@ export interface ConvertOptions {
 export type MarkdownInput = { path: string } | { content: string; baseDir?: string };
 
 /**
- * The `<base>` element for a prepared document's `baseUrl`. A file URL keeps
- * `&` and `'` as they are, and `&` would start a character reference inside
- * the attribute, so the value is HTML-escaped here.
+ * A value escaped for a double-quoted HTML attribute. A file URL keeps `&` and
+ * `'` as they are, and `&` would start a character reference inside the
+ * attribute.
  */
-export function baseElement(baseUrl: string): string {
-  const escaped = baseUrl
+function attributeValue(value: string): string {
+  return value
     .replaceAll("&", "&amp;")
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
 
-  return `<base href="${escaped}">`;
+/** The `<base>` element for a prepared document's `baseUrl`. */
+export function baseElement(baseUrl: string): string {
+  return `<base href="${attributeValue(baseUrl)}">`;
+}
+
+/**
+ * A `<link>` element for a stylesheet URL. A stylesheet file is linked by its
+ * own URL, never inlined, so its relative `url()` and `@import` resolve
+ * against its own directory rather than the document's.
+ */
+export function stylesheetLink(href: string): string {
+  return `<link rel="stylesheet" href="${attributeValue(href)}">`;
 }
 
 /** Write a converted document to its target. */
@@ -305,7 +317,12 @@ export async function prepareConversion(
   // Order matters: theme first, fonts override theme, user overrides all
   const baseStylesheets: StylesheetEntry[] = [];
 
-  if (themeStylesheet) baseStylesheets.push({ type: "path", value: themeStylesheet });
+  // Package-owned sheets go in as text, so HTML output carries them instead
+  // of linking into the installation; they hold no relative references. User
+  // files stay paths, which the renderers load by URL.
+  if (themeStylesheet) {
+    baseStylesheets.push({ type: "content", value: await fs.readFile(themeStylesheet, "utf-8") });
+  }
 
   if (fontCss) baseStylesheets.push({ type: "content", value: fontCss });
 
@@ -367,28 +384,8 @@ export async function prepareConversion(
         footer: summarize(footer),
       };
     } else {
-      // Use paged.js for text-only headers/footers
-      // Collect all CSS for header/footer styling
-      const cssContents: string[] = [];
-
-      // The highlight.js sheet is not in the list yet; it is appended below.
-      for (const stylesheet of config.stylesheet) {
-        if (stylesheet.type === "content") {
-          cssContents.push(stylesheet.value);
-        } else if (stylesheet.type === "path") {
-          try {
-            cssContents.push(await fs.readFile(stylesheet.value, "utf-8"));
-          } catch {
-            // Reported by the validation pass below
-          }
-        }
-        // URLs are loaded by the page and cannot be read here
-      }
-
-      const allCss = cssContents.join("\n\n");
-
-      // Generate CSS @page rules for paged.js
-      const pagedCss = await generatePagedCss(headerFooterConfig, allCss, baseDir);
+      // Text-only headers/footers: CSS @page margin boxes
+      const pagedCss = await generatePagedCss(headerFooterConfig, baseDir);
 
       // Add paged CSS to stylesheets (uses native Chrome @page margin boxes)
       config.stylesheet = [...config.stylesheet, { type: "content", value: pagedCss }];
@@ -487,7 +484,10 @@ export async function prepareConversion(
   );
 
   if (!hasHighlight) {
-    config.stylesheet = [...config.stylesheet, { type: "path", value: highlightStylesheet }];
+    config.stylesheet = [
+      ...config.stylesheet,
+      { type: "content", value: await fs.readFile(highlightStylesheet, "utf-8") },
+    ];
   }
 
   // Validate stylesheets exist and have valid syntax

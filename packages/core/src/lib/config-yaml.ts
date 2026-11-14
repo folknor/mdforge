@@ -23,8 +23,8 @@
  *   start with `@` are not followed again. Enums and path-valued fields take
  *   the string literally.
  * - Stylesheets are tagged path, URL or CSS here (see stylesheetEntry);
- *   relative paths resolve against the source's directory, and `@file`
- *   contents are always CSS.
+ *   relative paths resolve against the source's directory, and an `@file`
+ *   stylesheet is always a CSS file, tagged as its path.
  * - `launch_options` is only read from the config file: one browser is shared
  *   by every document of a run, so a per-document setting could not apply.
  * - Neither source can say where the output goes or whether it is PDF or HTML
@@ -289,13 +289,14 @@ const literal: Decoder<string> = async (ctx, path, value) =>
 /** Text read from the referenced file when it is an `@file` reference. */
 interface Text {
   value: string;
-  fromFile: boolean;
+  /** The absolute path the text was read from, for an `@file` reference. */
+  file?: string;
 }
 
 async function readText(ctx: Context, path: string, value: YamlValue): Promise<Text | undefined> {
   if (!isString(value)) return expected(ctx, path, "a string", value);
 
-  if (!value.startsWith("@")) return { value, fromFile: false };
+  if (!value.startsWith("@")) return { value };
 
   const file = resolve(ctx.baseDir, value.slice(1));
 
@@ -306,7 +307,7 @@ async function readText(ctx: Context, path: string, value: YamlValue): Promise<T
   try {
     const content = await fs.readFile(file, "utf-8");
 
-    return { value: content, fromFile: true };
+    return { value: content, file };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
 
@@ -480,10 +481,13 @@ const theme: Decoder<Theme | false> = async (ctx, path, value) =>
   value === false ? false : oneOf(themes)(ctx, path, value);
 
 /**
- * The one place a stylesheet's kind is read from its text. `@file` contents
- * are CSS whatever they look like (a lone `@import url(...)` line included);
- * otherwise an http(s) URL, text with `{` or a newline is inline CSS, and
- * anything else is a path relative to the source's directory.
+ * The one place a stylesheet's kind is read from its text. An `@file`
+ * reference is a CSS file whatever it contains (a lone `@import url(...)` line
+ * included), kept as a path so the page loads it by its own URL and its
+ * relative `url()` and `@import` resolve against its directory; it is read
+ * here only so an unreadable file is reported against its key. Otherwise an
+ * http(s) URL, text with `{` or a newline is inline CSS, and anything else is
+ * a path relative to the source's directory.
  */
 const stylesheetEntry: Decoder<StylesheetEntry> = async (ctx, path, value) => {
   const entry = await readText(ctx, path, value);
@@ -492,7 +496,7 @@ const stylesheetEntry: Decoder<StylesheetEntry> = async (ctx, path, value) => {
 
   const { value: sheet } = entry;
 
-  if (entry.fromFile) return { type: "content", value: sheet };
+  if (entry.file !== undefined) return { type: "path", value: entry.file };
 
   if (/^https?:\/\//i.test(sheet)) return { type: "url", value: sheet };
 

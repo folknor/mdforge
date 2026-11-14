@@ -80,9 +80,7 @@ footer:
 
 ## Styling with CSS
 
-```css
-.header-left { color: red; }
-.footer-center { font-style: italic; }
-```
-
-Available selectors: `.header-left`, `.header-center`, `.header-right`, `.footer-left`, `.footer-center`, `.footer-right`
+Text-only headers and footers are drawn in the page's margin boxes, which
+stylesheet selectors cannot reach: rules such as `.header-left { color: red; }`
+currently have no effect on them. Use markdown (`**bold**`, `*italic*`) for
+emphasis.
