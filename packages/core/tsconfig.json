@@ -6,7 +6,12 @@
     "rootDir": "src",
     // Tests run the sources directly under Node's type stripping (no build
     // step), so sources import siblings by their .ts names and use only
-    // erasable syntax; emit rewrites the specifiers to .js.
+    // erasable syntax. JavaScript emit rewrites the specifiers to .js;
+    // declarations keep the .ts specifiers, which TypeScript (5.0 onward,
+    // node16/nodenext/bundler/node10, skipLibCheck off) resolves to the
+    // emitted .d.ts files, as a packed-tarball consumer check confirmed.
+    // Declaration files may import .ts names without
+    // allowImportingTsExtensions, so this needs no post-build rewrite.
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
