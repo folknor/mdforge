@@ -7,12 +7,14 @@
 import process from "node:process";
 import type { Config, ConversionInfo } from "@mdforge/core";
 import { GenerationError } from "@mdforge/core/errors";
+import { renderResolvingPageRefs } from "@mdforge/core/page-refs";
 import {
   type ConvertOptions,
   type MarkdownInput,
   prepareConversion,
   writeOutput,
 } from "@mdforge/core/prepare";
+import { readOutline } from "@mdforge/pdf";
 import { render } from "./render.js";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
@@ -57,7 +59,7 @@ export async function convertMdToPdf(
   let output: Awaited<ReturnType<typeof render>>;
 
   try {
-    output = await render(prepared);
+    output = await renderResolvingPageRefs(prepared, render, readOutline);
     log("Render succeeded");
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

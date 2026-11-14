@@ -237,21 +237,31 @@ export interface PageRefResolution {
   html: string;
   /** False once the page numbers have settled. */
   changed: boolean;
+  /** Slugs of references no outline entry answered for, each listed once. */
+  unresolved: string[];
 }
 
 /**
  * Fill resolved page numbers into the placeholders left by `@pageof(...)`.
  *
- * `headingPages` maps heading text to its 1-based page, as read from the PDF
- * outline. Headings are matched by slug, the same way `@see` links are, so a
- * reference works with the heading's visible text.
+ * `headingPages` lists the PDF outline's entries (heading text and 1-based
+ * page) in document order. Headings are matched by slug, the same way `@see`
+ * links are, so a reference works with the heading's visible text.
  *
- * Returns the updated HTML and whether anything actually changed. An unchanged
- * result means the numbers have settled and no further pass is needed.
+ * Matching is by title alone, so headings whose titles collide are not told
+ * apart: a reference to the second of two "Notes" headings (id `notes-1`)
+ * finds no entry, or the page of a heading literally titled "Notes-1".
+ *
+ * A reference with no matching entry is reset to the `??` placeholder, so a
+ * number from an earlier pass never survives once its heading is gone.
+ *
+ * Returns the updated HTML, whether anything actually changed, and the
+ * references left unresolved. An unchanged result means the numbers have
+ * settled and no further pass is needed.
  */
 export function resolvePageRefs(
   html: string,
-  headingPages: Map<string, number>,
+  headingPages: readonly { title: string; page: number }[],
 ): PageRefResolution {
   const pageBySlug = new Map<string, number>();
   // Fallbacks for outline titles carrying an automatic heading number: the
@@ -268,7 +278,7 @@ export function resolvePageRefs(
     }
   };
 
-  for (const [title, page] of headingPages) {
+  for (const { title, page } of headingPages) {
     const slug = generateSlug(title);
 
     // A repeated heading resolves to its first occurrence.
@@ -300,6 +310,7 @@ export function resolvePageRefs(
   }
 
   let changed = false;
+  const unresolved = new Set<string>();
 
   const updated = html.replace(
     PAGEREF_SPAN_REGEX,
@@ -307,10 +318,10 @@ export function resolvePageRefs(
       const page = pageBySlug.get(slug) ?? fallbackBySlug.get(slug);
 
       if (page === undefined) {
-        return match;
+        unresolved.add(slug);
       }
 
-      const text = String(page);
+      const text = page === undefined ? PAGEREF_PLACEHOLDER : String(page);
 
       if (text === body) {
         return match;
@@ -322,5 +333,5 @@ export function resolvePageRefs(
     },
   );
 
-  return { html: updated, changed };
+  return { html: updated, changed, unresolved: [...unresolved] };
 }

@@ -3,9 +3,14 @@ import { describe, it } from "node:test";
 import type { HeadingNumbersConfig } from "../src/lib/heading-numbers.ts";
 import { pageRefSpan, resolveNumberRefs, resolvePageRefs } from "../src/lib/xref.ts";
 
+/** Outline entries in document (insertion) order. */
+function outline(headings: Record<string, number>) {
+  return Object.entries(headings).map(([title, page]) => ({ title, page }));
+}
+
 /** Resolve a single page reference and return the text it ended up showing. */
 function resolve(slug: string, headings: Record<string, number>) {
-  const { html, changed } = resolvePageRefs(pageRefSpan(slug), new Map(Object.entries(headings)));
+  const { html, changed } = resolvePageRefs(pageRefSpan(slug), outline(headings));
 
   const text = /<span[^>]*>([^<]*)<\/span>/.exec(html)?.[1];
   assert.ok(text !== undefined, `no page-reference span left in: ${html}`);
@@ -31,7 +36,7 @@ describe("resolvePageRefs", () => {
   it("reports no change when the number is already correct", () => {
     const { html, changed } = resolvePageRefs(
       pageRefSpan("avvik").replace(">??<", ">5<"),
-      new Map([["Avvik", 5]]),
+      outline({ Avvik: 5 }),
     );
 
     assert.equal(changed, false);
@@ -41,14 +46,38 @@ describe("resolvePageRefs", () => {
   it("resolves every reference in the document", () => {
     const { html } = resolvePageRefs(
       `<p>See ${pageRefSpan("alpha")} and ${pageRefSpan("beta")}.</p>`,
-      new Map([
-        ["Alpha", 2],
-        ["Beta", 7],
-      ]),
+      outline({ Alpha: 2, Beta: 7 }),
     );
 
     assert.ok(html.includes(">2</span> and "));
     assert.ok(html.includes(">7</span>."));
+  });
+
+  it("resolves a title repeated in the outline to its first page", () => {
+    const { html } = resolvePageRefs(pageRefSpan("notes"), [
+      { title: "Notes", page: 2 },
+      { title: "Notes", page: 7 },
+    ]);
+
+    assert.ok(html.includes(">2<"));
+  });
+
+  it("resets a stale number to the placeholder once its heading is gone", () => {
+    const result = resolvePageRefs(pageRefSpan("gone").replace(">??<", ">4<"), outline({}));
+
+    assert.deepEqual(result.unresolved, ["gone"]);
+    assert.equal(result.changed, true);
+    assert.ok(result.html.includes(">??<"));
+  });
+
+  it("lists each unresolved reference once", () => {
+    const result = resolvePageRefs(
+      `${pageRefSpan("x")} ${pageRefSpan("x")} ${pageRefSpan("alpha")}`,
+      outline({ Alpha: 1 }),
+    );
+
+    assert.deepEqual(result.unresolved, ["x"]);
+    assert.equal(result.changed, true);
   });
 
   it("prefers a direct slug match over a numbered fallback", () => {

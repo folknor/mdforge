@@ -1,4 +1,4 @@
-// Renders an example document to PDF through @mdforge/renderer-electron, to
+// Renders an example document (or the one named by --in=) to PDF through @mdforge/renderer-electron, to
 // verify the Electron rendering path across Electron upgrades. The desktop app
 // is otherwise hard to exercise non-interactively.
 //
@@ -16,11 +16,17 @@ const { join, resolve } = require("node:path");
 const { app } = require("electron");
 
 const repoRoot = resolve(__dirname, "..");
-const input = join(repoRoot, "examples", "06-code-highlighting", "document.md");
 
 // Electron leaves both its own switches and the entry script path in argv, so
-// take the destination from an explicit --out= switch. Matching positionally
-// risks resolving to this script's own path and overwriting it.
+// take the input and destination from explicit --in= and --out= switches.
+// Matching positionally risks resolving to this script's own path and
+// overwriting it.
+const inArg = process.argv.find((a) => a.startsWith("--in="));
+
+const input = inArg
+  ? resolve(inArg.slice("--in=".length))
+  : join(repoRoot, "examples", "06-code-highlighting", "document.md");
+
 const outArg = process.argv.find((a) => a.startsWith("--out="));
 
 const output = outArg

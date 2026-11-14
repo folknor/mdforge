@@ -118,8 +118,14 @@ table of contents or a printed reference that has to name a page:
 
 The number is only known once the document has been laid out, so mdforge
 renders the PDF, reads the heading positions back from it, and renders again
-with the real numbers filled in. A reference that names a heading which does
-not exist is left as `??` rather than failing the build.
+with the real numbers filled in, repeating until the numbers stop changing (at
+most three renders; if they are still changing, the last render is kept with a
+warning that some numbers may be wrong). A reference that names a heading which
+does not exist is left as `??` with a warning, rather than failing the build.
+
+Headings are found by their title, so when two headings share a title, a
+reference resolves to the first of them, and the TOC page number of the second
+may be missing or wrong.
 
 This works for PDF output only. In HTML there are no pages, so the placeholder
 is left as-is. Because the extra pass costs another render, it only happens for

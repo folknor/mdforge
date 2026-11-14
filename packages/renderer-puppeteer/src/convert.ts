@@ -13,19 +13,10 @@ import {
   prepareConversion,
   writeOutput,
 } from "@mdforge/core/prepare";
-import { hasPageRefs, resolvePageRefs } from "@mdforge/core/xref";
+import { renderResolvingPageRefs } from "@mdforge/core/page-refs";
 import { readOutline } from "@mdforge/pdf";
 import type { Browser } from "puppeteer";
 import { render } from "./render.js";
-
-/**
- * How many times to re-render while page references settle.
- *
- * Filling in a number can change line breaking and therefore pagination, which
- * can change the number. In practice one extra pass is enough; the cap stops a
- * pathological document from looping.
- */
-const MAX_PAGEREF_PASSES = 3;
 
 /** Output from convertMdToPdf */
 export interface ConvertResult {
@@ -58,32 +49,7 @@ export async function convertMdToPdf(
   let output: Awaited<ReturnType<typeof render>>;
 
   try {
-    output = await render(prepared, browser);
-
-    // Page references need a laid-out PDF before they can be resolved, so
-    // read the outline back and render again with the real numbers in place.
-    if (prepared.format === "pdf" && hasPageRefs(prepared.html)) {
-      for (let pass = 1; pass < MAX_PAGEREF_PASSES; pass++) {
-        // Buffer extends Uint8Array, so this only rejects HTML output, which
-        // the format check above already rules out.
-        if (!(output.content instanceof Uint8Array)) {
-          throw new Error("Expected PDF output while resolving page references");
-        }
-
-        const outline = await readOutline(output.content);
-
-        const headingPages = new Map(outline.map((entry) => [entry.title, entry.page] as const));
-
-        const resolved = resolvePageRefs(prepared.html, headingPages);
-
-        if (!resolved.changed) {
-          break;
-        }
-
-        prepared.html = resolved.html;
-        output = await render(prepared, browser);
-      }
-    }
+    output = await renderResolvingPageRefs(prepared, (pass) => render(pass, browser), readOutline);
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     const outputType = prepared.format.toUpperCase();
