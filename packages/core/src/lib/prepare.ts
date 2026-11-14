@@ -126,6 +126,7 @@ export async function prepareConversion(
   // resolve @filename references in front-matter relative to markdown file
   const baseDir =
     "path" in input ? dirname(resolve(input.path)) : process.cwd();
+
   const frontMatterConfig = await resolveFileRefs(
     rawFrontMatter as Partial<Config>,
     baseDir,
@@ -144,6 +145,7 @@ export async function prepareConversion(
 
   // Validate merged config
   const validationErrors = validateConfig(frontMatterConfig);
+
   if (validationErrors.length > 0) {
     info.warnings.push(formatValidationErrors(validationErrors));
   }
@@ -153,7 +155,6 @@ export async function prepareConversion(
   // sanitize frontmatter array options
   for (const option of arrayOptions) {
     if (!Array.isArray(config[option])) {
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic config array sanitization
       config[option] = [config[option]].filter(Boolean) as any;
     }
   }
@@ -197,6 +198,7 @@ export async function prepareConversion(
       (s): s is string =>
         typeof s === "string" && !s.includes("\n") && !s.startsWith("http"),
     );
+
     if (files.length > 0) {
       info.stylesheet = {
         type: "specified",
@@ -209,13 +211,16 @@ export async function prepareConversion(
 
   // resolve theme to stylesheet path
   let themeStylesheet: string | undefined;
+
   if (config.theme !== false && config.theme !== undefined) {
     const themeName = config.theme;
+
     if (!themes.includes(themeName)) {
       throw new ConfigError(
         `Unknown theme "${themeName}". Available themes: ${themes.join(", ")}`,
       );
     }
+
     themeStylesheet = resolve(themesDir, `${themeName}.css`);
     info.theme = themeName;
   } else if (config.theme === false) {
@@ -232,6 +237,7 @@ export async function prepareConversion(
   if (fontResult?.info) {
     info.fonts = fontResult.info;
   }
+
   if (fontResult?.warnings) {
     info.warnings.push(...fontResult.warnings);
   }
@@ -242,7 +248,9 @@ export async function prepareConversion(
   // Build stylesheet list: theme, fonts, font_scale, built-in features, user stylesheets
   // Order matters: theme first, fonts override theme, user overrides all
   const baseStylesheets: string[] = [];
+
   if (themeStylesheet) baseStylesheets.push(themeStylesheet);
+
   if (fontCss) baseStylesheets.push(fontCss);
 
   // Add built-in extension CSS (always available)
@@ -261,11 +269,13 @@ export async function prepareConversion(
   // add print-urls body class and CSS if enabled
   if (config.print_urls) {
     config.body_class = [...config.body_class, "print-urls"];
+
     const printUrlsCss = `.print-urls a[href^="http"]:after {
 	content: " (" attr(href) ")";
 	font-size: 85%;
 	color: var(--color-text-muted, #666);
 }`;
+
     config.stylesheet = [...config.stylesheet, printUrlsCss];
   }
 
@@ -281,8 +291,10 @@ export async function prepareConversion(
     // Helper to summarize header/footer config
     const summarize = (cfg: typeof config.header): string | undefined => {
       if (!cfg) return;
+
       if (typeof cfg === "string") return cfg;
       const parts = [cfg.left, cfg.center, cfg.right].filter(Boolean);
+
       return parts.join(" | ") || undefined;
     };
 
@@ -296,6 +308,7 @@ export async function prepareConversion(
           baseDir,
         );
       }
+
       if (config.footer) {
         config.pdf_options.footerTemplate = await buildPuppeteerTemplate(
           config.footer,
@@ -303,6 +316,7 @@ export async function prepareConversion(
           baseDir,
         );
       }
+
       config.pdf_options.displayHeaderFooter = true;
       info.headerFooter = {
         type: "puppeteer",
@@ -313,6 +327,7 @@ export async function prepareConversion(
       // Use paged.js for text-only headers/footers
       // Collect all CSS for header/footer styling
       const cssContents: string[] = [];
+
       for (const stylesheet of config.stylesheet) {
         // Skip highlight.js stylesheets
         if (stylesheet.includes("highlight.js")) continue;
@@ -330,6 +345,7 @@ export async function prepareConversion(
           }
         }
       }
+
       const allCss = cssContents.join("\n\n");
 
       // Generate CSS @page rules for paged.js
@@ -367,12 +383,14 @@ export async function prepareConversion(
   // Auto-enable displayHeaderFooter if raw templates are set via pdf_options
   const { headerTemplate, footerTemplate, displayHeaderFooter } =
     config.pdf_options;
+
   if ((headerTemplate || footerTemplate) && displayHeaderFooter === undefined) {
     config.pdf_options.displayHeaderFooter = true;
   }
 
   // Process @include directives (file paths or template names)
   let processedMd = md;
+
   try {
     processedMd = await processIncludes(md, baseDir, config.templates);
   } catch (error) {
@@ -386,7 +404,9 @@ export async function prepareConversion(
     locale: config.constants_locale,
     precision: config.constants_precision,
   });
+
   processedMd = constants.content;
+
   for (const warning of constants.warnings) {
     info.warnings.push(`Constant: ${warning}`);
   }
@@ -443,6 +463,7 @@ export async function prepareConversion(
 
   // Validate stylesheets exist and have valid syntax
   const validatedStylesheets: StylesheetEntry[] = [];
+
   for (const stylesheet of config.stylesheet) {
     // Skip URLs
     if (stylesheet.startsWith("http")) {
@@ -456,9 +477,11 @@ export async function prepareConversion(
     if (isInlineCss) {
       // Validate inline CSS syntax
       const result = validateCss(stylesheet);
+
       if (!result.valid) {
         info.warnings.push(...formatCssErrors(result.errors, "inline CSS"));
       }
+
       validatedStylesheets.push({ type: "content", value: stylesheet });
     } else {
       // It's a file path - check if file exists
@@ -467,14 +490,17 @@ export async function prepareConversion(
         // Read and validate CSS syntax
         const css = await fs.readFile(stylesheet, "utf-8");
         const result = validateCss(css, basename(stylesheet));
+
         if (!result.valid) {
           info.warnings.push(
             ...formatCssErrors(result.errors, basename(stylesheet)),
           );
         }
+
         validatedStylesheets.push({ type: "path", value: stylesheet });
       } catch (error) {
         const err = error as NodeJS.ErrnoException;
+
         if (err.code === "ENOENT") {
           info.warnings.push(`Stylesheet not found: ${stylesheet}`);
         } else {
@@ -502,6 +528,7 @@ export async function prepareConversion(
     "path" in input
       ? dirname(resolve(config.basedir, relative(config.basedir, input.path)))
       : resolve(config.basedir);
+
   const baseUrl = `file://${baseDirForUrl}/`;
 
   return {

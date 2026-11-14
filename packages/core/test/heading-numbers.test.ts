@@ -13,6 +13,7 @@ function numbersFor(
   config: HeadingNumbersConfig = {},
 ): (string | undefined)[] {
   const numberer = new HeadingNumberer(config);
+
   return depths.map((depth) => numberer.next(depth));
 }
 
@@ -29,10 +30,12 @@ function renderedHeadingTexts(
   const texts: string[] = [];
   const regex = /<h[1-6][^>]*>(.*?)<\/h[1-6]>/g;
   let match = regex.exec(html);
+
   while (match !== null) {
     texts.push(match[1] as string);
     match = regex.exec(html);
   }
+
   return texts;
 }
 
@@ -142,9 +145,11 @@ describe("headingNumbers() extension", () => {
 
   it("de-duplicates ids for repeated heading text", () => {
     const marked = new Marked(headingNumbers());
+
     const html = marked.parse("## Notes\n\n## Notes\n", {
       async: false,
     }) as string;
+
     assert.match(html, /<h2 id="notes">1\. Notes<\/h2>/);
     assert.match(html, /<h2 id="notes-1">2\. Notes<\/h2>/);
   });
@@ -159,7 +164,9 @@ describe("headingNumbers() extension", () => {
       "#### Deep",
       "### Epsilon",
     ].join("\n\n");
+
     const depths = [1, 2, 3, 3, 2, 4, 3];
+
     const titles = [
       "Title",
       "Alpha",
@@ -177,9 +184,11 @@ describe("headingNumbers() extension", () => {
       { format: "roman-upper" as const, separator: "-" },
     ] satisfies HeadingNumbersConfig[]) {
       const numberer = new HeadingNumberer(config);
+
       const expected = depths.map((depth, i) =>
         numberer.apply(depth, titles[i] as string),
       );
+
       assert.deepEqual(
         renderedHeadingTexts(markdown, config),
         expected,

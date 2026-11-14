@@ -10,9 +10,6 @@
     }
   ],
   "description": "Convert Markdown to beautifully styled PDFs.",
-  "devDependencies": {
-    "@biomejs/biome": "^2.6.7"
-  },
   "engines": {
     "node": ">=25.0",
     "pnpm": ">=11.0"
@@ -24,13 +21,16 @@
   "repository": "folknor/mdforge",
   "scripts": {
     "build": "pnpm -r run build",
-    "check": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
     "clean": "pnpm -r run clean",
     "dev": "pnpm -r run dev",
+    "lint": "oxlint",
     "desktop": "pnpm --filter @mdforge/desktop run dev",
-    "lint": "pnpm exec biome check --write --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
     "regenerate-examples": "node scripts/regenerate-examples.js",
     "test": "pnpm -r run test"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@oxlint/plugins": "1.93.0",
+    "oxlint": "1.93.0"
+  }
 }

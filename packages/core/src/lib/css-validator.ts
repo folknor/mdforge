@@ -74,7 +74,9 @@ export function formatCssErrors(
       error.line !== undefined
         ? ` (line ${error.line}${error.column !== undefined ? `:${error.column}` : ""})`
         : "";
+
     const file = filename ? `${filename}${location}` : location.trim();
+
     return file ? `${file}: ${error.message}` : error.message;
   });
 }

@@ -65,15 +65,19 @@ export function formatConversionInfo(info: ConversionInfo): string {
 
   // Fonts
   const fontParts: string[] = [];
+
   for (const [role, font] of Object.entries(info.fonts)) {
     if (font) {
       const source = font.source.includes("system") ? "system" : "google";
+
       const fallbackNote = font.preferred
         ? ` ← ${font.preferred} not found`
         : "";
+
       fontParts.push(`${role}: ${font.name} (${source})${fallbackNote}`);
     }
   }
+
   if (fontParts.length > 0) {
     lines.push(`  fonts: ${fontParts.join(", ")}`);
   } else if (info.theme === false) {
@@ -91,6 +95,7 @@ export function formatConversionInfo(info: ConversionInfo): string {
     const shown = info.stylesheet.paths?.length
       ? info.stylesheet.paths.join(", ")
       : info.stylesheet.path;
+
     if (info.stylesheet.type === "auto" && shown) {
       lines.push(`  stylesheet: ${shown} (auto-detected)`);
     } else if (info.stylesheet.type === "specified" && shown) {
@@ -101,10 +106,13 @@ export function formatConversionInfo(info: ConversionInfo): string {
   // Header/Footer
   if (info.headerFooter && info.headerFooter.type !== "none") {
     const parts: string[] = [];
+
     if (info.headerFooter.header)
       parts.push(`header: "${info.headerFooter.header}"`);
+
     if (info.headerFooter.footer)
       parts.push(`footer: "${info.headerFooter.footer}"`);
+
     if (parts.length > 0) {
       lines.push(`  ${parts.join(", ")} (${info.headerFooter.type})`);
     }

@@ -52,6 +52,7 @@ const PAGEREF_SPAN_REGEX = new RegExp(
  */
 function generateSlug(sectionName: string): string {
   const slugger = new GithubSlugger();
+
   return slugger.slug(cleanForSlug(sectionName.trim()));
 }
 
@@ -82,6 +83,7 @@ function stripHeadingNumber(title: string): string | undefined {
     /^(?:[0-9]+(?:[.)][0-9]+)*|[ivxlcdm]+|[a-z])[.)]\s+/i,
     "",
   );
+
   return stripped === title || stripped.length === 0 ? undefined : stripped;
 }
 
@@ -95,6 +97,7 @@ function stripHeadingNumber(title: string): string | undefined {
  */
 function numberedHalf(title: string): string | undefined {
   const half = undoubleTitle(title);
+
   // Chrome repeats the *rendered* title, heading number included, so a half
   // without a leading label is a real heading rather than a doubled one.
   return half !== undefined && stripHeadingNumber(half) !== undefined
@@ -107,8 +110,10 @@ function undoubleTitle(title: string): string | undefined {
   if (title.length < 2 || title.length % 2 !== 0) {
     return undefined;
   }
+
   const half = title.length / 2;
   const first = title.slice(0, half);
+
   return first === title.slice(half) ? first : undefined;
 }
 
@@ -122,6 +127,7 @@ export function processXref(content: string): string {
   let result = content.replace(ANCHOR_REGEX, (_match, anchorName: string) => {
     const trimmed = anchorName.trim();
     const slug = generateSlug(trimmed);
+
     return `<a id="${slug}"></a>`;
   });
 
@@ -129,6 +135,7 @@ export function processXref(content: string): string {
   result = result.replace(XREF_REGEX, (_match, sectionName: string) => {
     const trimmed = sectionName.trim();
     const slug = generateSlug(trimmed);
+
     return `[${trimmed}](#${slug})`;
   });
 
@@ -167,13 +174,16 @@ function headingNumbersBySlug(
     if (token.type !== "heading") {
       continue;
     }
+
     // Slugged from the un-numbered text, exactly as the renderer builds the
     // heading id, so a reference works with the heading's visible text.
     const slug = slugger.slug(cleanForSlug(token.text));
     const prefix = numberer.next(token.depth);
+
     if (prefix === undefined || numbers.has(slug)) {
       continue;
     }
+
     // Prose writes «se punkt 7.1», so the trailing separator has to go.
     numbers.set(slug, trimTrailingSeparator(prefix, config.separator ?? "."));
   }
@@ -216,11 +226,14 @@ export function resolveNumberRefs(
   if (!(config && NUMBEROF_REGEX.test(md))) {
     // Also resets `lastIndex`, which the `test` above advanced on a match.
     NUMBEROF_REGEX.lastIndex = 0;
+
     return md;
   }
+
   NUMBEROF_REGEX.lastIndex = 0;
 
   const numbers = headingNumbersBySlug(md, config);
+
   return md.replace(
     NUMBEROF_REGEX,
     (match, sectionName: string) =>
@@ -253,31 +266,40 @@ export function resolvePageRefs(
   // outline must also answer for the slug "avvik". Only used when no heading
   // claims that slug directly.
   const fallbackBySlug = new Map<string, number>();
+
   const addFallback = (title: string, page: number): void => {
     const slug = generateSlug(title);
+
     if (!fallbackBySlug.has(slug)) {
       fallbackBySlug.set(slug, page);
     }
   };
+
   for (const [title, page] of headingPages) {
     const slug = generateSlug(title);
+
     // A repeated heading resolves to its first occurrence.
     if (!pageBySlug.has(slug)) {
       pageBySlug.set(slug, page);
     }
+
     // Both manglings can apply at once: Chrome doubles a numbered heading as
     // "3.1. Late3.1. Late", which has to be undoubled before the number strips.
     // Only a numbered half counts as doubling — otherwise a heading genuinely
     // named "blahblah" would claim the slug "blah" and answer for it wrongly.
     const undoubled = numberedHalf(title);
+
     if (undoubled !== undefined) {
       addFallback(undoubled, page);
     }
+
     for (const variant of [title, undoubled]) {
       if (variant === undefined) {
         continue;
       }
+
       const unnumbered = stripHeadingNumber(variant);
+
       if (unnumbered !== undefined) {
         addFallback(unnumbered, page);
       }
@@ -285,18 +307,24 @@ export function resolvePageRefs(
   }
 
   let changed = false;
+
   const updated = html.replace(
     PAGEREF_SPAN_REGEX,
     (match, open: string, slug: string, body: string) => {
       const page = pageBySlug.get(slug) ?? fallbackBySlug.get(slug);
+
       if (page === undefined) {
         return match;
       }
+
       const text = String(page);
+
       if (text === body) {
         return match;
       }
+
       changed = true;
+
       return `${open}${text}</span>`;
     },
   );

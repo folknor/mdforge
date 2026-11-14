@@ -15,8 +15,10 @@ function resolve(
     pageRefSpan(slug),
     new Map(Object.entries(headings)),
   );
+
   const match = /<span[^>]*>([^<]*)<\/span>/.exec(html);
   assert.ok(match, `no page-reference span left in: ${html}`);
+
   return { text: match[1] as string, changed };
 }
 
@@ -40,6 +42,7 @@ describe("resolvePageRefs", () => {
       pageRefSpan("avvik").replace(">??<", ">5<"),
       new Map([["Avvik", 5]]),
     );
+
     assert.equal(changed, false);
     assert.ok(html.includes(">5<"));
   });
@@ -52,6 +55,7 @@ describe("resolvePageRefs", () => {
         ["Beta", 7],
       ]),
     );
+
     assert.ok(html.includes(">2</span> and "));
     assert.ok(html.includes(">7</span>."));
   });
@@ -200,6 +204,7 @@ describe("resolveNumberRefs", () => {
       `${DOC}\njf. @numberof(Ansettelse) og @numberof(Overtid).`,
       {},
     );
+
     assert.equal(html.endsWith("jf. 1 og 2.1."), true);
   });
 

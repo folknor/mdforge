@@ -157,6 +157,7 @@ async function resolveFonts(config: FontPairingConfig): Promise<ResolvedFonts> {
     if (!result.fontsToDownload.includes(fontToUse)) {
       result.fontsToDownload.push(fontToUse);
     }
+
     return {
       name: fontToUse,
       info: {
@@ -171,6 +172,7 @@ async function resolveFonts(config: FontPairingConfig): Promise<ResolvedFonts> {
     config.heading,
     config.headingFallback,
   );
+
   const bodyResult = await resolveFont(config.body, config.bodyFallback);
   const monoResult = await resolveFont(config.mono, config.monoFallback);
 
@@ -178,10 +180,12 @@ async function resolveFonts(config: FontPairingConfig): Promise<ResolvedFonts> {
     result.heading = headingResult.name;
     result.info.heading = headingResult.info;
   }
+
   if (bodyResult) {
     result.body = bodyResult.name;
     result.info.body = bodyResult.info;
   }
+
   if (monoResult) {
     result.mono = monoResult.name;
     result.info.mono = monoResult.info;
@@ -201,17 +205,21 @@ function generateFontCss(fonts: ResolvedFonts): string {
 
   if (fonts.heading || fonts.body || fonts.mono) {
     lines.push(":root {");
+
     if (fonts.heading) {
       lines.push(
         `  --font-heading: "${fonts.heading}", system-ui, sans-serif;`,
       );
     }
+
     if (fonts.body) {
       lines.push(`  --font-body: "${fonts.body}", system-ui, sans-serif;`);
     }
+
     if (fonts.mono) {
       lines.push(`  --font-mono: "${fonts.mono}", ui-monospace, monospace;`);
     }
+
     lines.push("}");
     lines.push("");
   }
@@ -271,10 +279,12 @@ function extractEmbeddedFonts(css: string): EmbeddedFontData[] {
 
   for (const match of css.matchAll(fontFaceRegex)) {
     const block = match[1];
+
     if (!block) continue;
 
     // Extract font-family
     const familyMatch = block.match(/font-family:\s*['"]([^'"]+)['"]/);
+
     if (!familyMatch?.[1]) continue;
     const family = familyMatch[1];
 
@@ -288,12 +298,14 @@ function extractEmbeddedFonts(css: string): EmbeddedFontData[] {
 
     // Extract base64 woff2 data
     const dataMatch = block.match(/url\(data:font\/woff2;base64,([^)]+)\)/);
+
     if (!dataMatch?.[1]) continue;
 
     // Decode base64 to Uint8Array
     const base64 = dataMatch[1];
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
+
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
@@ -335,9 +347,11 @@ export async function generateFontStylesheet(
 
   // Get Google Fonts CSS for fonts that need downloading
   let googleFontsCss = "";
+
   if (resolved.fontsToDownload.length > 0) {
     const result = await getGoogleFontsCss(resolved.fontsToDownload);
     warnings.push(...result.warnings);
+
     if (result.css) {
       googleFontsCss = result.css;
     }
@@ -347,6 +361,7 @@ export async function generateFontStylesheet(
   const cssRules = generateFontCss(resolved);
 
   const parts = ["/* mdforge font loading */"];
+
   if (googleFontsCss) parts.push(googleFontsCss);
   parts.push("", cssRules);
 

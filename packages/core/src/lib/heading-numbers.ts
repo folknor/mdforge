@@ -137,6 +137,7 @@ export class HeadingNumberer {
       separator = ".",
       skip_first_h1 = true,
     } = config;
+
     this.format = format;
     this.startDepth = start_depth;
     this.maxDepth = max_depth;
@@ -166,6 +167,7 @@ export class HeadingNumberer {
         this.counters[0] = 1;
         this.phantomH1 = true;
       }
+
       return undefined;
     }
 
@@ -175,16 +177,19 @@ export class HeadingNumberer {
     }
 
     const counterIndex = depth - 1;
+
     // The stand-in was never a real number, so the first numbered h1 takes it
     // over rather than following it.
     if (depth === 1 && this.phantomH1) {
       this.counters[0] = 0;
       this.phantomH1 = false;
     }
+
     this.counters[counterIndex] = (this.counters[counterIndex] ?? 0) + 1;
 
     // Build the number prefix from start_depth to current depth
     const numberParts: string[] = [];
+
     for (let i = this.startDepth - 1; i < depth; i++) {
       numberParts.push(formatNumber(this.counters[i] ?? 0, this.format));
     }
@@ -198,6 +203,7 @@ export class HeadingNumberer {
    */
   public apply(depth: number, text: string): string {
     const prefix = this.next(depth);
+
     return prefix === undefined ? text : `${prefix} ${text}`;
   }
 }

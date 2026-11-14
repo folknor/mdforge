@@ -35,6 +35,7 @@ export interface FormFieldsOptions {
  */
 export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
   const { fillable = false } = options;
+
   // Track pending list consumers (select, checklist, radiolist)
   let pendingListConsumer: {
     type: FieldType;
@@ -52,6 +53,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
           const match = src.match(
             /^\[\?(?:select|checklist|radiolist)\?\s*([^\]]*)\]\(([^)]*)\)/m,
           );
+
           return match?.index;
         },
         tokenizer(src: string): Tokens.Generic | undefined {
@@ -59,12 +61,14 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
             /^\[(\?(?:select|checklist|radiolist)\?)\s*([^\]]*)\]\(([^)]*)\)\n?/.exec(
               src,
             );
+
           if (match) {
             const typeStr = match[1] ?? "";
             const label = match[2]?.trim() ?? "";
             const name = match[3]?.trim() ?? "";
 
             let type: FieldType = "select";
+
             if (typeStr.includes("checklist")) type = "checklist";
             else if (typeStr.includes("radiolist")) type = "radiolist";
 
@@ -82,6 +86,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
               label,
             };
           }
+
           return;
         },
         renderer(): string {
@@ -98,6 +103,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
           if (!pendingListConsumer) return;
           // Check if this starts with a list
           const match = src.match(/^(\s*[-*+]|\s*\d+\.)\s/m);
+
           return match?.index;
         },
         tokenizer(src: string): Tokens.Generic | undefined {
@@ -107,6 +113,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
           const listMatch = src.match(
             /^(([ \t]*[-*+][ \t]+.+(?:\n|$))+|([ \t]*\d+\.[ \t]+.+(?:\n|$))+)/,
           );
+
           if (!listMatch) return;
 
           const consumer = pendingListConsumer;
@@ -114,15 +121,18 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 
           // Parse list items manually
           const listRaw = listMatch[0];
+
           const itemMatches = listRaw.matchAll(
             /^[ \t]*[-*+\d.]+[ \t]+(.+?)(?:\n|$)/gm,
           );
+
           const parsedOptions: Array<{ text: string; value: string }> = [];
 
           for (const m of itemMatches) {
             const text = m[1]?.trim() ?? "";
             // Check for quoted value
             const valueMatch = text.match(/^(.+?)\s+"([^"]+)"$/);
+
             if (valueMatch?.[1] && valueMatch[2]) {
               parsedOptions.push({
                 text: valueMatch[1].trim(),
@@ -161,14 +171,17 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
               const optionsHtml = fieldOptions
                 .map((o) => `<option value="${o.value}">${o.text}</option>`)
                 .join("\n");
+
               const dataAttrs = `data-form-field data-field-name="${name}" data-field-type="select"`;
               const selectHtml = `<select name="${name}">\n${optionsHtml}\n</select>`;
               const wrappedSelect = wrapWithMarker(selectHtml, name, "select");
+
               return `<label class="form-field form-select" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
 ${wrappedSelect}
 </label>\n`;
             }
+
             // Default mode: render as radio buttons (static dropdowns are useless)
             const itemsHtml = fieldOptions
               .map(
@@ -178,6 +191,7 @@ ${wrappedSelect}
 </label>`,
               )
               .join("\n");
+
             return `<fieldset class="form-field form-radiolist form-select-as-radio">
 ${label ? `<legend class="form-label">${label}</legend>` : ""}
 <div class="form-options">
@@ -188,15 +202,19 @@ ${itemsHtml}
 
           if (fieldType === "checklist" || fieldType === "radiolist") {
             const inputType = fieldType === "checklist" ? "checkbox" : "radio";
+
             const itemsHtml = fieldOptions
               .map((o) => {
                 const optionDataAttrs = fillable
                   ? `data-form-field data-field-name="${name}" data-field-type="${inputType}" data-field-value="${o.value}"`
                   : "";
+
                 const inputHtml = `<input type="${inputType}" name="${name}" value="${o.value}">`;
+
                 const wrappedInput = fillable
                   ? wrapWithMarker(inputHtml, name, inputType, o.value)
                   : inputHtml;
+
                 return `<label class="form-option" ${optionDataAttrs}>
 ${wrappedInput}
 <span>${o.text}</span>
@@ -227,12 +245,15 @@ ${itemsHtml}
           // Text input: [Label ??](name) or [??](name)
           // Textarea: [Label ???](name) or [Label ???6](name) for 6 lines
           const match = /^\[([^\]]*?)(\?{2,3})(\d*)\]\(([^)]*)\)/.exec(src);
+
           if (match) {
             const label = match[1]?.trim() ?? "";
             const questionMarks = match[2] ?? "??";
+
             const lineCount = match[3]
               ? Number.parseInt(match[3], 10)
               : undefined;
+
             const name =
               match[4]?.trim() ?? label.toLowerCase().replace(/\s+/g, "_");
 
@@ -247,6 +268,7 @@ ${itemsHtml}
               lineCount,
             };
           }
+
           return;
         },
         renderer(token: Tokens.Generic): string {
@@ -267,9 +289,11 @@ ${itemsHtml}
             const lines = lineCount ?? 4;
             const heightStyle = `style="height: ${lines * 1.5}em"`;
             const textareaHtml = `<textarea name="${name}" ${heightStyle}></textarea>`;
+
             const wrappedTextarea = fillable
               ? wrapWithMarker(textareaHtml, name, "textarea")
               : textareaHtml;
+
             return `<label class="form-field form-textarea" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
 ${wrappedTextarea}
@@ -278,9 +302,11 @@ ${wrappedTextarea}
 
           // Text input
           const inputHtml = `<input type="text" name="${name}">`;
+
           const wrappedInput = fillable
             ? wrapWithMarker(inputHtml, name, "text")
             : inputHtml;
+
           return `<label class="form-field form-text" ${dataAttrs}>
 ${label ? `<span class="form-label">${label}</span>` : ""}
 ${wrappedInput}
@@ -309,8 +335,10 @@ function wrapWithMarker(
   value?: string,
 ): string {
   const params = new URLSearchParams({ type });
+
   if (value) params.set("value", value);
   const markerUrl = `${MARKER_URL_PREFIX}${encodeURIComponent(name)}?${params}`;
+
   return `<span class="form-input-wrapper">
 <a href="${markerUrl}" class="form-marker"></a>
 ${inputHtml}

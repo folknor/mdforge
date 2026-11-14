@@ -58,6 +58,7 @@ export async function convertMdToPdf(
 
   // Render the document
   let output: Awaited<ReturnType<typeof render>>;
+
   try {
     output = await render(prepared, browser);
 
@@ -68,13 +69,17 @@ export async function convertMdToPdf(
         const outline = await readOutline(
           output.content as Buffer | Uint8Array,
         );
+
         const headingPages = new Map(
           outline.map((entry) => [entry.title, entry.page] as const),
         );
+
         const resolved = resolvePageRefs(prepared.html, headingPages);
+
         if (!resolved.changed) {
           break;
         }
+
         prepared.html = resolved.html;
         output = await render(prepared, browser);
       }
@@ -82,6 +87,7 @@ export async function convertMdToPdf(
   } catch (error) {
     const err = error as Error;
     const outputType = prepared.config.as_html ? "HTML" : "PDF";
+
     // Provide context about what failed
     if (err.message.includes("Browser") || err.message.includes("browser")) {
       throw new GenerationError(
@@ -89,12 +95,14 @@ export async function convertMdToPdf(
         err,
       );
     }
+
     if (err.message.includes("timeout") || err.message.includes("Timeout")) {
       throw new GenerationError(
         `Failed to create ${outputType}: Page load timed out. Check for slow-loading resources.`,
         err,
       );
     }
+
     throw new GenerationError(
       `Failed to create ${outputType}: ${err.message}`,
       err,

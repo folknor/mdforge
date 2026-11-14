@@ -72,11 +72,13 @@ class Evaluator {
   evaluate(): number {
     const value = this.parseExpression();
     this.skipWhitespace();
+
     if (this.pos < this.source.length) {
       throw new ExpressionError(
         `unexpected "${this.source.slice(this.pos).trim()}"`,
       );
     }
+
     return value;
   }
 
@@ -92,15 +94,19 @@ class Evaluator {
   /** Consume `op` if it is the next non-space character. */
   private eat(op: string): boolean {
     this.skipWhitespace();
+
     if (this.source[this.pos] === op) {
       this.pos++;
+
       return true;
     }
+
     return false;
   }
 
   private parseExpression(): number {
     let value = this.parseTerm();
+
     for (;;) {
       if (this.eat("+")) {
         value += this.parseTerm();
@@ -114,20 +120,25 @@ class Evaluator {
 
   private parseTerm(): number {
     let value = this.parseUnary();
+
     for (;;) {
       if (this.eat("*")) {
         value *= this.parseUnary();
       } else if (this.eat("/")) {
         const divisor = this.parseUnary();
+
         if (divisor === 0) {
           throw new ExpressionError("division by zero");
         }
+
         value /= divisor;
       } else if (this.eat("%")) {
         const divisor = this.parseUnary();
+
         if (divisor === 0) {
           throw new ExpressionError("division by zero");
         }
+
         value %= divisor;
       } else {
         return value;
@@ -137,7 +148,9 @@ class Evaluator {
 
   private parseUnary(): number {
     if (this.eat("-")) return -this.parseUnary();
+
     if (this.eat("+")) return this.parseUnary();
+
     return this.parsePrimary();
   }
 
@@ -146,23 +159,29 @@ class Evaluator {
 
     if (this.eat("(")) {
       const value = this.parseExpression();
+
       if (!this.eat(")")) {
         throw new ExpressionError("missing closing parenthesis");
       }
+
       return value;
     }
 
     NUMBER_REGEX.lastIndex = this.pos;
     const number = NUMBER_REGEX.exec(this.source);
+
     if (number) {
       this.pos = NUMBER_REGEX.lastIndex;
+
       return Number(number[0]);
     }
 
     IDENT_REGEX.lastIndex = this.pos;
     const ident = IDENT_REGEX.exec(this.source);
+
     if (ident) {
       this.pos = IDENT_REGEX.lastIndex;
+
       return this.lookup(ident[0]);
     }
 
@@ -176,12 +195,15 @@ class Evaluator {
     if (!(name in this.constants)) {
       throw new ExpressionError(`unknown constant "${name}"`);
     }
+
     const value = this.constants[name];
+
     if (typeof value !== "number") {
       throw new ExpressionError(
         `constant "${name}" is text and can't be used in arithmetic`,
       );
     }
+
     return value;
   }
 }
@@ -249,6 +271,7 @@ export function processConstants(
         // `\{{` is the escape hatch for a literal placeholder
         return passthrough === "\\{{" ? "{{" : passthrough;
       }
+
       if (expression === undefined) {
         return match;
       }
@@ -258,6 +281,7 @@ export function processConstants(
       // A bare name may resolve to text; anything else must be arithmetic
       if (BARE_IDENT_REGEX.test(trimmed)) {
         const value = constants[trimmed];
+
         if (typeof value === "string") {
           return value;
         }
@@ -271,11 +295,14 @@ export function processConstants(
       } catch (error) {
         const reason =
           error instanceof ExpressionError ? error.message : String(error);
+
         const warning = `{{ ${trimmed} }}: ${reason}`;
+
         if (!seen.has(warning)) {
           seen.add(warning);
           warnings.push(warning);
         }
+
         return match;
       }
     },

@@ -49,8 +49,9 @@ async function readFile(filePath: string): Promise<string> {
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") {
-      throw new Error(`Include file not found: ${filePath}`);
+      throw new Error(`Include file not found: ${filePath}`, { cause: error });
     }
+
     throw new Error(
       `Failed to read include file: ${filePath} - ${err.message}`,
     );
@@ -84,9 +85,11 @@ export async function processIncludes(
   // If the argument matches a template name, use the template path
   // Otherwise treat it as a file path
   const includeMatches = [...content.matchAll(INCLUDE_REGEX)];
+
   for (const match of includeMatches) {
     const fullMatch = match[0];
     const includeArg = match[1] || match[2] || match[3];
+
     if (!includeArg) continue;
 
     // Check if it's a template name first

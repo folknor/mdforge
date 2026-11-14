@@ -24,6 +24,7 @@ const MIME_TYPES: Record<string, string> = {
  */
 function formatDate(locale?: string): string {
   const date = new Date();
+
   try {
     return date.toLocaleDateString(locale, {
       year: "numeric",
@@ -46,10 +47,12 @@ async function imageToDataUri(
     const fullPath = resolve(baseDir, imagePath);
     const ext = extname(fullPath).toLowerCase();
     const mimeType = MIME_TYPES[ext];
+
     if (!mimeType) return null;
 
     const imageData = await fs.readFile(fullPath);
     const base64 = imageData.toString("base64");
+
     return `data:${mimeType};base64,${base64}`;
   } catch {
     return null;
@@ -66,14 +69,18 @@ function scaleSvg(svgContent: string, scalePercent: number): string {
 
   // Check if <svg has a width attribute already
   const svgTagMatch = svgContent.match(/<svg[^>]*>/);
+
   if (!svgTagMatch) return svgContent;
 
   const svgTag = svgTagMatch[0];
+
   if (svgTag.includes("width=")) {
     // Replace existing width on svg element only
     const newSvgTag = svgTag.replace(/width="[^"]*"/, `width="${scaledWidth}"`);
+
     return svgContent.replace(svgTag, newSvgTag);
   }
+
   // Add width to svg element
   return svgContent.replace("<svg", `<svg width="${scaledWidth}"`);
 }
@@ -117,6 +124,7 @@ async function processImages(text: string, baseDir: string): Promise<string> {
       const fullPath = resolve(baseDir, src);
       const ext = extname(fullPath).toLowerCase();
       const mimeType = MIME_TYPES[ext];
+
       if (!mimeType) continue;
 
       try {
@@ -164,10 +172,12 @@ function formatToCssCounterStyle(format?: PageNumberFormat): string {
  */
 function variablesToCss(text: string, pageFormat?: PageNumberFormat): string {
   const counterStyle = formatToCssCounterStyle(pageFormat);
+
   const pageCounter =
     counterStyle === "decimal"
       ? "counter(page)"
       : `counter(page, ${counterStyle})`;
+
   const pagesCounter =
     counterStyle === "decimal"
       ? "counter(pages)"
@@ -197,15 +207,19 @@ function processMarkdown(text: string): { text: string; styles: string[] } {
 
   // Check if entire content is bold: **text**
   const boldMatch = processed.match(/^\*\*([^*]+)\*\*$/);
+
   if (boldMatch?.[1]) {
     styles.push("font-weight: bold");
+
     return { text: boldMatch[1], styles };
   }
 
   // Check if entire content is italic: *text*
   const italicMatch = processed.match(/^\*([^*]+)\*$/);
+
   if (italicMatch?.[1]) {
     styles.push("font-style: italic");
+
     return { text: italicMatch[1], styles };
   }
 
@@ -270,9 +284,11 @@ function normalizeToColumns(
   value: HeaderFooterValue | undefined,
 ): HeaderFooterColumn {
   if (!value) return {};
+
   if (typeof value === "string") {
     return { center: value };
   }
+
   return value;
 }
 
@@ -294,6 +310,7 @@ export interface PagedCssConfig {
 export function hasBackground(config: PagedCssConfig): boolean {
   const header = normalizeToColumns(config.header);
   const footer = normalizeToColumns(config.footer);
+
   return header.background !== undefined || footer.background !== undefined;
 }
 
@@ -314,8 +331,10 @@ export async function buildPuppeteerTemplate(
 
   // Build background CSS if specified
   let backgroundCss = "";
+
   if (columns.background) {
     const dataUri = await imageToDataUri(columns.background, baseDir);
+
     if (dataUri) {
       // Header backgrounds anchor to bottom, footer to top
       const position = type === "header" ? "bottom" : "top";
@@ -404,6 +423,7 @@ function transformCssSelectors(css: string): string {
   };
 
   let transformed = css;
+
   for (const [selector, pagedSelector] of Object.entries(selectorMap)) {
     // Match: .header-left { ... }
     const regex = new RegExp(`\\${selector}\\s*\\{([^}]+)\\}`, "g");
@@ -412,6 +432,7 @@ function transformCssSelectors(css: string): string {
       (_, content) => `${pagedSelector} {${content}}`,
     );
   }
+
   return transformed;
 }
 
@@ -443,18 +464,23 @@ export async function generatePagedCss(
       baseDir,
       pageFormat,
     );
+
     const extraStyles = styles.length > 0 ? `${styles.join("; ")}; ` : "";
     marginRules.push(`@${position} { ${extraStyles}content: ${content}; }`);
   };
 
   // Header positions
   if (header.left) await addMarginRule("top-left", header.left);
+
   if (header.center) await addMarginRule("top-center", header.center);
+
   if (header.right) await addMarginRule("top-right", header.right);
 
   // Footer positions
   if (footer.left) await addMarginRule("bottom-left", footer.left);
+
   if (footer.center) await addMarginRule("bottom-center", footer.center);
+
   if (footer.right) await addMarginRule("bottom-right", footer.right);
 
   // Common margin box styling

@@ -1,6 +1,5 @@
 // PDF manipulation utilities for mdforge
 
-// biome-ignore lint/performance/noBarrelFile: Package entry point
 export {
   type AcroFormConfig,
   addAcroFormFields,

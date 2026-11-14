@@ -24,18 +24,23 @@ export async function injectPdfMetadata(
   if (metadata.title) {
     pdfDoc.setTitle(metadata.title);
   }
+
   if (metadata.author) {
     pdfDoc.setAuthor(metadata.author);
   }
+
   if (metadata.subject) {
     pdfDoc.setSubject(metadata.subject);
   }
+
   if (metadata.keywords && metadata.keywords.length > 0) {
     pdfDoc.setKeywords(metadata.keywords);
   }
+
   if (metadata.creator) {
     pdfDoc.setCreator(metadata.creator);
   }
+
   if (metadata.producer) {
     pdfDoc.setProducer(metadata.producer);
   }

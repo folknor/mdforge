@@ -13,9 +13,9 @@ import type {
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
+
 function log(...args: unknown[]): void {
   if (DEBUG) {
-    // biome-ignore lint/suspicious/noConsole: Debug logging
     console.log("[desktop:conversion]", ...args);
   }
 }
@@ -27,6 +27,7 @@ export async function convertFile(
 ): Promise<ConversionResult> {
   log("convertFile called:", filePath);
   const outputPath = config.outputPath ?? "";
+
   try {
     const mergedConfig: Partial<Config> = {
       ...defaultConfig,
@@ -49,10 +50,12 @@ export async function convertFile(
     onProgress?.(50);
 
     log("Calling convertMdToPdf...");
+
     const result = await convertMdToPdf(
       { path: filePath },
       mergedConfig as Config,
     );
+
     log("convertMdToPdf returned successfully");
 
     onProgress?.(100);
@@ -65,6 +68,7 @@ export async function convertFile(
   } catch (error) {
     const err = error as Error;
     log("Conversion error:", err.message, err.stack);
+
     return {
       success: false,
       inputPath: filePath,
@@ -90,6 +94,7 @@ export async function convertFiles(
       },
       (progress) => onProgress?.(file, progress),
     );
+
     results.push(result);
   }
 
@@ -99,6 +104,7 @@ export async function convertFiles(
 function getOutputPath(inputPath: string, outputDir: string): string {
   const basename = inputPath.replace(/\.[^.]+$/, "");
   const filename = basename.split(/[/\\]/).pop() ?? "output";
+
   return `${outputDir}/${filename}.pdf`;
 }
 
@@ -107,6 +113,7 @@ export async function generatePreview(
   config: PreviewConfig,
 ): Promise<PreviewResult> {
   log("generatePreview called:", filePath);
+
   try {
     const mergedConfig: Partial<Config> = {
       ...defaultConfig,
@@ -127,10 +134,12 @@ export async function generatePreview(
     }
 
     log("Generating preview with config:", JSON.stringify(mergedConfig));
+
     const result = await convertMdToPdf(
       { path: filePath },
       mergedConfig as Config,
     );
+
     log("Preview generated, size:", result.content.length);
 
     // Convert Buffer to Uint8Array for IPC transfer. Buffer extends
@@ -148,6 +157,7 @@ export async function generatePreview(
   } catch (error) {
     const err = error as Error;
     log("Preview error:", err.message, err.stack);
+
     return {
       success: false,
       filePath,

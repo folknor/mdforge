@@ -14,6 +14,7 @@ function tocBody(
   const stop = result.indexOf("<!-- tocstop -->");
   assert.notEqual(start, -1, "no <!-- toc --> marker in output");
   assert.notEqual(stop, -1, "no <!-- tocstop --> marker in output");
+
   return result.slice(start + "<!-- toc -->".length, stop).trim();
 }
 
@@ -58,6 +59,7 @@ describe("insertToc", () => {
       "## Alpha",
       "",
     ].join("\n");
+
     const result = insertToc(withStale);
     assert.ok(!result.includes("Stale entry"));
     assert.ok(result.includes("- [Alpha](#alpha)"));
@@ -69,6 +71,7 @@ describe("insertToc", () => {
   it("rejects documents with more than one TOC", () => {
     const twoTocs =
       "<!-- toc -->\n\n<!-- tocstop -->\n\n<!-- toc -->\n\n<!-- tocstop -->\n";
+
     assert.throws(
       () => insertToc(twoTocs),
       /only supports one Table of Contents/,
@@ -126,6 +129,7 @@ describe("TOC styles", () => {
       style: "table",
       table_headers: ["Innhold", "Side"],
     });
+
     assert.ok(body.startsWith("| Innhold | Side |\n| --- | --- |\n"));
   });
 });
@@ -147,6 +151,7 @@ describe("TOC filtering", () => {
       "## Gamma",
       "",
     ].join("\n");
+
     assert.equal(
       tocBody(markdown, { skip_first_h1: true }),
       ["- [Alpha](#alpha)", "- [Gamma](#gamma)"].join("\n"),
@@ -184,6 +189,7 @@ describe("TOC page numbers", () => {
       page_label: "Side ",
       page_separator: " ... ",
     });
+
     assert.ok(body.includes(`- [Alpha](#alpha) ... Side ${pageRef("alpha")}`));
   });
 
@@ -193,6 +199,7 @@ describe("TOC page numbers", () => {
       page_numbers: true,
       maxdepth: 2,
     });
+
     assert.ok(body.includes(`| [Alpha](#alpha) | ${pageRef("alpha")} |`));
   });
 
@@ -231,6 +238,7 @@ describe("TOC heading numbering", () => {
       "### Deeper",
       "",
     ].join("\n");
+
     assert.equal(
       tocBody(markdown, {}, {}),
       ["- [2. After](#after)", "  - [2.1. Deeper](#deeper)"].join("\n"),
@@ -241,6 +249,7 @@ describe("TOC heading numbering", () => {
     const markdown = ["# Intro", "", "<!-- toc -->", "", "## Intro", ""].join(
       "\n",
     );
+
     assert.equal(tocBody(markdown), "- [Intro](#intro-1)");
   });
 
@@ -267,6 +276,7 @@ describe("TOC heading numbering", () => {
       "## After",
       "",
     ].join("\n");
+
     assert.equal(tocBody(markdown, {}, {}), "- [2. After](#after)");
   });
 });

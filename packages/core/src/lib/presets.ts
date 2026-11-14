@@ -5,6 +5,7 @@
 
 /** Available themes */
 export const themes = ["beryl", "tufte", "buttondown", "pandoc"] as const;
+
 export type Theme = (typeof themes)[number];
 
 /** Font pairing preset names with display labels */

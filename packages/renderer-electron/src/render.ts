@@ -15,9 +15,9 @@ import { BrowserWindow } from "electron";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
+
 function log(...args: unknown[]): void {
   if (DEBUG) {
-    // biome-ignore lint/suspicious/noConsole: Debug logging
     console.log("[renderer-electron]", ...args);
   }
 }
@@ -92,6 +92,7 @@ async function buildCompleteHtml(
 
   // Inject stylesheets and base URL into head
   const stylesHtml = styleParts.join("\n");
+
   return prepared.html.replace(
     "<head>",
     `<head><base href="${prepared.baseUrl}">\n${stylesHtml}`,
@@ -146,9 +147,11 @@ function mapPdfOptions(
   // Map header/footer
   if (pdfOptions.displayHeaderFooter) {
     options.displayHeaderFooter = true;
+
     if (pdfOptions.headerTemplate) {
       options.headerTemplate = pdfOptions.headerTemplate;
     }
+
     if (pdfOptions.footerTemplate) {
       options.footerTemplate = pdfOptions.footerTemplate;
     }
@@ -162,14 +165,21 @@ function mapPdfOptions(
  */
 function parseCssToMicrons(value: string | number | undefined): number {
   if (value === undefined) return 0;
+
   if (typeof value === "number") return value * 25400; // Assume inches
 
   const num = parseFloat(value);
+
   if (value.endsWith("mm")) return num * 1000;
+
   if (value.endsWith("cm")) return num * 10000;
+
   if (value.endsWith("in")) return num * 25400;
+
   if (value.endsWith("px")) return num * (25400 / 96); // 96 DPI
+
   if (value.endsWith("pt")) return num * (25400 / 72); // 72 points per inch
+
   return num * 25400; // Default to inches
 }
 
@@ -178,14 +188,21 @@ function parseCssToMicrons(value: string | number | undefined): number {
  */
 function parseCssToInches(value: string | number | undefined): number {
   if (value === undefined) return 0;
+
   if (typeof value === "number") return value;
 
   const num = parseFloat(value);
+
   if (value.endsWith("mm")) return num / 25.4;
+
   if (value.endsWith("cm")) return num / 2.54;
+
   if (value.endsWith("in")) return num;
+
   if (value.endsWith("px")) return num / 96;
+
   if (value.endsWith("pt")) return num / 72;
+
   return num; // Default to inches
 }
 
@@ -267,6 +284,7 @@ export async function render(
           return result;
         })()
       `);
+
       if (selectData.length > 0) {
         selectOptions = new Map(
           selectData.map((s: { name: string; options: string[] }) => [
@@ -295,6 +313,7 @@ export async function render(
       // Try to detect system font if no embedded fonts
       if ((!embeddedFonts || embeddedFonts.length === 0) && formFontInfo) {
         const systemFontData = await detectSystemFont(formFontInfo.fontFamily);
+
         if (systemFontData) {
           embeddedFonts = [systemFontData];
         }
@@ -331,11 +350,13 @@ export async function render(
     // Inject PDF metadata if configured
     if (config.metadata) {
       log("Injecting metadata...");
+
       const metadata = {
         ...config.metadata,
         title: config.metadata.title || config.document_title || undefined,
         creator: config.metadata.creator || "mdforge",
       };
+
       if (
         metadata.title ||
         metadata.author ||
@@ -358,6 +379,7 @@ export async function render(
     }
 
     log("Render complete, final size:", pdfContent.length);
+
     return {
       content: pdfContent,
       fillableData:

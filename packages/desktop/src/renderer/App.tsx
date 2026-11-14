@@ -39,9 +39,11 @@ export default function App(): React.ReactElement {
   const [previewData, setPreviewData] = useState<Uint8Array | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
   const [previewGeneratedAt, setPreviewGeneratedAt] = useState<Date | null>(
     null,
   );
+
   const watchedFileRef = useRef<string | null>(null);
 
   // Listen for conversion progress
@@ -61,6 +63,7 @@ export default function App(): React.ReactElement {
         );
       },
     );
+
     return unsubscribe;
   }, []);
 
@@ -131,6 +134,7 @@ export default function App(): React.ReactElement {
       status: "pending",
       progress: 0,
     }));
+
     setFiles((prev) => {
       const existingPaths = new Set(prev.map((f) => f.path));
       const unique = newFiles.filter((f) => !existingPaths.has(f.path));
@@ -138,6 +142,7 @@ export default function App(): React.ReactElement {
 
       // Auto-select first file if nothing is selected
       const first = unique[0];
+
       if (first) {
         setSelectedFile((current) => current ?? first.path);
       }
@@ -148,6 +153,7 @@ export default function App(): React.ReactElement {
 
   const handleSelectOutputDir = async (): Promise<void> => {
     const dir = await window.electron.selectOutputDir();
+
     if (dir) {
       setOutputDir(dir);
     }
@@ -178,6 +184,7 @@ export default function App(): React.ReactElement {
         const result = results.find(
           (r: ConversionResult) => r.inputPath === f.path,
         );
+
         if (result) {
           return {
             ...f,
@@ -186,6 +193,7 @@ export default function App(): React.ReactElement {
             error: result.error,
           };
         }
+
         return f;
       }),
     );
@@ -200,10 +208,12 @@ export default function App(): React.ReactElement {
   const handleRemoveFile = (path: string): void => {
     setFiles((prev) => {
       const updated = prev.filter((f) => f.path !== path);
+
       // If we removed the selected file, select another one
       if (path === selectedFile) {
         setSelectedFile(updated[0]?.path ?? null);
       }
+
       return updated;
     });
   };

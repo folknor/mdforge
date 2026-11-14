@@ -86,6 +86,7 @@ function parseMarkerUrl(
     const value = urlObj.searchParams.get("value") || undefined;
 
     if (!(name && type)) return null;
+
     return { name, type, value };
   } catch {
     return null;
@@ -102,12 +103,15 @@ function extractAndRemoveMarkers(pdfDoc: PDFDocument): FieldPosition[] {
 
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
     const page = pages[pageIndex];
+
     if (!page) continue;
 
     // Find all link annotations that are markers
     const markers: PDFLinkAnnotation[] = [];
+
     for (const link of page.getLinkAnnotations()) {
       const url = link.getUrl();
+
       if (url?.startsWith(MARKER_URL_PREFIX)) {
         markers.push(link);
       }
@@ -116,9 +120,11 @@ function extractAndRemoveMarkers(pdfDoc: PDFDocument): FieldPosition[] {
     // Extract field positions and remove markers
     for (const link of markers) {
       const url = link.getUrl();
+
       if (!url) continue;
 
       const markerInfo = parseMarkerUrl(url);
+
       if (!markerInfo) continue;
 
       const rect = link.getRectangle();
@@ -160,12 +166,14 @@ export async function addAcroFormFields(
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBuffer));
   const pages = pdfDoc.getPages();
+
   if (pages.length === 0) {
     return pdfDoc.save();
   }
 
   // Extract marker annotations and get field positions
   const fields = extractAndRemoveMarkers(pdfDoc);
+
   if (fields.length === 0) {
     return pdfDoc.save();
   }
@@ -181,19 +189,23 @@ export async function addAcroFormFields(
 
   // Embed custom font if available
   let customFont: PDFFont | undefined;
+
   if (config.embeddedFonts && config.embeddedFonts.length > 0) {
     // Find the body font (weight 400, normal style preferred)
     const fontFamily = config.formFontInfo?.fontFamily;
+
     let fontData = config.embeddedFonts.find(
       (f) =>
         f.family === fontFamily && f.weight === 400 && f.style === "normal",
     );
+
     // Fallback to any font with weight 400
     if (!fontData) {
       fontData = config.embeddedFonts.find(
         (f) => f.weight === 400 && f.style === "normal",
       );
     }
+
     // Fallback to first available font
     if (!fontData) {
       fontData = config.embeddedFonts[0];
@@ -201,7 +213,6 @@ export async function addAcroFormFields(
 
     if (fontData) {
       try {
-        // biome-ignore lint/suspicious/noExplicitAny: fontkit types don't match exactly
         pdfDoc.registerFontkit(fontkit as any);
         customFont = await pdfDoc.embedFont(
           fontData.data as Uint8Array<ArrayBuffer>,
@@ -235,14 +246,17 @@ export async function addAcroFormFields(
   // Add simple fields (text, textarea, select, single checkboxes)
   for (const field of simpleFields) {
     const page = pages[field.pageIndex];
+
     if (!page) continue;
 
     try {
       if (field.type === "text" || field.type === "textarea") {
         const textField = form.createTextField(field.name);
+
         if (fontSize) {
           textField.setFontSize(fontSize);
         }
+
         textField.addToPage(page, {
           x: field.x,
           y: field.y,
@@ -252,19 +266,24 @@ export async function addAcroFormFields(
           backgroundColor: undefined, // Transparent - show HTML styling through
           font: customFont,
         });
+
         if (field.type === "textarea") {
           textField.enableMultiline();
           textField.enableScrolling();
         }
       } else if (field.type === "select") {
         const dropdown = form.createDropdown(field.name);
+
         if (fontSize) {
           dropdown.setFontSize(fontSize);
         }
+
         const options = config.selectOptions?.get(field.name);
+
         if (options) {
           dropdown.addOptions(options);
         }
+
         dropdown.addToPage(page, {
           x: field.x,
           y: field.y,
@@ -313,8 +332,10 @@ export async function addAcroFormFields(
   for (const [name, options] of radioGroups) {
     try {
       const radioGroup = form.createRadioGroup(name);
+
       for (const opt of options) {
         const page = pages[opt.pageIndex];
+
         if (!page) continue;
 
         const size = Math.min(opt.width, opt.height);
@@ -336,6 +357,7 @@ export async function addAcroFormFields(
   for (const [name, options] of checkboxGroups) {
     for (const opt of options) {
       const page = pages[opt.pageIndex];
+
       if (!page) continue;
 
       try {
@@ -364,8 +386,10 @@ export async function addAcroFormFields(
   // This is needed because some field types (radio buttons) always set a default
   for (const field of form.getFields()) {
     const widgets = field.acroField.getWidgets();
+
     for (const widget of widgets) {
       const mk = widget.dict.get(PDFName.of("MK"));
+
       if (mk && mk instanceof PDFDict) {
         mk.delete(PDFName.of("BG"));
       }

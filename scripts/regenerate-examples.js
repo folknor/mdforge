@@ -25,6 +25,7 @@ async function getExampleOutputs(examplePath) {
   const hasDefaultConfig = entries.some(
     (e) => e.isFile() && e.name === "config.yaml",
   );
+
   const defaultConfigFile = hasDefaultConfig
     ? join(examplePath, "config.yaml")
     : null;
@@ -41,6 +42,7 @@ async function getExampleOutputs(examplePath) {
         const configContent = await fs.readFile(configPath, "utf-8");
         // Simple check for as_html: true (avoid adding yaml dependency)
         const isHtml = /^as_html:\s*true\s*$/m.test(configContent);
+
         return {
           name: e.name.replace(/\.yaml$/, ""),
           path: configPath,
@@ -87,6 +89,7 @@ async function regenerateExamples() {
   try {
     // Read all directories in examples
     const entries = await fs.readdir(examplesDir, { withFileTypes: true });
+
     let exampleDirs = entries
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
@@ -97,11 +100,13 @@ async function regenerateExamples() {
       const match = exampleDirs.find(
         (d) => d === filterExample || d.startsWith(filterExample),
       );
+
       if (!match) {
         console.error(`Example "${filterExample}" not found`);
         console.error(`Available: ${exampleDirs.join(", ")}`);
         process.exit(1);
       }
+
       exampleDirs = [match];
     }
 
@@ -124,10 +129,12 @@ async function regenerateExamples() {
       for (const { input, output, name, configFile } of outputs) {
         try {
           const configArg = configFile ? `--config-file "${configFile}"` : "";
+
           const result = execSync(
             `node "${cliPath}" ${configArg} "${input}" -o "${output}"`,
             { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
           );
+
           // Print CLI output (skip the "generating" lines, show the info)
           const lines = result
             .split("\n")
@@ -137,19 +144,25 @@ async function regenerateExamples() {
                 !line.includes("[started]") &&
                 !line.includes("[completed]"),
             );
+
           for (const line of lines) {
             console.log(`  ${line.trim()}`);
           }
+
           if (lines.length === 0) {
             console.log(`  ✓ ${name}`);
           }
+
           totalGenerated++;
         } catch (error) {
           totalFailed++;
+
           // Extract error message (format: "[time] → Error message") - may be in stdout or stderr
           const errorOutput =
             (error.stdout?.toString() || "") + (error.stderr?.toString() || "");
+
           const errorMatch = errorOutput.match(/\] → (.+)/);
+
           if (errorMatch) {
             console.log(`  ✗ ${name}: ${errorMatch[1]}`);
           } else {

@@ -26,6 +26,7 @@ export default function PdfPreview({
       const blob = new Blob([pdfData as Uint8Array<ArrayBuffer>], {
         type: "application/pdf",
       });
+
       const url = URL.createObjectURL(blob);
       setBlobUrl(url);
 
@@ -34,7 +35,9 @@ export default function PdfPreview({
         URL.revokeObjectURL(url);
       };
     }
+
     setBlobUrl(null);
+
     return;
   }, [pdfData]);
 

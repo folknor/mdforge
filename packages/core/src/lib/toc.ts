@@ -100,6 +100,7 @@ class MarkedAdapter {
       // Those headings only primed the slugger/numberer.
       this.headings = [];
     }
+
     const tokens = marked.lexer(content);
     this.extractHeadings(tokens);
     this.processHeadings();
@@ -133,6 +134,7 @@ class MarkedAdapter {
     // Every heading is slugged and numbered, even ones the TOC will not show,
     // so de-duplication suffixes and counters match the rendered document.
     const slug = this.slugger.slug(cleanForSlug(headingToken.text));
+
     const numbered = this.numberer
       ? this.numberer.apply(headingDepth, text)
       : text;
@@ -157,13 +159,17 @@ class MarkedAdapter {
     if (token.type === "heading") {
       return (token as Tokens.Heading).text;
     }
+
     if (token.type === "text") {
       return (token as Tokens.Text).text;
     }
+
     if (token.type === "link") {
       const linkToken = token as Tokens.Link;
+
       return linkToken.text || linkToken.href;
     }
+
     if (
       token.type === "strong" ||
       token.type === "em" ||
@@ -171,18 +177,22 @@ class MarkedAdapter {
     ) {
       return (token as Tokens.Strong | Tokens.Em | Tokens.Codespan).text;
     }
+
     if ("text" in token && typeof token.text === "string") {
       return token.text;
     }
+
     if ("tokens" in token && Array.isArray(token.tokens)) {
       return token.tokens.map((t) => this.getTokenText(t)).join("");
     }
+
     return "";
   }
 
   private processHeadings(): void {
     // Skip first h1 if enabled (usually the document title)
     const firstHeading = this.headings[0];
+
     if (this.options.skip_first_h1 && firstHeading && firstHeading.lvl === 1) {
       this.headings = this.headings.slice(1);
     }
@@ -193,6 +203,7 @@ class MarkedAdapter {
     if (!this.options.page_numbers) {
       return "";
     }
+
     return `${this.options.page_label ?? ""}${pageRefSpan(heading.slug)}`;
   }
 
@@ -200,6 +211,7 @@ class MarkedAdapter {
     if (this.options.style === "table") {
       return this.generateTable();
     }
+
     return this.generateList();
   }
 
@@ -214,6 +226,7 @@ class MarkedAdapter {
       const indentLevel = Math.max(0, heading.lvl - highestLevel);
       const indentation = "  ".repeat(indentLevel);
       const page = this.pageRef(heading);
+
       const suffix = page
         ? `${this.options.page_separator ?? " — "}${page}`
         : "";
@@ -230,6 +243,7 @@ class MarkedAdapter {
   private generateTable(): string {
     const highestLevel = this.getHighestLevel();
     const [titleHeader, pageHeader] = this.options.table_headers ?? ["", ""];
+
     const lines = [
       `| ${escapeCell(titleHeader)} | ${escapeCell(pageHeader)} |`,
       "| --- | --- |",
@@ -260,6 +274,7 @@ class MarkedAdapter {
 
   private getHighestLevel(): number {
     if (this.headings.length === 0) return 1;
+
     return Math.min(...this.headings.map((h) => h.lvl));
   }
 }
@@ -288,6 +303,7 @@ function toc(
   preceding = "",
 ): TOCResult {
   const adapter = new MarkedAdapter(options, headingNumbers);
+
   return adapter.parse(str, preceding);
 }
 
@@ -330,6 +346,7 @@ export function insertToc(
   // sections[1] is the previously generated TOC body, which must not be
   // re-parsed or its links would consume slugs a second time.
   const preceding = sections[0] as string;
+
   const tocContent = toc(
     last,
     options,

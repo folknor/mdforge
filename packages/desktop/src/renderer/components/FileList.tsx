@@ -41,6 +41,7 @@ export default function FileList({
       <ul className="divide-y">
         {files.map((file) => {
           const isSelected = file.path === selectedPath;
+
           return (
             <li
               key={file.path}

@@ -17,6 +17,7 @@ export const getOutputFilePath = (
   extension: "html" | "pdf",
 ): string => {
   const { dir, name } = parse(mdFilePath);
+
   return join(dir, `${name}.${extension}`);
 };
 
@@ -72,6 +73,7 @@ export async function resolveFileRefs<T>(
     const filePath = resolve(baseDir, value.slice(1));
     const content = (await fs.readFile(filePath, "utf-8")) as T;
     seen?.push(filePath);
+
     return content;
   }
 
@@ -83,9 +85,11 @@ export async function resolveFileRefs<T>(
 
   if (value !== null && typeof value === "object") {
     const result: Record<string, unknown> = {};
+
     for (const [key, val] of Object.entries(value)) {
       result[key] = await resolveFileRefs(val, baseDir, seen);
     }
+
     return result as T;
   }
 
@@ -97,6 +101,7 @@ export async function resolveFileRefs<T>(
  */
 export function extractFirstHeading(md: string): string | null {
   const match = /^#{1,2}\s+(.+)$/m.exec(md);
+
   return match?.[1]?.trim() ?? null;
 }
 
@@ -108,7 +113,9 @@ export function parseFrontMatter(content: string): {
   content: string;
 } {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(content);
+
   if (!match) return { data: {}, content };
+
   try {
     return {
       data: YAML.parse(match[1] ?? "") || {},

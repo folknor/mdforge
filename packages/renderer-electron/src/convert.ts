@@ -13,9 +13,9 @@ import { render } from "./render.js";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
+
 function log(...args: unknown[]): void {
   if (DEBUG) {
-    // biome-ignore lint/suspicious/noConsole: Debug logging
     console.log("[renderer-electron:convert]", ...args);
   }
 }
@@ -55,6 +55,7 @@ export async function convertMdToPdf(
   // Render the document using Electron
   log("Starting render...");
   let output: Awaited<ReturnType<typeof render>>;
+
   try {
     output = await render(prepared);
     log("Render succeeded");
@@ -71,11 +72,13 @@ export async function convertMdToPdf(
   // Write output file if destination is set
   if (prepared.dest) {
     log("Writing output to:", prepared.dest);
+
     if (prepared.dest === "stdout") {
       process.stdout.write(output.content);
     } else {
       await fs.writeFile(prepared.dest, output.content);
     }
+
     log("Output written");
   }
 

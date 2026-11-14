@@ -126,10 +126,12 @@ async function generateTestPdf() {
   // Get field positions from the DOM before generating PDF
   const fieldPositions = await page.evaluate(() => {
     const markers = document.querySelectorAll(".field-marker");
+
     return Array.from(markers).map((marker) => {
       const rect = marker.getBoundingClientRect();
       const input = marker.querySelector("input, textarea");
       const inputRect = input?.getBoundingClientRect();
+
       return {
         name: marker.dataset.fieldName,
         type: marker.dataset.fieldType,
@@ -175,6 +177,7 @@ async function generateTestPdf() {
     width: document.documentElement.scrollWidth,
     height: document.documentElement.scrollHeight,
   }));
+
   console.log(`Page dimensions: ${pageInfo.width}x${pageInfo.height}`);
 
   await browser.close();
@@ -340,7 +343,9 @@ async function embedPositionsInPdf(pdfPath, fieldPositions, pageInfo) {
   const keywordStr = Array.isArray(keywords)
     ? keywords.join(" ")
     : keywords || "";
+
   const match = keywordStr.match(/__MDFORGE_FORM_FIELDS__(.+?)__END_MDFORGE__/);
+
   if (match) {
     const extracted = JSON.parse(match[1]);
     console.log(
@@ -487,6 +492,7 @@ async function fullPipeline() {
   // Extract field positions
   const fieldPositions = await page.evaluate(() => {
     const fields = document.querySelectorAll("[data-field]");
+
     return Array.from(fields)
       .map((field) => {
         const type = field.dataset.type;
@@ -495,8 +501,10 @@ async function fullPipeline() {
         // For radio/checkbox groups, get positions of each option
         if (type === "radio" || type === "checkboxgroup") {
           const inputs = field.querySelectorAll("input");
+
           const optionPositions = Array.from(inputs).map((input, i) => {
             const rect = input.getBoundingClientRect();
+
             return {
               value: input.value,
               label: options[i] || input.value,
@@ -506,8 +514,10 @@ async function fullPipeline() {
               height: rect.height,
             };
           });
+
           // Get bounding box of the whole group
           const groupRect = field.getBoundingClientRect();
+
           return {
             name: field.dataset.field,
             type,
@@ -521,8 +531,10 @@ async function fullPipeline() {
 
         // For single inputs
         const input = field.querySelector("input, textarea, select");
+
         if (!input) return null;
         const rect = input.getBoundingClientRect();
+
         return {
           name: field.dataset.field,
           type,
@@ -561,6 +573,7 @@ async function fullPipeline() {
   const scale = 72 / 96;
 
   console.log("Adding form fields:");
+
   for (const field of fieldPositions) {
     console.log(`\n  ${field.name} (${field.type}):`);
 
@@ -585,9 +598,11 @@ async function fullPipeline() {
           backgroundColor: rgb(1, 1, 0.95),
           borderWidth: 0,
         });
+
         if (field.type === "textarea") {
           textField.enableMultiline();
         }
+
         console.log(`    ✓ Added ${field.type} field`);
       } else if (field.type === "checkbox") {
         const pdfX = marginPt + field.x * scale;
@@ -658,6 +673,7 @@ async function fullPipeline() {
             borderWidth: 1,
           });
         }
+
         console.log(
           `    ✓ Added radio group with ${field.options.length} options`,
         );
@@ -685,6 +701,7 @@ async function fullPipeline() {
             borderWidth: 1,
           });
         }
+
         console.log(
           `    ✓ Added checkbox group with ${field.options.length} checkboxes`,
         );
@@ -699,6 +716,7 @@ async function fullPipeline() {
     outputDir,
     `${versionedName("registration-form-fillable")}.pdf`,
   );
+
   await fs.writeFile(outputPath, await pdfDoc.save());
   console.log(`\nGenerated fillable PDF: ${outputPath}`);
 
@@ -767,6 +785,7 @@ async function main() {
 
     console.log("\nGenerated files in tmp/:");
     const files = await fs.readdir(outputDir);
+
     for (const file of files) {
       const stat = await fs.stat(join(outputDir, file));
       console.log(`  ${file} (${(stat.size / 1024).toFixed(1)} KB)`);

@@ -42,8 +42,10 @@ async function getFromCache(
   name: string,
 ): Promise<string | null> {
   const cachePath = getCachePath(prefix, name);
+
   try {
     const svg = await fs.readFile(cachePath, "utf-8");
+
     return svg;
   } catch {
     return null;
@@ -73,17 +75,21 @@ async function fetchIcon(
 ): Promise<string | null> {
   // Check cache first
   const cached = await getFromCache(prefix, name);
+
   if (cached) {
     return cached;
   }
 
   // Fetch from API
   const url = `${apiUrl}/${prefix}/${name}.svg`;
+
   try {
     const response = await fetch(url);
+
     if (!response.ok) {
       return null;
     }
+
     const svg = await response.text();
 
     // Validate it's actually SVG
@@ -143,6 +149,7 @@ function findIconReferences(
     size?: number;
     match: string;
   }> = [];
+
   const seen = new Set<string>();
 
   // Reset regex lastIndex
@@ -199,12 +206,14 @@ export async function processIcons(
   await Promise.all(
     refs.map(async ({ prefix, name }) => {
       const key = `${prefix}:${name}`;
+
       if (!iconMap.has(key)) {
         const svg = await fetchIcon(
           prefix,
           name,
           apiUrl ?? DEFAULT_ICONIFY_API,
         );
+
         if (svg) {
           iconMap.set(key, svg);
         }
@@ -226,6 +235,7 @@ export async function processIcons(
     }
 
     const size = sizeStr ? Number.parseInt(sizeStr, 10) : undefined;
+
     return createInlineSvg(svg, size);
   });
 }

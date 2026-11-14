@@ -1,17 +1,18 @@
 // Puppeteer-based renderer for mdforge
 
 // Re-export everything from @mdforge/core for convenience
-// biome-ignore lint/performance/noBarrelFile: Package entry point
 export {
   type Config,
   defaultConfig,
   type Theme,
   themes,
 } from "@mdforge/core";
+
 export {
   type ConversionInfo,
   formatConversionInfo,
 } from "@mdforge/core/conversion-info";
+
 export {
   ConfigError,
   FileNotFoundError,
@@ -19,12 +20,15 @@ export {
   IncludeError,
   MdforgeError,
 } from "@mdforge/core/errors";
+
 export {
   type FontConfig,
   type FontPairing,
   fontPairings,
 } from "@mdforge/core/fonts";
+
 export type { TemplatesConfig } from "@mdforge/core/includes";
+
 // Export prepare types
 export {
   type ConvertOptions,
@@ -32,9 +36,13 @@ export {
   prepareConversion,
   type StylesheetEntry,
 } from "@mdforge/core/prepare";
+
 export { resolveFileRefs } from "@mdforge/core/util";
+
 export type { PdfMetadata } from "@mdforge/pdf";
+
 // Export backward-compatible convertMdToPdf
 export { type ConvertResult, convertMdToPdf } from "./convert.js";
+
 // Export render function
 export { closeBrowser, type RenderResult, render } from "./render.js";

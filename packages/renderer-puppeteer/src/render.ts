@@ -116,10 +116,12 @@ export async function render(
   // relative paths resolve naturally. Falls back to setContent if the
   // directory is not writable.
   const baseDir = fileURLToPath(prepared.baseUrl);
+
   let tempHtmlPath: string | undefined = join(
     baseDir,
     `.mdforge-${process.pid}-${Date.now()}.html`,
   );
+
   try {
     await fs.writeFile(tempHtmlPath, htmlWithBase, "utf-8");
     await page.goto(pathToFileURL(tempHtmlPath).href, {
@@ -165,20 +167,28 @@ export async function render(
       const selects = document.querySelectorAll(
         "[data-form-field][data-field-type='select'] select",
       );
+
       const result: Array<{ name: string; options: string[] }> = [];
+
       for (let i = 0; i < selects.length; i++) {
         const select = selects[i];
+
         if (!select) continue;
         const wrapper = select.closest("[data-form-field]");
         const name = wrapper?.getAttribute("data-field-name");
+
         if (!name) continue;
+
         const options = Array.from((select as HTMLSelectElement).options).map(
           (opt) => opt.value || opt.text,
         );
+
         result.push({ name, options });
       }
+
       return result;
     });
+
     if (selectData.length > 0) {
       selectOptions = new Map(selectData.map((s) => [s.name, s.options]));
     }
@@ -188,18 +198,23 @@ export async function render(
       const input = document.querySelector(
         "[data-form-field] input, [data-form-field] select, [data-form-field] textarea",
       );
+
       if (!input) return;
       const style = window.getComputedStyle(input);
+
       const fontFamily =
         style.fontFamily.split(",")[0]?.trim().replace(/['"]/g, "") ||
         "Helvetica";
+
       const fontSize = parseFloat(style.fontSize) || 12;
+
       return { fontFamily, fontSize };
     });
 
     // If no embedded fonts from Google Fonts, try to detect system font file
     if ((!embeddedFonts || embeddedFonts.length === 0) && formFontInfo) {
       const systemFontData = await detectSystemFont(formFontInfo.fontFamily);
+
       if (systemFontData) {
         embeddedFonts = [systemFontData];
       }
@@ -212,10 +227,12 @@ export async function render(
     outputFileContent = await page.content();
   } else {
     await page.emulateMediaType(config.page_media_type);
+
     const pdfOptions = {
       ...prepared.pdfOptions,
       outline: true,
     };
+
     outputFileContent = await page.pdf(pdfOptions);
   }
 
@@ -239,6 +256,7 @@ export async function render(
       // Set creator to mdforge if not specified
       creator: config.metadata.creator || "mdforge",
     };
+
     // Only inject if there's meaningful metadata
     if (
       metadata.title ||

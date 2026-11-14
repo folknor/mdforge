@@ -14,6 +14,7 @@ import { getFonts } from "font-list";
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR: string = join(homedir(), ".cache", "mdforge", "fonts");
+
 const GOOGLE_FONTS_LIST: string = join(
   __dirname,
   "..",
@@ -52,6 +53,7 @@ async function getSystemFonts(): Promise<Set<string>> {
  */
 export async function isSystemFont(fontName: string): Promise<boolean> {
   const systemFonts = await getSystemFonts();
+
   return systemFonts.has(fontName.toLowerCase());
 }
 
@@ -78,6 +80,7 @@ async function getGoogleFonts(): Promise<Set<string>> {
  */
 export async function isGoogleFont(fontName: string): Promise<boolean> {
   const googleFonts = await getGoogleFonts();
+
   return googleFonts.has(fontName.toLowerCase());
 }
 
@@ -97,6 +100,7 @@ async function ensureCacheDir(): Promise<void> {
  */
 function getCacheKey(fontNames: string[], weights: number[]): string {
   const input = `${fontNames.sort((a, b) => a.localeCompare(b)).join(",")}:${weights.sort((a, b) => a - b).join(",")}`;
+
   return createHash("md5").update(input).digest("hex");
 }
 
@@ -105,6 +109,7 @@ function getCacheKey(fontNames: string[], weights: number[]): string {
  */
 async function getCachedCss(cacheKey: string): Promise<string | null> {
   const cssPath = join(CACHE_DIR, `${cacheKey}.css`);
+
   try {
     return await fs.readFile(cssPath, "utf-8");
   } catch {
@@ -133,11 +138,13 @@ export interface FontFetchResult {
 async function downloadFontAsBase64(url: string): Promise<string | null> {
   try {
     const response = await fetch(url);
+
     if (!response.ok) {
       return null;
     }
 
     const buffer = await response.arrayBuffer();
+
     return Buffer.from(buffer).toString("base64");
   } catch {
     return null;
@@ -157,6 +164,7 @@ async function fetchAndEmbedFonts(
   const families = fontNames
     .map((name) => {
       const encoded = name.replace(/ /g, "+");
+
       return `family=${encoded}:wght@${weights.join(";")}`;
     })
     .join("&");
@@ -173,6 +181,7 @@ async function fetchAndEmbedFonts(
       warnings.push(
         `Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${response.status} ${response.statusText}`,
       );
+
       return { css: null, warnings };
     }
 
@@ -195,6 +204,7 @@ async function fetchAndEmbedFonts(
     await Promise.all(
       Array.from(urls).map(async (fontUrl) => {
         const base64 = await downloadFontAsBase64(fontUrl);
+
         if (base64) {
           fontMap.set(fontUrl, base64);
         }
@@ -215,6 +225,7 @@ async function fetchAndEmbedFonts(
     warnings.push(
       `Failed to fetch fonts "${fontNames.join(", ")}" from Google Fonts: ${err.message}`,
     );
+
     return { css: null, warnings };
   }
 }
@@ -265,6 +276,7 @@ export async function getGoogleFontsCss(
       const result = await fetchAndEmbedFonts(fontsToDownload, weights);
       warnings.push(...result.warnings);
       downloadedCss = result.css;
+
       if (downloadedCss) {
         await saveCachedCss(cacheKey, downloadedCss);
       }

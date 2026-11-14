@@ -51,6 +51,7 @@ export function admonitions(): MarkedExtension {
         level: "block",
         start(src: string): number | undefined {
           const match = src.match(startPattern);
+
           return match?.index;
         },
         tokenizer(
@@ -60,9 +61,11 @@ export function admonitions(): MarkedExtension {
           src: string,
         ): Tokens.Generic | undefined {
           const match = startPattern.exec(src);
+
           if (!match) return;
 
           const typeRaw = match[1]?.toLowerCase() ?? "note";
+
           const type: AdmonitionType = ADMONITION_TYPES.includes(
             typeRaw as AdmonitionType,
           )
@@ -71,6 +74,7 @@ export function admonitions(): MarkedExtension {
 
           // Title: custom if provided, empty string means no title, undefined means use type
           const customTitle = match[2];
+
           const title =
             customTitle !== undefined
               ? customTitle
@@ -100,6 +104,7 @@ export function admonitions(): MarkedExtension {
           }
 
           const content = contentLines.join("\n");
+
           const raw =
             match[0] +
             lines.slice(0, contentLines.length).join("\n") +
@@ -130,6 +135,7 @@ export function admonitions(): MarkedExtension {
           const titleHtml = title
             ? `<p class="admonition-title">${title}</p>\n`
             : "";
+
           const contentHtml = this.parser.parse(tokens);
 
           return `<div class="admonition ${admonitionType}">\n${titleHtml}${contentHtml}</div>\n`;

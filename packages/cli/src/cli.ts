@@ -89,6 +89,7 @@ async function main(args: typeof cliFlags): Promise<void> {
   if (args["--version"]) {
     const require = createRequire(import.meta.url);
     const { version } = require("../package.json");
+
     return console.log(version);
   }
 
@@ -114,6 +115,7 @@ async function main(args: typeof cliFlags): Promise<void> {
       const configFilePath = resolve(args["--config-file"]);
       const configDir = dirname(configFilePath);
       const configContent = await fs.readFile(configFilePath, "utf-8");
+
       const configFile = await resolveFileRefs(
         YAML.parse(configContent) as Partial<Config>,
         configDir,
@@ -164,6 +166,7 @@ async function main(args: typeof cliFlags): Promise<void> {
       task: async (): Promise<ConvertResult> => {
         const result = await convertMdToPdf({ path: file }, config, { args });
         results.set(file, result);
+
         return result;
       },
     });
@@ -187,9 +190,11 @@ async function main(args: typeof cliFlags): Promise<void> {
       }
 
       const infoText = formatConversionInfo(result.info);
+
       if (infoText) {
         console.log(infoText);
       }
+
       if (result.info.output?.path && result.info.output.path !== "stdout") {
         console.log(`  → ${result.info.output.path}`);
       }
@@ -205,6 +210,7 @@ async function main(args: typeof cliFlags): Promise<void> {
 
   if (!args["--watch"]) {
     await closeBrowser();
+
     return;
   }
 
@@ -241,8 +247,10 @@ function watchAndRerender(
     rendering = true;
     const targets = [...queued];
     queued.clear();
+
     try {
       const results = await render(targets);
+
       for (const file of targets) {
         trackDeps(file, results.get(file));
       }
@@ -269,13 +277,16 @@ function watchAndRerender(
 
   const watchDir = (dir: string): void => {
     if (watchedDirs.has(dir)) return;
+
     const watcher = watch(dir, { persistent: true }, (_event, filename) => {
       if (!filename) return;
       const changed = resolve(dir, filename.toString());
+
       for (const file of dependents.get(changed) ?? []) {
         schedule(file);
       }
     });
+
     watcher.on("error", (error: Error) => {
       console.warn(`Warning: stopped watching ${dir}: ${error.message}`);
       watchedDirs.delete(dir);
@@ -295,9 +306,11 @@ function watchAndRerender(
   const trackDeps = (file: string, result?: ConvertResult): void => {
     const path = resolve(file);
     addDep(path, file);
+
     if (configFile) {
       addDep(resolve(configFile), file);
     }
+
     for (const dep of result?.info.dependencies ?? []) {
       addDep(resolve(dirname(path), dep), file);
     }
@@ -311,6 +324,7 @@ function watchAndRerender(
     for (const watcher of watchedDirs.values()) {
       watcher.close();
     }
+
     void closeBrowser().then(() => process.exit(0));
   };
 
@@ -318,7 +332,9 @@ function watchAndRerender(
   process.on("SIGTERM", shutdown);
 
   const first = files[0];
+
   const what =
     files.length === 1 && first ? basename(first) : `${files.length} files`;
+
   console.log(`\nwatching ${what} — ctrl-c to stop`);
 }

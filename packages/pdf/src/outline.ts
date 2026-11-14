@@ -28,6 +28,7 @@ export async function readOutline(
 ): Promise<OutlineEntry[]> {
   const doc = await PDFDocument.load(new Uint8Array(pdfBytes));
   const outlines = doc.catalog.lookupMaybe(PDFName.of("Outlines"), PDFDict);
+
   if (!outlines) {
     return [];
   }
@@ -35,8 +36,10 @@ export async function readOutline(
   // Destinations reference page objects, so we need a ref -> index lookup.
   const pageIndexByRef = new Map<string, number>();
   const pages = doc.getPages();
+
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
+
     if (page) {
       pageIndexByRef.set(page.ref.toString(), i + 1);
     }
@@ -46,10 +49,12 @@ export async function readOutline(
 
   function walk(node: PDFDict): void {
     let child = node.lookupMaybe(PDFName.of("First"), PDFDict);
+
     while (child) {
       // Titles are PDF strings (literal or hex), never names, so look them up
       // untyped and decode whatever came back.
       const rawTitle = child.lookup(PDFName.of("Title"));
+
       const text =
         rawTitle && "decodeText" in rawTitle
           ? (rawTitle as { decodeText(): string }).decodeText()
@@ -69,5 +74,6 @@ export async function readOutline(
   }
 
   walk(outlines);
+
   return entries;
 }

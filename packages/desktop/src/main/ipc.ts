@@ -6,9 +6,9 @@ import { convertFiles, generatePreview } from "./conversion";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
+
 function log(...args: unknown[]): void {
   if (DEBUG) {
-    // biome-ignore lint/suspicious/noConsole: Debug logging
     console.log("[desktop:ipc]", ...args);
   }
 }
@@ -30,6 +30,7 @@ export function setupIpcHandlers(): void {
       });
 
       log("Conversion complete, results:", results);
+
       return results;
     },
   );
@@ -39,6 +40,7 @@ export function setupIpcHandlers(): void {
     "generate-preview",
     async (_event, filePath: string, config: PreviewConfig) => {
       log("generate-preview IPC called:", filePath);
+
       return generatePreview(filePath, config);
     },
   );
@@ -50,6 +52,7 @@ export function setupIpcHandlers(): void {
 
     // Clean up existing watcher for this file
     const existingWatcher = fileWatchers.get(filePath);
+
     if (existingWatcher) {
       existingWatcher.close();
       fileWatchers.delete(filePath);
@@ -74,6 +77,7 @@ export function setupIpcHandlers(): void {
   ipcMain.handle("unwatch-file", async (_event, filePath: string) => {
     log("unwatch-file IPC called:", filePath);
     const watcher = fileWatchers.get(filePath);
+
     if (watcher) {
       watcher.close();
       fileWatchers.delete(filePath);
@@ -87,6 +91,7 @@ export function setupIpcHandlers(): void {
       properties: ["openFile", "multiSelections"],
       filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
     });
+
     return result.canceled ? [] : result.filePaths;
   });
 
@@ -94,6 +99,7 @@ export function setupIpcHandlers(): void {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"],
     });
+
     return result.canceled ? null : result.filePaths[0];
   });
 }

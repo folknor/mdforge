@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles/index.css";
 
-// biome-ignore lint/style/noNonNullAssertion: root element guaranteed to exist
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />

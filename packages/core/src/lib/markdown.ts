@@ -20,6 +20,7 @@ const getMarked = (config: Config): Marked => {
     langPrefix: "hljs language-",
     highlight(code: string, lang: string): string {
       const language = hljs.getLanguage(lang) ? lang : "plaintext";
+
       return hljs.highlight(code, { language }).value;
     },
   });
@@ -57,11 +58,13 @@ export const getHtml = (md: string, config: Config): string => {
   // constants have been expanded. It runs before the TOC is inserted so the
   // generated TOC markup is never scanned for directives.
   const resolved = resolveNumberRefs(md, config.heading_numbers);
+
   const mdWithToc = insertToc(
     resolved,
     config.toc_options,
     config.heading_numbers,
   );
+
   return `<!DOCTYPE html>
 <html>
 	<head><title>${config.document_title}</title><meta charset="utf-8"></head>

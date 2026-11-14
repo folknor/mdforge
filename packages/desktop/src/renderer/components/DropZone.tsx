@@ -30,9 +30,11 @@ export default function DropZone({
 
       for (let i = 0; i < items.length; i++) {
         const file = items[i];
+
         if (file) {
           // Get the path from the File object (available in Electron)
           const path = (file as File & { path?: string }).path;
+
           if (path && (path.endsWith(".md") || path.endsWith(".markdown"))) {
             paths.push(path);
           }
@@ -48,6 +50,7 @@ export default function DropZone({
 
   const handleSelectFiles = async (): Promise<void> => {
     const paths = await window.electron.selectFiles();
+
     if (paths.length > 0) {
       onFilesAdded(paths);
     }

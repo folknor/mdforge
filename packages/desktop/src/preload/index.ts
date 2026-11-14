@@ -30,7 +30,9 @@ const electronAPI: ElectronAPI = {
     ): void => {
       callback(progress);
     };
+
     ipcRenderer.on("conversion-progress", handler);
+
     return () => {
       ipcRenderer.removeListener("conversion-progress", handler);
     };
@@ -42,7 +44,9 @@ const electronAPI: ElectronAPI = {
     ): void => {
       callback(filePath);
     };
+
     ipcRenderer.on("file-changed", handler);
+
     return () => {
       ipcRenderer.removeListener("file-changed", handler);
     };

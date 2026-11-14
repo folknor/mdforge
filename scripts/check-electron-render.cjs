@@ -22,6 +22,7 @@ const input = join(repoRoot, "examples", "06-code-highlighting", "document.md");
 // take the destination from an explicit --out= switch. Matching positionally
 // risks resolving to this script's own path and overwriting it.
 const outArg = process.argv.find((a) => a.startsWith("--out="));
+
 const output = outArg
   ? resolve(outArg.slice("--out=".length))
   : join(repoRoot, "electron-render.pdf");
@@ -45,6 +46,7 @@ app.on("ready", async () => {
     const { convertMdToPdf } = await import(
       join(repoRoot, "packages/renderer-electron/dist/index.js")
     );
+
     const { defaultConfig } = await import(
       join(repoRoot, "packages/core/dist/index.js")
     );
@@ -58,6 +60,7 @@ app.on("ready", async () => {
     await fs.writeFile(output, content);
 
     const header = content.subarray(0, 5).toString("latin1");
+
     const pages = (
       content.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []
     ).length;

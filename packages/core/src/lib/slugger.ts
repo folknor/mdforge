@@ -10,12 +10,15 @@ const unescapeTest = /&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/gi;
 function decodeHtmlEntities(html: string): string {
   return html.replace(unescapeTest, (_, n: string) => {
     n = n.toLowerCase();
+
     if (n === "colon") return ":";
+
     if (n.charAt(0) === "#") {
       return n.charAt(1) === "x"
         ? String.fromCharCode(Number.parseInt(n.substring(2), 16))
         : String.fromCharCode(Number(n.substring(1)));
     }
+
     return "";
   });
 }
@@ -29,6 +32,7 @@ export function cleanForSlug(text: string): string {
   const cleaned = decodeHtmlEntities(text)
     .trim()
     .replace(/<[!/a-z].*?>/gi, "");
+
   // Transliterate Unicode to ASCII (e.g., å→a, ø→o, ñ→n)
   return transliterate(cleaned);
 }
@@ -47,6 +51,7 @@ export function gfmHeadingId(): MarkedExtension {
       heading({ tokens, depth }: Tokens.Heading): string {
         const text = this.parser.parseInline(tokens);
         const id = slugger.slug(cleanForSlug(text));
+
         return `<h${depth} id="${id}">${text}</h${depth}>\n`;
       },
     },

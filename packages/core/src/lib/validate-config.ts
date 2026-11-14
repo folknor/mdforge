@@ -73,9 +73,12 @@ function matchesType(value: unknown, typeSpec: string): boolean {
 
   for (const t of types) {
     if (t === "array" && Array.isArray(value)) return true;
+
     if (t === actualType) return true;
+
     if (t === "boolean" && value === false) return true;
   }
+
   return false;
 }
 
@@ -99,6 +102,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   // Validate known keys
   for (const [key, schema] of Object.entries(CONFIG_SCHEMA)) {
     const value = config[key as keyof Config];
+
     if (value === undefined) continue;
 
     // Type check
@@ -151,12 +155,14 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
 
     // Validate margin structure
     const margin = config.pdf_options.margin;
+
     if (
       margin !== undefined &&
       typeof margin !== "string" &&
       typeof margin === "object"
     ) {
       const validMarginKeys = new Set(["top", "right", "bottom", "left"]);
+
       for (const key of Object.keys(margin)) {
         if (!validMarginKeys.has(key)) {
           errors.push({
@@ -172,6 +178,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   // Validate header/footer structure
   for (const field of ["header", "footer"] as const) {
     const value = config[field];
+
     if (value && typeof value === "object") {
       const validKeys = new Set([
         "left",
@@ -180,6 +187,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
         "background",
         "firstPage",
       ]);
+
       for (const key of Object.keys(value)) {
         if (!validKeys.has(key)) {
           errors.push({
@@ -202,6 +210,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
       "creator",
       "producer",
     ]);
+
     for (const key of Object.keys(config.metadata)) {
       if (!validMetadataKeys.has(key)) {
         errors.push({
@@ -211,6 +220,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
         });
       }
     }
+
     // Validate keywords is an array if present
     if (
       config.metadata.keywords !== undefined &&
@@ -249,6 +259,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
     } else if (typeof config.fonts === "object") {
       // Validate object structure
       const validFontKeys = new Set(["heading", "body", "mono"]);
+
       for (const key of Object.keys(config.fonts)) {
         if (!validFontKeys.has(key)) {
           errors.push({
@@ -277,6 +288,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
   // Validate page_numbers structure
   if (config.page_numbers && typeof config.page_numbers === "object") {
     const validPageNumbersKeys = new Set(["format", "start"]);
+
     const validFormats = [
       "arabic",
       "roman",
@@ -331,6 +343,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
       "separator",
       "skip_first_h1",
     ]);
+
     const validFormats = [
       "arabic",
       "roman",
@@ -427,6 +440,7 @@ export function validateConfig(config: Partial<Config>): ValidationError[] {
             "Constant names must start with a letter or underscore and contain only letters, digits and underscores",
         });
       }
+
       if (typeof value !== "number" && typeof value !== "string") {
         errors.push({
           path: `constants.${key}`,
@@ -447,14 +461,18 @@ export function formatValidationErrors(errors: ValidationError[]): string {
   if (errors.length === 0) return "";
 
   const lines = ["Configuration errors:"];
+
   for (const error of errors) {
     lines.push(`  - ${error.path}: ${error.message}`);
+
     if (error.value !== undefined) {
       const valueStr = JSON.stringify(error.value);
+
       if (valueStr.length < 50) {
         lines.push(`    Got: ${valueStr}`);
       }
     }
   }
+
   return lines.join("\n");
 }
