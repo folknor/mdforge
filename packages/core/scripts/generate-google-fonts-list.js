@@ -8,6 +8,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { APIDirect } from "google-font-metadata";
 
+// This generated source file is tracked in git. clean preserves it and removes
+// dist instead; prebuild refreshes it before compilation.
 const outputPath = join(import.meta.dirname, "..", "src", "data", "google-fonts.json");
 
 // Extract just the family names (lowercase for case-insensitive lookup)

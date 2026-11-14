@@ -17,6 +17,7 @@
     "build-deps": "pnpm --filter \"@mdforge/desktop^...\" run build",
     "build": "pnpm run build-deps && pnpm run build:app",
     "build:app": "pnpm run typecheck && vite build",
+    "clean": "rm -rf out release node_modules/.cache/tsc",
     "dev": "vite",
     "predev": "pnpm run build-deps",
     "typecheck": "tsc --build",

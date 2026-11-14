@@ -37,6 +37,8 @@ const external: string[] = [
 // preload processes alongside it and starts Electron in dev. Output paths are
 // pinned to out/{main,preload,renderer} because electron-builder.yml packages
 // out/**/* and package.json points main at ./out/main/index.js.
+// Root pnpm clean runs each package's clean script; desktop removes these
+// bundles, release packages and its TypeScript build cache.
 export default defineConfig({
   root: resolve(dir, "src/renderer"),
   // base is left unset: vite-plugin-electron already applies base: "./" to the
