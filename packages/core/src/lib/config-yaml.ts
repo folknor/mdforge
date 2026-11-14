@@ -59,7 +59,11 @@ import {
   themes,
 } from "./config.js";
 import type { ConstantValue } from "./constants.js";
-import { type FontConfig, fontPairings } from "./fonts.js";
+import {
+  type FontConfig,
+  fontPairings,
+  isFontPairingPreset,
+} from "./fonts.js";
 import type { HeadingNumbersConfig } from "./heading-numbers.js";
 import type { TemplatesConfig } from "./includes.js";
 import type { TOCOptions, TOCStyle } from "./toc.js";
@@ -696,7 +700,7 @@ const fontFields = record<FontConfig>({
 const fonts: Decoder<FontConfig | string> = async (ctx, path, value) => {
   if (!isString(value)) return fontFields(ctx, path, value);
 
-  return Object.hasOwn(fontPairings, value)
+  return isFontPairingPreset(value)
     ? value
     : report(
         ctx,

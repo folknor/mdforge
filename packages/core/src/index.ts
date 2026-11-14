@@ -39,8 +39,10 @@ export {
 export {
   type EmbeddedFontData,
   type FontConfig,
-  type FontPairing,
+  type FontPairingConfig,
+  type FontPairingPreset,
   fontPairings,
+  isFontPairingPreset,
 } from "./lib/fonts.js";
 
 // Include templates

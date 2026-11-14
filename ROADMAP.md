@@ -219,6 +219,13 @@ for (const page of pages) {
 
 ## Ideas (not confirmed)
 
+### Resolve config paths relative to the file that declares them
+
+`templates`, `script.path`, background images and `launch_options.executablePath`
+do not resolve relative to the config file or front matter that names them;
+the configuration reference documents the current behaviour. Resolving each
+against its declaring file would make configs portable across directories.
+
 ### VS Code Extension
 
 - [ ] "Generate PDF" button in editor

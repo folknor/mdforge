@@ -6,6 +6,9 @@
  */
 
 import { getGoogleFontsCss, isSystemFont } from "./font-cache.js";
+import type { FontPairingPreset, Theme } from "./presets.js";
+
+export type { FontPairingPreset } from "./presets.js";
 
 export interface FontConfig {
   heading?: string;
@@ -16,7 +19,7 @@ export interface FontConfig {
 /**
  * Font pairing config with optional Google Fonts fallbacks
  */
-interface FontPairingConfig {
+export interface FontPairingConfig {
   heading?: string;
   headingFallback?: string; // Google Fonts fallback if heading not installed
   body?: string;
@@ -30,8 +33,12 @@ interface FontPairingConfig {
  *
  * Theme pairings use system fonts with Google Fonts fallbacks.
  * Named pairings (classic-elegant, etc.) use Google Fonts directly.
+ *
+ * The preset names are owned by the browser-safe list in presets.ts. This
+ * table must define exactly those names, and every theme too, because
+ * prepare.ts uses the theme name as the default preset.
  */
-export const fontPairings: Record<string, FontPairingConfig> = {
+export const fontPairings = {
   // Theme-based pairings - system fonts with fallbacks
   beryl: {
     body: "Noto Sans",
@@ -89,10 +96,15 @@ export const fontPairings: Record<string, FontPairingConfig> = {
     body: "Inter",
     mono: "Fira Code",
   },
-};
+} satisfies Record<FontPairingPreset | Theme, FontPairingConfig>;
 
-/** Valid font pairing preset names */
-export type FontPairing = keyof typeof fontPairings;
+/**
+ * Whether `name` is a font preset. An own-property check, so prototype names
+ * such as "toString" are not presets.
+ */
+export function isFontPairingPreset(name: string): name is FontPairingPreset {
+  return Object.hasOwn(fontPairings, name);
+}
 
 /** Info about how a font was resolved */
 export interface FontResolutionInfo {
@@ -330,7 +342,7 @@ export async function generateFontStylesheet(
 
   if (typeof fonts === "string") {
     // Preset name
-    if (fonts in fontPairings) {
+    if (isFontPairingPreset(fonts)) {
       fontConfig = fontPairings[fonts];
     }
   } else if (fonts && (fonts.heading || fonts.body || fonts.mono)) {

@@ -23,8 +23,10 @@ export {
 
 export {
   type FontConfig,
-  type FontPairing,
+  type FontPairingConfig,
+  type FontPairingPreset,
   fontPairings,
+  isFontPairingPreset,
 } from "@mdforge/core/fonts";
 
 export type { TemplatesConfig } from "@mdforge/core/includes";
