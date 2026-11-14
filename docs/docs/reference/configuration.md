@@ -7,7 +7,27 @@ Options can be set via:
 1. **Config file** - `--config-file config.yaml`
 2. **Front-matter** - YAML at the top of the markdown file
 
-Front-matter overrides config file. Paths in config files are resolved relative to the config file location.
+Front-matter overrides config file. Relative `stylesheet` paths and `@file`
+references resolve against the directory of the file they are written in (the
+config file or the markdown document). A config file also sets `basedir` to
+its own directory unless it sets `basedir` itself. Other paths (`templates`,
+`script` paths) are taken as they are.
+
+### Invalid values
+
+Both sources are parsed against the options below. An unknown option, or a
+value of the wrong type, is reported as a warning and ignored; the rest of the
+document still applies. A YAML syntax error ignores the whole block. YAML
+aliases (`*name`) and tags outside YAML 1.2's core schema (`!!set`,
+`!!binary`, custom tags) are not supported.
+
+### File references
+
+A free-text value written as `"@path"` is replaced by the contents of that
+file: stylesheets, `header`/`footer` text, `pdf_options.headerTemplate` and
+`footerTemplate`, `metadata`, `toc_options` labels, `constants` strings and
+`script` content. Names, enums and paths (`theme`, `format`, `basedir`,
+`templates`, ...) are taken literally.
 
 ## All Options
 
@@ -81,7 +101,7 @@ heading_numbers: false
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `theme` | `string \| false` | `"beryl"` | Built-in theme or `false` to disable |
-| `stylesheet` | `string` | auto | CSS file path |
+| `stylesheet` | `string \| string[]` | auto | CSS file path(s), applied in order |
 | `document_title` | `string` | auto | PDF title |
 | `code_block_style` | `string` | `"github"` | highlight.js theme |
 | `print_urls` | `boolean` | `false` | Append URLs after links |
@@ -94,7 +114,7 @@ heading_numbers: false
 | `font_scale` | `number` | `1` | Scale factor for font sizes |
 | `templates` | `object` | - | Named templates for @include |
 | `page_numbers` | `object` | - | Page number format |
-| `heading_numbers` | `object` | - | Heading numbering options |
+| `heading_numbers` | `object \| false` | - | Heading numbering options |
 | `constants` | `object` | - | Named values for `{{ ... }}` placeholders |
 | `constants_locale` | `string` | - | Locale for grouping numeric results |
 | `constants_precision` | `number` | `2` | Maximum fraction digits in a result |
@@ -119,10 +139,30 @@ pdf_options:
 
 ### Margin Shortcuts
 
+`pdf_options.margin` also takes CSS shorthand:
+
 ```yaml
-margin: "20mm"                    # all sides
-margin: "20mm 15mm"               # vertical, horizontal
-margin: "20mm 15mm 25mm 15mm"     # top, right, bottom, left
+pdf_options:
+  margin: "20mm"                  # all sides
+  # margin: "20mm 15mm"           # vertical, horizontal
+  # margin: "20mm 15mm 25mm"      # top, horizontal, bottom
+  # margin: "20mm 15mm 25mm 15mm" # top, right, bottom, left
+```
+
+## Browser Launch Options
+
+`launch_options` is read from the config file only (one browser serves every
+document in a run, so front matter cannot change it). The supported keys are
+Puppeteer launch options that YAML can express: `executablePath`, `browser`,
+`channel`, `headless`, `args`, `ignoreDefaultArgs`, `enableExtensions`,
+`userDataDir`, `env`, `timeout`, `protocolTimeout`, `slowMo`, `dumpio`, `pipe`,
+`devtools`, `debuggingPort`, `acceptInsecureCerts`, `waitForInitialPage`,
+`handleSIGINT`, `handleSIGTERM` and `handleSIGHUP`.
+
+```yaml
+launch_options:
+  executablePath: /usr/bin/chromium
+  args: ["--no-sandbox"]
 ```
 
 ## PDF Metadata

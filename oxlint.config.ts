@@ -37,4 +37,16 @@ export default defineConfig({
     "anti-slop/require-readable-spacing": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
   },
+  overrides: [
+    {
+      // The YAML boundary: the one module that inspects the runtime type of
+      // parsed user input. `typeof` is allowed there only inside type
+      // predicates. Not enabled globally, where a predicate would just launder
+      // a branch on a declared union that the rule exists to catch.
+      files: ["packages/core/src/lib/config-yaml.ts"],
+      rules: {
+        "anti-slop/no-runtime-typeof": ["error", { allowInTypeGuards: true }],
+      },
+    },
+  ],
 });

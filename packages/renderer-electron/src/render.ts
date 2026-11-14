@@ -149,16 +149,14 @@ function mapPdfOptions(
 
   // Map margins
   if (pdfOptions.margin) {
-    const margin = pdfOptions.margin;
+    // Always an object: margin shorthand strings are expanded where the
+    // YAML is parsed (core config-yaml.ts).
+    const { margin } = pdfOptions;
     options.margins = {
-      top: parseCssToInches(typeof margin === "object" ? margin.top : margin),
-      bottom: parseCssToInches(
-        typeof margin === "object" ? margin.bottom : margin,
-      ),
-      left: parseCssToInches(typeof margin === "object" ? margin.left : margin),
-      right: parseCssToInches(
-        typeof margin === "object" ? margin.right : margin,
-      ),
+      top: parseCssToInches(margin.top),
+      bottom: parseCssToInches(margin.bottom),
+      left: parseCssToInches(margin.left),
+      right: parseCssToInches(margin.right),
     };
   }
 

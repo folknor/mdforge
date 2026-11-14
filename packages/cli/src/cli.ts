@@ -10,12 +10,12 @@ import {
   closeBrowser,
   convertMdToPdf,
   defaultConfig,
+  formatConfigIssues,
   formatConversionInfo,
-  resolveFileRefs,
+  parseConfigYaml,
 } from "@mdforge/renderer-puppeteer";
 import arg from "arg";
 import Listr from "listr";
-import YAML from "yaml";
 
 const help = (): void =>
   console.log(`
@@ -108,56 +108,79 @@ async function main(args: typeof cliFlags): Promise<void> {
     process.exit(1);
   }
 
-  let config: Config = { ...defaultConfig };
+  // Files the config file read through @file references; watch mode
+  // re-renders every input when one of them changes.
+  const configDependencies: string[] = [];
 
-  if (args["--config-file"]) {
-    try {
-      const configFilePath = resolve(args["--config-file"]);
+  // Launch options of the last load, to notice when they change under watch
+  let launchOptions: string | undefined;
+
+  /**
+   * Build the run's config: defaults, then the config file, then --output.
+   * Called before every render so watch mode picks up config file edits.
+   */
+  const loadConfig = async (): Promise<Config> => {
+    const configFileArg = args["--config-file"];
+    let config: Config = { ...defaultConfig };
+
+    configDependencies.length = 0;
+
+    if (configFileArg) {
+      const configFilePath = resolve(configFileArg);
       const configDir = dirname(configFilePath);
-      const configContent = await fs.readFile(configFilePath, "utf-8");
 
-      const configFile = await resolveFileRefs(
-        YAML.parse(configContent) as Partial<Config>,
-        configDir,
-      );
+      try {
+        const configContent = await fs.readFile(configFilePath, "utf-8");
 
-      // Set basedir from config file location if not explicitly set
-      if (!configFile.basedir) {
-        configFile.basedir = configDir;
+        const configFile = await parseConfigYaml(configContent, {
+          source: "config-file",
+          baseDir: configDir,
+          dependencies: configDependencies,
+        });
+
+        if (configFile.issues.length > 0) {
+          console.warn(formatConfigIssues(configFile.issues, configFilePath));
+        }
+
+        config = {
+          ...config,
+          // basedir defaults to the config file's directory
+          basedir: configDir,
+          ...configFile.config,
+          pdf_options: {
+            ...config.pdf_options,
+            ...configFile.config.pdf_options,
+          },
+        };
+      } catch (error) {
+        console.warn(`Warning: couldn't read config file: ${configFilePath}`);
+        console.warn(error instanceof Error ? error.message : error);
       }
-
-      // Resolve relative stylesheet path to config directory
-      if (typeof configFile.stylesheet === "string") {
-        configFile.stylesheet = [resolve(configDir, configFile.stylesheet)];
-      } else if (Array.isArray(configFile.stylesheet)) {
-        configFile.stylesheet = configFile.stylesheet.map((s) =>
-          typeof s === "string" && !s.startsWith("/") && !s.includes("\n")
-            ? resolve(configDir, s)
-            : s,
-        );
-      }
-
-      config = {
-        ...config,
-        ...configFile,
-        pdf_options: { ...config.pdf_options, ...configFile.pdf_options },
-      };
-    } catch (error) {
-      console.warn(
-        `Warning: couldn't read config file: ${resolve(args["--config-file"])}`,
-      );
-      console.warn(error instanceof Error ? error.message : error);
     }
-  }
 
-  // CLI --output flag overrides config dest
-  if (args["--output"]) {
-    config.dest = resolve(args["--output"]);
-  }
+    // CLI --output flag overrides config dest
+    if (args["--output"]) {
+      config.dest = resolve(args["--output"]);
+    }
+
+    // The browser is shared across renders; relaunch it when the config file
+    // changed how it should be launched.
+    const launch = JSON.stringify(config.launch_options);
+
+    if (launchOptions !== undefined && launch !== launchOptions) {
+      await closeBrowser();
+    }
+
+    launchOptions = launch;
+
+    return config;
+  };
 
   const render = async (
     targets: string[],
   ): Promise<Map<string, ConvertResult>> => {
+    const config = await loadConfig();
+
     // Store results for info display
     const results: Map<string, ConvertResult> = new Map();
 
@@ -218,7 +241,14 @@ async function main(args: typeof cliFlags): Promise<void> {
     return;
   }
 
-  watchAndRerender(files, initial, args["--config-file"], render);
+  const configFile = args["--config-file"];
+
+  watchAndRerender(
+    files,
+    initial,
+    () => (configFile ? [resolve(configFile), ...configDependencies] : []),
+    render,
+  );
 }
 
 // --
@@ -234,7 +264,8 @@ async function main(args: typeof cliFlags): Promise<void> {
 function watchAndRerender(
   files: string[],
   initial: Map<string, ConvertResult>,
-  configFile: string | undefined,
+  /** The config file and the files it references, as of the last render. */
+  configFiles: () => string[],
   render: (targets: string[]) => Promise<Map<string, ConvertResult>>,
 ): void {
   const debounceMs = 150;
@@ -311,8 +342,8 @@ function watchAndRerender(
     const path = resolve(file);
     addDep(path, file);
 
-    if (configFile) {
-      addDep(resolve(configFile), file);
+    for (const configDep of configFiles()) {
+      addDep(configDep, file);
     }
 
     for (const dep of result?.info.dependencies ?? []) {

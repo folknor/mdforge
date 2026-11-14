@@ -37,8 +37,13 @@ let browserPromise: Promise<Browser> | undefined;
  * Close the browser instance.
  */
 export async function closeBrowser(): Promise<void> {
-  await (await browserPromise)?.close();
+  // Forget the browser before waiting on it, so a launch that failed (say, a
+  // wrong executablePath) does not stay cached and block the next launch.
+  const pending = browserPromise;
   browserPromise = undefined;
+
+  const browser = await pending?.catch(() => undefined);
+  await browser?.close();
 }
 
 /**

@@ -37,7 +37,14 @@ export {
   type StylesheetEntry,
 } from "@mdforge/core/prepare";
 
-export { resolveFileRefs } from "@mdforge/core/util";
+export {
+  type ConfigIssue,
+  type ConfigSource,
+  type ConfigYamlOptions,
+  formatConfigIssues,
+  type ParsedConfig,
+  parseConfigYaml,
+} from "@mdforge/core/config-yaml";
 
 export type { PdfMetadata } from "@mdforge/pdf";
 

@@ -5,8 +5,7 @@
   "dependencies": {
     "@mdforge/renderer-puppeteer": "workspace:*",
     "arg": "^5.0.2",
-    "listr": "^0.14.3",
-    "yaml": "^2.9.1"
+    "listr": "^0.14.3"
   },
   "description": "CLI for mdforge - Convert Markdown to PDF",
   "devDependencies": {

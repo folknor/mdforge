@@ -220,8 +220,9 @@ export interface Config {
   /**
    * Heading numbering options.
    * Automatically numbers headings in the document (e.g., 1., 1.1., 1.2.).
+   * `false` turns numbering off, overriding a config file that enabled it.
    */
-  heading_numbers?: HeadingNumbersConfig;
+  heading_numbers?: HeadingNumbersConfig | false;
 
   /**
    * If true, generate fillable PDF forms with real AcroForm fields.

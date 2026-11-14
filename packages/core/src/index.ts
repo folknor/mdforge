@@ -54,5 +54,12 @@ export {
   type StylesheetEntry,
 } from "./lib/prepare.js";
 
-// Utilities
-export { resolveFileRefs } from "./lib/util.js";
+// Parsing user YAML (config files, front matter) into configuration
+export {
+  type ConfigIssue,
+  type ConfigSource,
+  type ConfigYamlOptions,
+  formatConfigIssues,
+  type ParsedConfig,
+  parseConfigYaml,
+} from "./lib/config-yaml.js";

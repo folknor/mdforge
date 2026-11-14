@@ -10,6 +10,11 @@ import process from "node:process";
 import type { FrameAddScriptTagOptions, PDFOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
 import { type Config, themes, themesDir } from "./config.js";
+import {
+  formatConfigIssues,
+  parseConfigYaml,
+  splitFrontMatter,
+} from "./config-yaml.js";
 import { processConstants } from "./constants.js";
 import {
   type ConversionInfo,
@@ -27,14 +32,7 @@ import {
   generatePagedCss,
   hasBackground,
 } from "./paged-css.js";
-import {
-  extractFirstHeading,
-  getMarginObject,
-  getOutputFilePath,
-  parseFrontMatter,
-  resolveFileRefs,
-} from "./util.js";
-import { formatValidationErrors, validateConfig } from "./validate-config.js";
+import { extractFirstHeading, getOutputFilePath } from "./util.js";
 import { hasPageRefs, processXref } from "./xref.js";
 
 const require: NodeRequire = createRequire(import.meta.url);
@@ -118,58 +116,35 @@ export async function prepareConversion(
       ? input.content
       : await fs.readFile(input.path, { encoding: "utf-8" });
 
-  const { content: md, data: rawFrontMatter } = parseFrontMatter(mdFileContent);
+  const { content: md, yaml } = splitFrontMatter(mdFileContent);
 
   // Extract title early for header/footer {title} variable
   const docTitle = extractFirstHeading(md) ?? "";
 
-  // resolve @filename references in front-matter relative to markdown file
+  // @file references and relative stylesheets in front matter resolve
+  // against the markdown file's directory
   const baseDir =
     "path" in input ? dirname(resolve(input.path)) : process.cwd();
 
-  const frontMatterConfig = await resolveFileRefs(
-    rawFrontMatter as Partial<Config>,
-    baseDir,
-    info.dependencies,
-  );
+  if (yaml !== undefined) {
+    const frontMatter = await parseConfigYaml(yaml, {
+      source: "front-matter",
+      baseDir,
+      dependencies: info.dependencies,
+    });
 
-  // merge front-matter config
-  config = {
-    ...config,
-    ...frontMatterConfig,
-    pdf_options: {
-      ...config.pdf_options,
-      ...frontMatterConfig.pdf_options,
-    },
-  };
-
-  // Validate merged config
-  const validationErrors = validateConfig(frontMatterConfig);
-
-  if (validationErrors.length > 0) {
-    info.warnings.push(formatValidationErrors(validationErrors));
-  }
-
-  const arrayOptions = ["body_class", "script", "stylesheet"] as const;
-
-  // sanitize frontmatter array options
-  for (const option of arrayOptions) {
-    if (!Array.isArray(config[option])) {
-      // SAFETY: front matter is merged into `config` without being parsed, so
-      // a single entry may arrive here as a bare scalar despite the declared
-      // array type; wrapping it (and dropping an empty value) restores the
-      // array the rest of this function relies on.
-      config[option] = [config[option]].filter(Boolean) as any;
+    if (frontMatter.issues.length > 0) {
+      info.warnings.push(formatConfigIssues(frontMatter.issues, "front matter"));
     }
-  }
 
-  // Resolve relative stylesheet paths from front-matter
-  if (frontMatterConfig.stylesheet && "path" in input) {
-    config.stylesheet = config.stylesheet.map((s) =>
-      typeof s === "string" && !s.startsWith("/") && !s.includes("\n")
-        ? resolve(baseDir, s)
-        : s,
-    );
+    config = {
+      ...config,
+      ...frontMatter.config,
+      pdf_options: {
+        ...config.pdf_options,
+        ...frontMatter.config.pdf_options,
+      },
+    };
   }
 
   // Auto-detect stylesheet if not specified
@@ -199,8 +174,7 @@ export async function prepareConversion(
     // so record all of them — the later sheets are what a layered theme uses to
     // override the base.
     const files = config.stylesheet.filter(
-      (s): s is string =>
-        typeof s === "string" && !s.includes("\n") && !s.startsWith("http"),
+      (s) => !s.includes("\n") && !s.startsWith("http"),
     );
 
     const [firstFile] = files;
@@ -445,11 +419,6 @@ export async function prepareConversion(
   // merge --fillable from CLI args
   if (args["--fillable"]) {
     config.fillable = true;
-  }
-
-  // sanitize the margin in pdf_options
-  if (typeof config.pdf_options.margin === "string") {
-    config.pdf_options.margin = getMarginObject(config.pdf_options.margin);
   }
 
   // set output destination

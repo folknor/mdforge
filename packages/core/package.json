@@ -28,6 +28,10 @@
       "default": "./dist/browser.js",
       "types": "./dist/browser.d.ts"
     },
+    "./config-yaml": {
+      "default": "./dist/lib/config-yaml.js",
+      "types": "./dist/lib/config-yaml.d.ts"
+    },
     "./conversion-info": {
       "default": "./dist/lib/conversion-info.js",
       "types": "./dist/lib/conversion-info.d.ts"
