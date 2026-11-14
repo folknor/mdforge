@@ -180,7 +180,7 @@ async function main(args: typeof cliFlags): Promise<void> {
       }
 
       // Display any warnings
-      if (result.info.warnings?.length > 0) {
+      if (result.info.warnings.length > 0) {
         for (const warning of result.info.warnings) {
           console.warn(warning);
         }

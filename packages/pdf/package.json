@@ -1,11 +1,11 @@
 {
   "dependencies": {
-    "@folknor/pdf-lib": "github:folknor/pdf-lib#a1e64d8e03ebda4e3aee2a590d4786ab13abeac8",
+    "@folknor/pdf-lib": "github:folknor/pdf-lib#e017036e70d833ed446a5760b264d763ba03a6d0",
     "@pdf-lib/fontkit": "^1.1.1"
   },
   "description": "PDF manipulation utilities for mdforge",
   "devDependencies": {
-    "@types/node": "^25.9.7",
+    "@types/node": "^26.6.6",
     "typescript": "7.0.2"
   },
   "exports": {

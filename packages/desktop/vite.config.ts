@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import process from "node:process";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import type { ElectronOptions } from "vite-plugin-electron";
@@ -9,6 +10,8 @@ import electron from "vite-plugin-electron/simple";
 type OnStartArgs = Parameters<NonNullable<ElectronOptions["onstart"]>>[0];
 
 const dir: string = import.meta.dirname;
+
+const electronArgv: string[] = [".", "--no-sandbox"];
 
 const pkg = JSON.parse(readFileSync(resolve(dir, "package.json"), "utf-8")) as {
   dependencies?: Record<string, string>;
@@ -50,7 +53,7 @@ export default defineConfig({
         // src/renderer and holds no package.json. Launch from the package root
         // instead, so Electron finds the manifest and its main field.
         onstart({ startup }: OnStartArgs): void {
-          void startup([".", "--no-sandbox"], { cwd: dir });
+          void startup(electronArgv, { cwd: dir });
         },
         vite: {
           build: {
@@ -69,6 +72,21 @@ export default defineConfig({
       },
       preload: {
         input: resolve(dir, "src/preload/index.ts"),
+        // The plugin's default preload hook calls reload(), which starts
+        // Electron from the Vite root when no app is running yet. That happens
+        // whenever the preload finishes before main has launched Electron (for
+        // example on the first run, while the Electron binary downloads), and
+        // fails for the same reason as above. Reload only a running app, and
+        // otherwise launch from the package root.
+        onstart({ startup, reload }: OnStartArgs): void {
+          // The plugin stores the running child on process.electronApp but
+          // does not declare it on the Process type.
+          if ((process as { electronApp?: unknown }).electronApp) {
+            reload();
+          } else {
+            void startup(electronArgv, { cwd: dir });
+          }
+        },
         vite: {
           build: {
             outDir: resolve(dir, "out/preload"),
