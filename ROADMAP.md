@@ -40,7 +40,7 @@ Auto-regenerate PDF when source file changes.
 - [ ] `--watch` flag for CLI
 - [ ] Debounce rapid changes
 - [ ] Watch included files too (@include dependencies)
-- [ ] Desktop app: optional auto-regenerate toggle
+- [ ] Desktop app: toggle to turn off the automatic preview regeneration
 
 ## 3. Cover Page
 

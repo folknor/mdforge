@@ -15,9 +15,9 @@
   "main": "./out/main/index.js",
   "scripts": {
     "build-deps": "pnpm --filter \"@mdforge/desktop^...\" run build",
-    "build": "pnpm run typecheck && vite build",
+    "build": "pnpm run build-deps && pnpm run build:app",
+    "build:app": "pnpm run typecheck && vite build",
     "dev": "vite",
-    "prebuild": "pnpm run build-deps",
     "predev": "pnpm run build-deps",
     "typecheck": "tsc --build",
     "package": "electron-builder",

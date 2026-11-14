@@ -17,7 +17,7 @@
   "repository": "folknor/mdforge",
   "type": "module",
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm -r --filter \"!@mdforge/desktop\" run build && pnpm --filter @mdforge/desktop run build:app",
     "clean": "pnpm -r run clean",
     "dev": "pnpm -r run dev",
     "lint": "oxlint",
