@@ -17,6 +17,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@mdforge/core": "workspace:*",
     "@mdforge/renderer-puppeteer": "workspace:*",
     "arg": "^5.0.2",
     "listr": "^0.14.3"

@@ -27,6 +27,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdforge/core": "workspace:*",
     "@mdforge/renderer-electron": "workspace:*",
     "fflate": "^0.8.3"
   },

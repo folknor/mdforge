@@ -39,8 +39,11 @@ export interface ElectronAPI {
 
   // Preview
   generatePreview: (filePath: string, config: PreviewConfig) => Promise<PreviewResult>;
-  watchFile: (filePath: string) => Promise<void>;
-  unwatchFile: (filePath: string) => Promise<void>;
+  /**
+   * Requesting a preview also watches the file and its dependencies; this
+   * stops that when nothing is selected any more.
+   */
+  stopPreviewWatch: () => Promise<void>;
 
   // File dialogs
   selectFiles: () => Promise<string[]>;
@@ -51,5 +54,13 @@ export interface ElectronAPI {
 
   // Events
   onConversionProgress: (callback: (progress: ConversionProgress) => void) => () => void;
-  onFileChanged: (callback: (filePath: string) => void) => () => void;
+  /** The previewed file or one of its dependencies changed on disk. */
+  onPreviewSourceChanged: (callback: () => void) => () => void;
+  /** What live preview currently cannot watch; empty when everything is covered. */
+  onWatchProblems: (callback: (problems: WatchProblem[]) => void) => () => void;
+}
+
+export interface WatchProblem {
+  path: string;
+  reason: string;
 }

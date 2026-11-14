@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import type { WatchProblem } from "../../types";
 
 interface PdfPreviewProps {
   pdfData: Uint8Array | null;
@@ -7,6 +8,8 @@ interface PdfPreviewProps {
   error: string | null;
   fileName: string | null;
   generatedAt: Date | null;
+  /** Files live preview cannot currently watch, so their edits may be missed. */
+  watchProblems: WatchProblem[];
 }
 
 function formatTime(date: Date): string {
@@ -23,6 +26,7 @@ export default function PdfPreview({
   error,
   fileName,
   generatedAt,
+  watchProblems,
 }: PdfPreviewProps): React.ReactElement {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -59,6 +63,14 @@ export default function PdfPreview({
           {fileName ? `Preview: ${fileName}` : "Preview"}
         </span>
         <div className="flex items-center gap-3">
+          {watchProblems.length > 0 ? (
+            <span
+              className="text-xs text-amber-700"
+              title={watchProblems.map((p) => `${p.path}: ${p.reason}`).join("\n")}
+            >
+              Live preview may miss changes
+            </span>
+          ) : null}
           {generatedAt != null && !isLoading ? (
             <span className="text-xs text-gray-500">{formatTime(generatedAt)}</span>
           ) : null}

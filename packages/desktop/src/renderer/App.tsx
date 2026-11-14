@@ -6,6 +6,7 @@ import type {
   ConversionProgress,
   ConversionResult,
   PreviewConfig,
+  WatchProblem,
 } from "../types";
 import ConfigPanel from "./components/ConfigPanel";
 import DropZone from "./components/DropZone";
@@ -65,7 +66,7 @@ type AppAction =
   | { type: "themeChanged"; theme: Theme }
   | { type: "fontPairingChanged"; fontPairing: string }
   | { type: "authorChanged"; author: string }
-  | { type: "sourceChanged"; path: string }
+  | { type: "sourceChanged" }
   | { type: "previewSucceeded"; generation: number; data: Uint8Array }
   | { type: "previewFailed"; generation: number; error: string }
   | { type: "conversionStarted" }
@@ -151,9 +152,9 @@ function reducer(state: AppState, action: AppAction): AppState {
         : invalidate({ ...state, author: action.author });
 
     case "sourceChanged":
-      // A change notification from a watcher that was being torn down can
-      // arrive after the selection moved on, so match the current selection.
-      return action.path === state.selectedFile ? invalidate(state) : state;
+      // A notification meant for the previous selection can land just after
+      // the selection moved on; that costs one redundant preview at most.
+      return state.selectedFile == null ? state : invalidate(state);
 
     case "previewSucceeded":
       if (action.generation !== state.generation || state.selectedFile == null) return state;
@@ -215,6 +216,7 @@ export default function App(): React.ReactElement {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [outputDir, setOutputDir] = useState<string>("");
   const [isConverting, setIsConverting] = useState(false);
+  const [watchProblems, setWatchProblems] = useState<WatchProblem[]>([]);
   const { files, selectedFile, theme, fontPairing, author, generation, outcome } = state;
   const previewDocument = state.document;
 
@@ -225,20 +227,24 @@ export default function App(): React.ReactElement {
     });
   }, []);
 
-  // Watch the selected file and regenerate the preview when it changes on disk.
+  // Requesting a preview makes the main process watch the file and what its
+  // preview depended on; a change there regenerates the preview.
   useEffect(() => {
-    if (!selectedFile) return;
-
-    const unsubscribe = window.electron.onFileChanged((path) => {
-      dispatch({ type: "sourceChanged", path });
+    const offChanged = window.electron.onPreviewSourceChanged(() => {
+      dispatch({ type: "sourceChanged" });
     });
 
-    void window.electron.watchFile(selectedFile);
+    const offProblems = window.electron.onWatchProblems(setWatchProblems);
 
     return (): void => {
-      unsubscribe();
-      void window.electron.unwatchFile(selectedFile);
+      offChanged();
+      offProblems();
     };
+  }, []);
+
+  // With nothing selected there is no preview request to scope the watch to
+  useEffect(() => {
+    if (selectedFile == null) void window.electron.stopPreviewWatch();
   }, [selectedFile]);
 
   // Generate the preview for the current generation. The other dependencies
@@ -385,6 +391,7 @@ export default function App(): React.ReactElement {
             selectedFile ? (files.find((f) => f.path === selectedFile)?.name ?? null) : null
           }
           generatedAt={previewDocument?.generatedAt ?? null}
+          watchProblems={watchProblems}
         />
       </div>
     </div>

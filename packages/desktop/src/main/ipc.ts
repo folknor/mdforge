@@ -1,8 +1,8 @@
-import { type FSWatcher, watch } from "node:fs";
 import process from "node:process";
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import type { ConversionConfig, PreviewConfig } from "../types";
 import { convertFiles, generatePreview } from "./conversion";
+import { beginPreview, stopPreviewWatch } from "./preview-watch";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
@@ -12,9 +12,6 @@ function log(...args: unknown[]): void {
     console.log("[desktop:ipc]", ...args);
   }
 }
-
-// Track file watchers per window
-const fileWatchers: Map<string, FSWatcher> = new Map();
 
 export function setupIpcHandlers(): void {
   // File conversion
@@ -32,51 +29,22 @@ export function setupIpcHandlers(): void {
     return results;
   });
 
-  // Preview generation
-  ipcMain.handle("generate-preview", async (_event, filePath: string, config: PreviewConfig) => {
+  // Preview generation. Requesting a preview also watches the file and what
+  // its preview depended on, for live preview (see preview-watch.ts).
+  ipcMain.handle("generate-preview", async (event, filePath: string, config: PreviewConfig) => {
     log("generate-preview IPC called:", filePath);
 
-    return generatePreview(filePath, config);
+    // Synchronously, before conversion, so edits during it are seen
+    const request = beginPreview(event.sender, filePath);
+    const { result, dependencies } = await generatePreview(filePath, config);
+
+    request.complete(dependencies);
+
+    return result;
   });
 
-  // File watching for live preview
-  ipcMain.handle("watch-file", async (event, filePath: string) => {
-    log("watch-file IPC called:", filePath);
-    const window = BrowserWindow.fromWebContents(event.sender);
-
-    // Clean up existing watcher for this file
-    const existingWatcher = fileWatchers.get(filePath);
-
-    if (existingWatcher) {
-      existingWatcher.close();
-      fileWatchers.delete(filePath);
-    }
-
-    // Create new watcher
-    try {
-      const watcher = watch(filePath, { persistent: false }, (eventType) => {
-        if (eventType === "change") {
-          log("File changed:", filePath);
-          window?.webContents.send("file-changed", filePath);
-        }
-      });
-
-      fileWatchers.set(filePath, watcher);
-      log("Now watching:", filePath);
-    } catch (error) {
-      log("Watch error:", error);
-    }
-  });
-
-  ipcMain.handle("unwatch-file", async (_event, filePath: string) => {
-    log("unwatch-file IPC called:", filePath);
-    const watcher = fileWatchers.get(filePath);
-
-    if (watcher) {
-      watcher.close();
-      fileWatchers.delete(filePath);
-      log("Stopped watching:", filePath);
-    }
+  ipcMain.handle("stop-preview-watch", (event) => {
+    stopPreviewWatch(event.sender);
   });
 
   // File dialogs

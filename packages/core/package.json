@@ -48,6 +48,10 @@
       "default": "./dist/lib/util.js",
       "types": "./dist/lib/util.d.ts"
     },
+    "./watch": {
+      "default": "./dist/lib/watch.js",
+      "types": "./dist/lib/watch.d.ts"
+    },
     "./xref": {
       "default": "./dist/lib/xref.js",
       "types": "./dist/lib/xref.d.ts"

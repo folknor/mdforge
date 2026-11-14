@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import type { ConversionConfig, ConversionProgress, ElectronAPI, PreviewConfig } from "../types";
+import type {
+  ConversionConfig,
+  ConversionProgress,
+  ElectronAPI,
+  PreviewConfig,
+  WatchProblem,
+} from "../types";
 
 const electronAPI: ElectronAPI = {
   // Conversion
@@ -9,8 +15,7 @@ const electronAPI: ElectronAPI = {
   // Preview
   generatePreview: (filePath: string, config: PreviewConfig) =>
     ipcRenderer.invoke("generate-preview", filePath, config),
-  watchFile: (filePath: string) => ipcRenderer.invoke("watch-file", filePath),
-  unwatchFile: (filePath: string) => ipcRenderer.invoke("unwatch-file", filePath),
+  stopPreviewWatch: () => ipcRenderer.invoke("stop-preview-watch"),
 
   // File dialogs
   selectFiles: () => ipcRenderer.invoke("select-files"),
@@ -31,15 +36,26 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.removeListener("conversion-progress", handler);
     };
   },
-  onFileChanged: (callback: (filePath: string) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, filePath: string): void => {
-      callback(filePath);
+  onPreviewSourceChanged: (callback: () => void) => {
+    const handler = (): void => {
+      callback();
     };
 
-    ipcRenderer.on("file-changed", handler);
+    ipcRenderer.on("preview-source-changed", handler);
 
     return () => {
-      ipcRenderer.removeListener("file-changed", handler);
+      ipcRenderer.removeListener("preview-source-changed", handler);
+    };
+  },
+  onWatchProblems: (callback: (problems: WatchProblem[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, problems: WatchProblem[]): void => {
+      callback(problems);
+    };
+
+    ipcRenderer.on("watch-problems", handler);
+
+    return () => {
+      ipcRenderer.removeListener("watch-problems", handler);
     };
   },
 };

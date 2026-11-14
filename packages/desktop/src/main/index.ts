@@ -70,5 +70,3 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
-
-// No cleanup needed - Electron renderer uses the app's own BrowserWindow

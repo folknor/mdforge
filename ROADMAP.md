@@ -37,8 +37,8 @@ Supports 13 diagram types:
 
 Auto-regenerate PDF when source file changes.
 
-- [ ] `--watch` flag for CLI
-- [ ] Debounce rapid changes
+- [x] `--watch` flag for CLI
+- [x] Debounce rapid changes
 - [ ] Watch included files too (@include dependencies)
 - [ ] Desktop app: toggle to turn off the automatic preview regeneration
 

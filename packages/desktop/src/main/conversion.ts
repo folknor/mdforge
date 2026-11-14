@@ -104,10 +104,19 @@ function getOutputPath(inputPath: string, outputDir: string): string {
   return `${outputDir}/${filename}.pdf`;
 }
 
+export interface PreviewOutcome {
+  result: PreviewResult;
+  /**
+   * Files other than the source whose content or existence decided the
+   * preview, relative to the source's directory; undefined when it failed.
+   */
+  dependencies: string[] | undefined;
+}
+
 export async function generatePreview(
   filePath: string,
   config: PreviewConfig,
-): Promise<PreviewResult> {
+): Promise<PreviewOutcome> {
   log("generatePreview called:", filePath);
 
   try {
@@ -145,18 +154,16 @@ export async function generatePreview(
     const pdfData = result.content;
 
     return {
-      success: true,
-      filePath,
-      pdfData,
+      result: { success: true, filePath, pdfData },
+      dependencies: result.info.dependencies,
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     log("Preview error:", err.message, err.stack);
 
     return {
-      success: false,
-      filePath,
-      error: err.message,
+      result: { success: false, filePath, error: err.message },
+      dependencies: undefined,
     };
   }
 }
