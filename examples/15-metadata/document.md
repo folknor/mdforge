@@ -18,7 +18,6 @@ This document has custom PDF metadata embedded.
 ## Viewing Metadata
 
 PDF metadata is visible in:
-
 - PDF viewer "Document Properties" (Ctrl+D in most viewers)
 - File managers showing PDF details
 - Search indexers and document management systems
@@ -38,14 +37,14 @@ metadata:
 
 ## Available Fields
 
-| Field      | Description                                                |
-| ---------- | ---------------------------------------------------------- |
-| `title`    | Document title (auto-detected from first h1 if not set)    |
-| `author`   | Document author                                            |
-| `subject`  | Document subject/description                               |
-| `keywords` | Array of keywords for search indexing                      |
-| `creator`  | Application that created the document (default: "mdforge") |
-| `producer` | PDF producer (usually set by pdf-lib)                      |
+| Field | Description |
+|-------|-------------|
+| `title` | Document title (auto-detected from first h1 if not set) |
+| `author` | Document author |
+| `subject` | Document subject/description |
+| `keywords` | Array of keywords for search indexing |
+| `creator` | Application that created the document (default: "mdforge") |
+| `producer` | PDF producer (usually set by pdf-lib) |
 
 ## Use Cases
 

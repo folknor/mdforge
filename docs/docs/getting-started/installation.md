@@ -18,11 +18,11 @@ pnpm add -g mdforge
 
 Download the portable desktop app for your platform from the [releases page](https://github.com/folknor/mdforge/releases).
 
-| Platform | Format                          |
-| -------- | ------------------------------- |
-| Windows  | `.exe` (portable, no installer) |
-| Linux    | AppImage                        |
-| macOS    | `.app` bundle                   |
+| Platform | Format |
+|----------|--------|
+| Windows | `.exe` (portable, no installer) |
+| Linux | AppImage |
+| macOS | `.app` bundle |
 
 ## Requirements
 

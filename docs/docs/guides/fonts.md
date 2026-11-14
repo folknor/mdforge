@@ -12,14 +12,14 @@ fonts: classic-elegant
 
 Available presets:
 
-| Preset                | Heading            | Body              | Mono           |
-| --------------------- | ------------------ | ----------------- | -------------- |
-| `modern-professional` | Inter              | Inter             | Fira Code      |
-| `classic-elegant`     | Playfair Display   | Libre Baskerville | Fira Code      |
-| `modern-geometric`    | Poppins            | Open Sans         | Fira Code      |
-| `tech-minimal`        | Space Grotesk      | DM Sans           | JetBrains Mono |
-| `editorial`           | Cormorant Garamond | Libre Baskerville | Fira Code      |
-| `clean-sans`          | DM Sans            | Inter             | Fira Code      |
+| Preset | Heading | Body | Mono |
+|--------|---------|------|------|
+| `modern-professional` | Inter | Inter | Fira Code |
+| `classic-elegant` | Playfair Display | Libre Baskerville | Fira Code |
+| `modern-geometric` | Poppins | Open Sans | Fira Code |
+| `tech-minimal` | Space Grotesk | DM Sans | JetBrains Mono |
+| `editorial` | Cormorant Garamond | Libre Baskerville | Fira Code |
+| `clean-sans` | DM Sans | Inter | Fira Code |
 
 Each theme also has a matching font preset (`beryl`, `tufte`, `buttondown`, `pandoc`) that's automatically applied when using that theme.
 
@@ -38,7 +38,7 @@ You can specify just one or two:
 
 ```yaml
 fonts:
-  heading: "Poppins" # Uses theme default for body and mono
+  heading: "Poppins"  # Uses theme default for body and mono
 ```
 
 ## Font Scale
@@ -46,7 +46,7 @@ fonts:
 Scale all font sizes proportionally:
 
 ```yaml
-font_scale: 1.2 # 20% larger (14.4pt base instead of 12pt)
+font_scale: 1.2  # 20% larger (14.4pt base instead of 12pt)
 ```
 
 ## CSS Variables

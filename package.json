@@ -21,8 +21,8 @@
     "clean": "pnpm -r run clean",
     "dev": "pnpm -r run dev",
     "lint": "oxlint",
-    "fmt": "oxfmt . '!packages/core/src/data/google-fonts.json'",
-    "fmt:check": "oxfmt --check . '!packages/core/src/data/google-fonts.json'",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
     "desktop": "pnpm --filter @mdforge/desktop run dev",
     "regenerate-examples": "node scripts/regenerate-examples.js",
     "test": "pnpm -r run test"

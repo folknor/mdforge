@@ -14,14 +14,12 @@ Render diagrams in PDFs.
 Pure Rust Mermaid renderer - 500-1600x faster than mermaid-cli, no browser required.
 
 Supports 13 diagram types:
-
 - **Core:** Flowchart, Sequence, Class, State
 - **Data:** ER Diagram, Pie Chart, XY Chart, Quadrant Chart
 - **Planning:** Gantt, Timeline, Journey
 - **Other:** Mindmap, Git Graph
 
 **Integration strategy:**
-
 1. Pre-render mermaid code blocks to inline SVG during markdown processing (before Puppeteer)
 2. Shell out to `mmdr` CLI: `echo '<mermaid>' | mmdr -e svg`
 3. Fallback to browser-based mermaid.js if mmdr not installed
@@ -52,13 +50,13 @@ First page with title, author, branding. Common for reports, proposals, theses.
 cover:
   title: "Project Proposal"
   subtitle: "Q1 2025 Initiative"
-  author: "Jane Smith" # or authors: ["Jane Smith", "John Doe"]
-  date: "January 2025" # or "auto"
+  author: "Jane Smith"           # or authors: ["Jane Smith", "John Doe"]
+  date: "January 2025"           # or "auto"
   version: "1.0"
   logo: company-logo.svg
   organization: "Acme Corp"
-  template: corporate # corporate, academic, minimal
-  background: cover-bg.jpg # optional background image
+  template: corporate            # corporate, academic, minimal
+  background: cover-bg.jpg       # optional background image
 
   # Academic papers
   institution: "MIT"
@@ -85,14 +83,10 @@ cover:
 Combine multiple .md files into a single PDF with unified TOC.
 
 **Note:** Users can already do this with @include:
-
 ```markdown
 <!-- book.md -->
-
 # My Book
-
 <!-- toc -->
-
 @include chapters/01-intro.md
 @include chapters/02-methods.md
 ```
@@ -100,30 +94,27 @@ Combine multiple .md files into a single PDF with unified TOC.
 What's missing: page breaks between chapters, CLI convenience, chapter-aware headers.
 
 **Approach A: Enhance @include**
-
 ```markdown
 @include chapters/01-intro.md {page-break}
 ```
 
 **Approach B: CLI flag**
-
 ```bash
 mdforge --book chapters/*.md -o book.pdf
 # Alphabetical order, page breaks between files
 ```
 
 **Approach C: Book config**
-
 ```yaml
 book:
   files:
     - preface.md
-    - chapters/*.md # glob support, sorted alphabetically
+    - chapters/*.md          # glob support, sorted alphabetically
     - appendix.md
-  page_break: between_files # or: chapter_start_odd (right-hand page), none
+  page_break: between_files  # or: chapter_start_odd (right-hand page), none
   numbering:
-    front_matter: roman # i, ii, iii for preface
-    main: arabic # 1, 2, 3 for chapters
+    front_matter: roman      # i, ii, iii for preface
+    main: arabic             # 1, 2, 3 for chapters
 ```
 
 **File ordering:** Explicit list takes precedence. Globs sorted alphabetically. Numeric prefixes recommended: `01-intro.md`, `02-methods.md`.
@@ -145,7 +136,6 @@ Academic paper support with Pandoc-style syntax.
 According to recent research [@smith2024], ...
 
 ## References
-
 <!-- bibliography -->
 ```
 
@@ -158,27 +148,26 @@ According to recent research [@smith2024], ...
 Overlay text (or images) on every page. Common for drafts, confidential docs, branding.
 
 ```yaml
-watermark: "DRAFT" # simple text, defaults to diagonal gray
+watermark: "DRAFT"                    # simple text, defaults to diagonal gray
 
 watermark:
   text: "CONFIDENTIAL"
-  opacity: 0.3 # 0-1
-  angle: -45 # degrees, -45 is diagonal bottom-left to top-right
-  color: "#ff0000" # or "gray", "red", etc.
-  size: 72 # font size in points
-  position: center # center, top, bottom
+  opacity: 0.3                        # 0-1
+  angle: -45                          # degrees, -45 is diagonal bottom-left to top-right
+  color: "#ff0000"                    # or "gray", "red", etc.
+  size: 72                            # font size in points
+  position: center                    # center, top, bottom
 
 watermark:
-  image: logo-watermark.png # image instead of text
+  image: logo-watermark.png           # image instead of text
   opacity: 0.1
   position: center
-  size: 50% # percentage of page width
+  size: 50%                           # percentage of page width
 ```
 
 **Implementation approaches:**
 
 **Approach A: CSS (via paged.js)**
-
 - Use `body::before` with `position: fixed`, `transform: rotate(-45deg)`
 - Rendered by Puppeteer as part of HTML
 - Simple, no extra dependencies
@@ -199,7 +188,6 @@ body::before {
 ```
 
 **Approach B: pdf-lib post-processing**
-
 - Already have pdf-lib for metadata injection
 - Iterate through pages, draw text/image on each
 - `page.drawText()` with `rotate: degrees(-45)`, `color: rgb(...)`
@@ -209,7 +197,7 @@ body::before {
 ```javascript
 const pages = pdfDoc.getPages();
 for (const page of pages) {
-  page.drawText("DRAFT", {
+  page.drawText('DRAFT', {
     x: width / 2,
     y: height / 2,
     size: 72,

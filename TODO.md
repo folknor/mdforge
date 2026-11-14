@@ -27,12 +27,10 @@ for (const field of form.getFields()) {
 ### Future: pdf-lib improvement
 
 See `/home/folk/Programs/pdf-lib/TODO.md` for the proposed API:
-
 - Accept `backgroundColor: null` to mean "no background"
 - Add `clearBackgroundColor()` to `AppearanceCharacteristics`
 
 Once implemented in pdf-lib, we can simplify to:
-
 ```typescript
 field.addToPage(page, { backgroundColor: null, ... });
 ```
@@ -46,7 +44,6 @@ field.addToPage(page, { backgroundColor: null, ... });
 ### The hack
 
 mdforge uses invisible `<a>` links as position markers. Puppeteer converts these to PDF Link annotations with precise coordinates. We then:
-
 1. Scan for links matching `https://mdforge.marker/...`
 2. Extract field name, type, and position from annotation rectangle
 3. Remove marker annotations
@@ -65,17 +62,14 @@ const annots = page.node.context.lookup(annotsRef);
 ### Future: pdf-lib improvement
 
 See `/home/folk/Programs/pdf-lib/TODO.md` for the proposed API:
-
 - `page.getLinkAnnotations()` returning `PDFLinkAnnotation[]`
 - `annotation.getUrl()` for easy URL extraction
 - `page.removeAnnotations(predicate)` for batch removal
 
 Once implemented, marker extraction simplifies to:
-
 ```typescript
-const markers = page
-  .getLinkAnnotations()
-  .filter((link) => link.getUrl()?.startsWith(MARKER_URL_PREFIX));
+const markers = page.getLinkAnnotations()
+  .filter(link => link.getUrl()?.startsWith(MARKER_URL_PREFIX));
 
 for (const marker of markers) {
   const { x, y, width, height } = marker.getRectangle();

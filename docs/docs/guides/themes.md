@@ -4,12 +4,12 @@
 
 mdforge includes four built-in themes:
 
-| Theme        | Description                            |
-| ------------ | -------------------------------------- |
-| `beryl`      | Clean, modern default theme            |
-| `tufte`      | Inspired by Edward Tufte's book design |
-| `buttondown` | Minimal, newsletter-style              |
-| `pandoc`     | Classic academic style                 |
+| Theme | Description |
+|-------|-------------|
+| `beryl` | Clean, modern default theme |
+| `tufte` | Inspired by Edward Tufte's book design |
+| `buttondown` | Minimal, newsletter-style |
+| `pandoc` | Classic academic style |
 
 Set a theme in front-matter or config:
 

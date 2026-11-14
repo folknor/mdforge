@@ -1,0 +1,3 @@
+{
+  "ignorePatterns": ["**/*.md", "**/*.html", "packages/core/src/data/google-fonts.json"]
+}

@@ -10,11 +10,11 @@ mdforge supports 200,000+ icons from [Iconify](https://iconify.design/).
 
 Format: `:icon[set:icon-name]`
 
-| Icon                        | Syntax                        |
-| --------------------------- | ----------------------------- |
-| :icon[mdi:home]             | `:icon[mdi:home]`             |
-| :icon[mdi:cog]              | `:icon[mdi:cog]`              |
-| :icon[mdi:star]             | `:icon[mdi:star]`             |
+| Icon | Syntax |
+|------|--------|
+| :icon[mdi:home] | `:icon[mdi:home]` |
+| :icon[mdi:cog] | `:icon[mdi:cog]` |
+| :icon[mdi:star] | `:icon[mdi:star]` |
 | :icon[ph:check-circle-fill] | `:icon[ph:check-circle-fill]` |
 
 ## Icon Sets
@@ -33,8 +33,8 @@ Browse all at [icon-sets.iconify.design](https://icon-sets.iconify.design/)
 
 Use `{size=N}` to set pixel size:
 
-| Size | Example                   | Syntax                      |
-| ---- | ------------------------- | --------------------------- |
+| Size | Example | Syntax |
+|------|---------|--------|
 | 16px | :icon[mdi:heart]{size=16} | `:icon[mdi:heart]{size=16}` |
 | 24px | :icon[mdi:heart]{size=24} | `:icon[mdi:heart]{size=24}` |
 | 32px | :icon[mdi:heart]{size=32} | `:icon[mdi:heart]{size=32}` |
@@ -60,12 +60,12 @@ Icons work inline: Click :icon[mdi:home]{size=16} to go home, or :icon[mdi:cog]{
 
 ### Status Indicators
 
-| Status  | Icon                             |
-| ------- | -------------------------------- |
+| Status | Icon |
+|--------|------|
 | Success | :icon[mdi:check-circle]{size=20} |
-| Warning | :icon[mdi:alert]{size=20}        |
-| Error   | :icon[mdi:close-circle]{size=20} |
-| Info    | :icon[mdi:information]{size=20}  |
+| Warning | :icon[mdi:alert]{size=20} |
+| Error | :icon[mdi:close-circle]{size=20} |
+| Info | :icon[mdi:information]{size=20} |
 
 ## Notes
 
