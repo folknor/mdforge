@@ -48,9 +48,17 @@ beside itself with a `.pdf` (or `.html`) extension.
 ## Watch mode
 
 `--watch` renders once, then re-renders whenever an input changes. Alongside the
-Markdown itself it watches the stylesheet the document resolved to and the
-`--config-file`, so a theme edit retriggers the render too. The browser stays open
-between runs, which makes each re-render considerably faster than a cold start.
+Markdown itself it watches the document's stylesheet paths, the files its front
+matter references with `@file`, the `--config-file` and the files that
+references, so a theme edit retriggers the render too. A watched file that does
+not exist yet is watched for: creating it (or the directory it belongs in)
+triggers a render. For a document that relies on the automatic stylesheet,
+creating `<name>.css` triggers a render, and so does creating `index.css` while
+`<name>.css` does not exist. Files pulled in with `@include` and images are not
+watched. Files a render that fails never got to report are not watched until a
+render succeeds, and a file created while a render is still running may be
+missed. The browser stays open between runs, which makes each
+re-render considerably faster than a cold start.
 
 Saves are debounced, so the burst of writes an editor makes on save produces a
 single render. Press ctrl-c to stop.

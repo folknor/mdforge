@@ -24,9 +24,12 @@ export interface ConversionInfo {
     paths?: string[];
   };
   /**
-   * Absolute paths of every local file the render read besides the Markdown
-   * itself — stylesheets and @filename references. Watch mode re-renders when
-   * any of them changes.
+   * Absolute paths of local files whose content or existence decided the
+   * render, missing ones included: stylesheet paths, @filename references,
+   * and the auto-detected stylesheet candidates that were consulted. Watch
+   * mode re-renders when any of them changes, appears or disappears.
+   * Not listed: the Markdown itself, @include files, images, and the
+   * built-in theme and highlight stylesheets.
    */
   dependencies: string[];
   headerFooter?: {

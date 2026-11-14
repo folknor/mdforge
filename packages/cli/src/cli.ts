@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, type FSWatcher, promises as fs, watch } from "node:fs";
+import { type FSWatcher, promises as fs, statSync, watch } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
@@ -266,6 +266,17 @@ async function main(args: typeof cliFlags): Promise<void> {
 // --
 // Watch Mode
 
+/** The directory's identity, or undefined when it is not a directory. */
+function identity(dir: string): { dev: number; ino: number } | undefined {
+  try {
+    const stats = statSync(dir);
+
+    return stats.isDirectory() ? { dev: stats.dev, ino: stats.ino } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Re-render inputs whenever they — or a file they depend on — change.
  *
@@ -282,9 +293,40 @@ function watchAndRerender(
 ): void {
   const debounceMs = 150;
 
-  // absolute path of a watched file -> inputs that must be re-rendered
-  const dependents = new Map<string, Set<string>>();
-  const watchedDirs = new Map<string, FSWatcher>();
+  // input -> absolute paths it depends on: itself plus info.dependencies of its
+  // last completed render (a render that throws keeps the previous set)
+  const inputTargets = new Map<string, Set<string>>();
+  // The config file and its @file references as of the last config load;
+  // every input depends on them
+  let configTargets = new Set<string>();
+
+  // Each target is armed by watching the deepest directory on its path that
+  // exists, so a missing file — or a missing directory above it — is still
+  // watched for. A directory's identity is kept to notice it being replaced.
+  interface DirWatch {
+    watcher: FSWatcher;
+    dev: number;
+    ino: number;
+    targets: Set<string>;
+  }
+
+  const dirs = new Map<string, DirWatch>();
+  // target -> the directory it is armed at
+  const armedAt = new Map<string, string>();
+  // Directories that failed to watch are skipped in favour of an ancestor
+  // until a retry timer, independent of renders, makes them eligible again.
+  // The delay doubles with each failure of the same directory, so one that
+  // keeps failing costs at most a render per (growing) retry interval.
+  const failed = new Set<string>();
+  const failures = new Map<string, number>();
+  // Targets watched more coarsely than intended because of a failure; a
+  // change during that time may have gone unseen, so the next retry renders
+  // their inputs once whether or not their arm moves
+  const degraded = new Set<string>();
+  const retryBaseMs = 5000;
+  const retryMaxMs = 300_000;
+  const warned = new Set<string>();
+
   const timers = new Map<string, NodeJS.Timeout>();
   const queued = new Set<string>();
   let rendering = false;
@@ -299,11 +341,16 @@ function watchAndRerender(
       const results = await render(targets);
 
       for (const file of targets) {
-        trackDeps(file, results.get(file));
+        const result = results.get(file);
+
+        if (result) setInputTargets(file, result);
       }
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
     } finally {
+      // The config was reloaded even if the render then failed
+      configTargets = new Set(configFiles());
+      sync();
       rendering = false;
       // Changes that landed mid-render
       void rerender();
@@ -322,53 +369,259 @@ function watchAndRerender(
     );
   };
 
-  const watchDir = (dir: string): void => {
-    if (watchedDirs.has(dir)) return;
+  const scheduleDependentsOf = (target: string): void => {
+    if (configTargets.has(target)) {
+      for (const file of files) schedule(file);
 
-    const watcher = watch(dir, { persistent: true }, (_event, filename) => {
-      if (!filename) return;
-      const changed = resolve(dir, filename.toString());
+      return;
+    }
 
-      for (const file of dependents.get(changed) ?? []) {
-        schedule(file);
+    for (const [file, targets] of inputTargets) {
+      if (targets.has(target)) schedule(file);
+    }
+  };
+
+  const setInputTargets = (file: string, result?: ConvertResult): void => {
+    const path = resolve(file);
+    const deps = (result?.info.dependencies ?? []).map((dep) => resolve(dirname(path), dep));
+
+    inputTargets.set(file, new Set([path, ...deps]));
+  };
+
+  /** The deepest existing, watchable directory on the target's path. */
+  const deepestDir = (target: string): string | undefined => {
+    let dir = dirname(target);
+
+    for (;;) {
+      if (identity(dir)) {
+        if (!failed.has(dir)) return dir;
+        // Skipping an existing directory watches the target too coarsely
+        degraded.add(target);
+      }
+
+      const parent = dirname(dir);
+
+      if (parent === dir) return undefined;
+      dir = parent;
+    }
+  };
+
+  const release = (dir: string): void => {
+    const entry = dirs.get(dir);
+
+    if (entry && entry.targets.size === 0) {
+      entry.watcher.close();
+      dirs.delete(dir);
+    }
+  };
+
+  const detach = (target: string): void => {
+    const dir = armedAt.get(target);
+
+    if (dir === undefined) return;
+    armedAt.delete(target);
+    dirs.get(dir)?.targets.delete(target);
+    release(dir);
+  };
+
+  /** The config's targets plus every input's. */
+  const wantedTargets = (): Set<string> => {
+    const wanted = new Set(configTargets);
+
+    for (const targets of inputTargets.values()) {
+      for (const target of targets) wanted.add(target);
+    }
+
+    return wanted;
+  };
+
+  const markFailed = (dir: string): void => {
+    if (failed.has(dir)) return;
+    const count = (failures.get(dir) ?? 0) + 1;
+
+    failures.set(dir, count);
+    failed.add(dir);
+
+    const delay = Math.min(retryBaseMs * 2 ** (count - 1), retryMaxMs);
+
+    setTimeout(() => {
+      failed.delete(dir);
+
+      // Every wanted target, unarmed ones included, moves back down if it
+      // can; its file may have changed while it was watched too coarsely.
+      // The timer stays referenced so watch mode outlives a moment with no
+      // watcher at all.
+      for (const target of wantedTargets()) {
+        // Cleared first: arming may fail again and re-mark it
+        const wasDegraded = degraded.delete(target);
+        const moved = arm(target);
+
+        if (moved || wasDegraded) scheduleDependentsOf(target);
+      }
+    }, delay);
+  };
+
+  const openWatch = (dir: string): DirWatch | undefined => {
+    const id = identity(dir);
+
+    if (!id) return undefined;
+
+    let watcher: FSWatcher;
+
+    try {
+      watcher = watch(dir, { persistent: true }, (_event, filename) => {
+        // Callbacks from a watcher that has since been replaced are stale
+        if (dirs.get(dir)?.watcher !== watcher) return;
+        reconcile(dir, filename ? resolve(dir, filename.toString()) : undefined);
+      });
+    } catch (error) {
+      if (identity(dir)) warnOnce(dir, error instanceof Error ? error.message : String(error));
+      markFailed(dir);
+
+      return undefined;
+    }
+
+    watcher.on("error", (error: Error) => {
+      const entry = dirs.get(dir);
+
+      if (entry?.watcher !== watcher) return;
+      warnOnce(dir, error.message);
+      markFailed(dir);
+      watcher.close();
+      dirs.delete(dir);
+
+      // Fall back to an ancestor without rendering: a watch that keeps
+      // failing must not keep producing renders. The retry renders if
+      // coverage comes back.
+      for (const target of entry.targets) {
+        armedAt.delete(target);
+        degraded.add(target);
+        arm(target);
       }
     });
 
-    watcher.on("error", (error: Error) => {
-      console.warn(`Warning: stopped watching ${dir}: ${error.message}`);
-      watchedDirs.delete(dir);
-    });
-    watchedDirs.set(dir, watcher);
+    const entry: DirWatch = { watcher, ...id, targets: new Set() };
+    dirs.set(dir, entry);
+
+    return entry;
   };
 
-  const addDep = (target: string, file: string): void => {
-    if (!existsSync(target)) return;
-    const set = dependents.get(target) ?? new Set<string>();
-    set.add(file);
-    dependents.set(target, set);
-    watchDir(dirname(target));
+  const warnOnce = (path: string, reason: string): void => {
+    if (warned.has(path)) return;
+    warned.add(path);
+    console.warn(`Warning: cannot watch ${path}: ${reason}`);
   };
 
-  /** Track a rendered file's own path plus every file that render read. */
-  const trackDeps = (file: string, result?: ConvertResult): void => {
-    const path = resolve(file);
-    addDep(path, file);
+  /**
+   * Watch for the target at the deepest directory on its path that exists,
+   * reusing a healthy watcher there. Walks to a fixed point, because a deeper
+   * directory can appear while a watcher is being registered; the old watcher
+   * is released only after the new one is in place. Returns whether the
+   * directory the target is armed at changed.
+   */
+  const arm = (target: string): boolean => {
+    const before = armedAt.get(target);
 
-    for (const configDep of configFiles()) {
-      addDep(configDep, file);
+    for (;;) {
+      const dir = deepestDir(target);
+
+      if (dir === undefined) {
+        detach(target);
+        warnOnce(target, "no watchable directory on its path");
+
+        return before !== undefined;
+      }
+
+      if (!dirs.has(dir) && !openWatch(dir)) {
+        degraded.add(target);
+        continue;
+      }
+
+      if (deepestDir(target) !== dir) {
+        // A deeper directory appeared meanwhile; drop the watcher if it was
+        // opened for this target alone
+        release(dir);
+        continue;
+      }
+
+      const entry = dirs.get(dir);
+
+      if (!entry) continue;
+
+      if (before !== dir) {
+        entry.targets.add(target);
+        armedAt.set(target, dir);
+
+        if (before !== undefined) {
+          dirs.get(before)?.targets.delete(target);
+          release(before);
+        }
+      }
+
+      return before !== dir;
+    }
+  };
+
+  /**
+   * Respond to an event in a watched directory: re-validate the directory and
+   * re-arm everything armed there, then schedule the inputs of the entry that
+   * changed and of every target whose arm moved (a directory appeared or
+   * went away). An event that names no entry schedules all of them.
+   */
+  const reconcile = (dir: string, changed: string | undefined): void => {
+    const entry = dirs.get(dir);
+
+    if (!entry) return;
+    const snapshot = [...entry.targets];
+    const id = identity(dir);
+
+    if (!id || id.dev !== entry.dev || id.ino !== entry.ino) {
+      // The directory was deleted or replaced: drop its watcher so arming
+      // starts from what is on disk now
+      entry.watcher.close();
+      dirs.delete(dir);
+
+      for (const target of snapshot) armedAt.delete(target);
     }
 
-    for (const dep of result?.info.dependencies ?? []) {
-      addDep(resolve(dirname(path), dep), file);
+    for (const target of snapshot) {
+      const moved = arm(target);
+
+      if (moved || changed === undefined) scheduleDependentsOf(target);
     }
+
+    if (changed !== undefined) scheduleDependentsOf(changed);
+  };
+
+  /**
+   * Arm every current target and drop the ones no input needs any more.
+   * A watched directory replaced without an event is noticed here.
+   */
+  const sync = (): void => {
+    for (const [dir, entry] of dirs) {
+      const id = identity(dir);
+
+      if (!id || id.dev !== entry.dev || id.ino !== entry.ino) reconcile(dir, undefined);
+    }
+
+    const wanted = wantedTargets();
+
+    for (const target of armedAt.keys()) {
+      if (!wanted.has(target)) detach(target);
+    }
+
+    for (const target of wanted) arm(target);
   };
 
   for (const file of files) {
-    trackDeps(file, initial.get(file));
+    setInputTargets(file, initial.get(file));
   }
 
+  configTargets = new Set(configFiles());
+  sync();
+
   const shutdown = (): void => {
-    for (const watcher of watchedDirs.values()) {
+    for (const { watcher } of dirs.values()) {
       watcher.close();
     }
 

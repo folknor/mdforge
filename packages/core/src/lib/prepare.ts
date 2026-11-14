@@ -200,17 +200,22 @@ export async function prepareConversion(
     const candidateCss = resolve(baseDir, `${mdBasename}.css`);
     const indexCss = resolve(baseDir, "index.css");
 
+    // Every candidate consulted is a dependency whether or not it exists:
+    // creating `<name>.css` must take over from index.css or from no sheet.
+    // index.css is consulted only when `<name>.css` is absent.
+    info.dependencies.push(candidateCss);
+
     try {
       await fs.access(candidateCss);
       config.stylesheet = [{ type: "path", value: candidateCss }];
       info.stylesheet = { type: "auto", path: basename(candidateCss) };
-      info.dependencies.push(candidateCss);
     } catch {
+      info.dependencies.push(indexCss);
+
       try {
         await fs.access(indexCss);
         config.stylesheet = [{ type: "path", value: indexCss }];
         info.stylesheet = { type: "auto", path: "index.css" };
-        info.dependencies.push(indexCss);
       } catch {
         // No stylesheet found, continue without
         info.stylesheet = { type: "none" };

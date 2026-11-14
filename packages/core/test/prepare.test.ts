@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { type Config, defaultConfig } from "../dist/lib/config.js";
 import { prepareConversion } from "../dist/lib/prepare.js";
+
+const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "prepare");
 
 // No theme, so preparation needs no font lookups
 const config = (): Config => ({ ...defaultConfig, theme: false });
@@ -51,5 +55,18 @@ describe("prepareConversion output choices", () => {
     await prepareConversion({ content: "# Two\n" }, shared);
 
     assert.deepEqual(shared, before);
+  });
+});
+
+describe("prepareConversion dependencies", () => {
+  it("records the auto-detected stylesheet candidates even when absent", async () => {
+    const prepared = await prepareConversion({ path: join(fixtures, "doc.md") }, config(), {
+      output: { kind: "none" },
+    });
+
+    assert.deepEqual(prepared.info.dependencies, [
+      join(fixtures, "doc.css"),
+      join(fixtures, "index.css"),
+    ]);
   });
 });

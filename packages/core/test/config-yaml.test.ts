@@ -165,6 +165,16 @@ stylesheet:
     assert.deepEqual(issues, []);
   });
 
+  it("records a missing @file reference as a dependency", async () => {
+    const { issues, dependencies } = await parse(`
+pdf_options:
+  headerTemplate: "@missing.html"
+`);
+
+    assert.deepEqual(dependencies, [join(fixtures, "missing.html")]);
+    assert.deepEqual(paths(issues), ["pdf_options.headerTemplate"]);
+  });
+
   it("reads @file references in free-text fields only", async () => {
     const { config, issues, dependencies } = await parse(`
 pdf_options:

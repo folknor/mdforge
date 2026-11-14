@@ -88,7 +88,10 @@ export interface ConfigYamlOptions {
   source: ConfigSource;
   /** Directory `@file` references and relative stylesheets resolve against. */
   baseDir: string;
-  /** Absolute paths of files read through `@file` are appended here. */
+  /**
+   * Absolute paths of files referenced through `@file` are appended here,
+   * whether or not the read succeeded.
+   */
   dependencies?: string[];
 }
 
@@ -296,10 +299,12 @@ async function readText(ctx: Context, path: string, value: YamlValue): Promise<T
 
   const file = resolve(ctx.baseDir, value.slice(1));
 
+  // Recorded before the read: a reference to a missing file is still one, so
+  // watch mode re-renders when the file appears.
+  ctx.dependencies.push(file);
+
   try {
     const content = await fs.readFile(file, "utf-8");
-
-    ctx.dependencies.push(file);
 
     return { value: content, fromFile: true };
   } catch (error) {
