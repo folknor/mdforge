@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import type { PreparedConversion } from "@mdforge/core/prepare";
 import { addAcroFormFields, injectPdfMetadata } from "@mdforge/pdf";
-import { type Browser, launch } from "puppeteer";
+import { type Browser, type Page, launch } from "puppeteer";
 
 /**
  * Result of rendering a document.
@@ -96,7 +96,26 @@ export async function render(
     }
 
     if (!browserPromise) {
-      browserPromise = launch(config.launch_options);
+      // A launch that fails, or a browser that later goes away, forgets itself
+      // so the next render launches afresh: watch mode keeps rendering after a
+      // failure. The identity check stops a stale one clearing a newer launch.
+      const forget = (): void => {
+        if (browserPromise === launching) browserPromise = undefined;
+      };
+
+      const launching: Promise<Browser> = (async () => {
+        try {
+          const browser = await launch(config.launch_options);
+          browser.once("disconnected", forget);
+
+          return browser;
+        } catch (error) {
+          forget();
+          throw error;
+        }
+      })();
+
+      browserPromise = launching;
     }
 
     return browserPromise;
@@ -104,6 +123,29 @@ export async function render(
 
   const browser = await getBrowser();
   const page = await browser.newPage();
+
+  // The scratch HTML written below, removed with the page whether or not the
+  // render succeeds
+  const scratchHtmlPath = join(
+    fileURLToPath(prepared.baseUrl),
+    `.mdforge-${process.pid}-${Date.now()}.html`,
+  );
+
+  try {
+    return await renderPage(prepared, page, scratchHtmlPath);
+  } finally {
+    // Cleanup failures must not replace the render's own error
+    await fs.rm(scratchHtmlPath, { force: true }).catch(() => undefined);
+    await page.close().catch(() => undefined);
+  }
+}
+
+async function renderPage(
+  prepared: PreparedConversion,
+  page: Page,
+  scratchHtmlPath: string,
+): Promise<RenderResult> {
+  const { config } = prepared;
 
   // Inject <base> tag so relative paths in markdown resolve correctly
   const htmlWithBase = prepared.html.replace("<head>", `<head><base href="${prepared.baseUrl}">`);
@@ -115,20 +157,12 @@ export async function render(
   // document's own directory gives the page a file:// origin and makes those
   // relative paths resolve naturally. Falls back to setContent if the
   // directory is not writable.
-  const baseDir = fileURLToPath(prepared.baseUrl);
-
-  let tempHtmlPath: string | undefined = join(
-    baseDir,
-    `.mdforge-${process.pid}-${Date.now()}.html`,
-  );
-
   try {
-    await fs.writeFile(tempHtmlPath, htmlWithBase, "utf-8");
-    await page.goto(pathToFileURL(tempHtmlPath).href, {
+    await fs.writeFile(scratchHtmlPath, htmlWithBase, "utf-8");
+    await page.goto(pathToFileURL(scratchHtmlPath).href, {
       waitUntil: "domcontentloaded",
     });
   } catch {
-    tempHtmlPath = undefined;
     await page.setContent(htmlWithBase, { waitUntil: "domcontentloaded" });
   }
 
@@ -152,9 +186,7 @@ export async function render(
   await page.waitForNetworkIdle();
 
   // The page is fully loaded; the scratch HTML is no longer needed.
-  if (tempHtmlPath) {
-    await fs.rm(tempHtmlPath, { force: true });
-  }
+  await fs.rm(scratchHtmlPath, { force: true });
 
   // Extract form field info if fillable mode is enabled
   let selectOptions: Map<string, string[]> | undefined;
@@ -219,7 +251,6 @@ export async function render(
 
   if (prepared.format === "html") {
     const html = await page.content();
-    await page.close();
 
     return {
       content: html,
@@ -235,7 +266,6 @@ export async function render(
 
   // Post-process PDF
   let pdfContent: Buffer | Uint8Array = await page.pdf(pdfOptions);
-  await page.close();
 
   // Inject PDF metadata if configured
   if (config.metadata) {

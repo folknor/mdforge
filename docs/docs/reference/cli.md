@@ -45,6 +45,10 @@ The output path and format are chosen only here: neither a config file nor a
 document's front matter can set them. Without `-o`, each input is written
 beside itself with a `.pdf` (or `.html`) extension.
 
+Each input renders independently: one that fails is reported on stderr and the
+others are still written. Without `--watch`, the exit status is 1 if any input
+failed.
+
 ## Watch mode
 
 `--watch` renders once, then re-renders whenever an input changes. Alongside the
@@ -55,8 +59,10 @@ not exist yet is watched for: creating it (or the directory it belongs in)
 triggers a render. For a document that relies on the automatic stylesheet,
 creating `<name>.css` triggers a render, and so does creating `index.css` while
 `<name>.css` does not exist. Files pulled in with `@include` and images are not
-watched. Files a render that fails never got to report are not watched until a
-render succeeds, and a file created while a render is still running may be
+watched. An input that fails to render is reported and watched like the rest,
+including on the first run, so fixing it re-renders it; the inputs that rendered
+beside it are unaffected. Files a render that fails never got to report are not
+watched until a render succeeds, and a file created while a render is still running may be
 missed. The browser stays open between runs, which makes each
 re-render considerably faster than a cold start.
 

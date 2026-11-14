@@ -191,26 +191,58 @@ async function main(args: typeof cliFlags): Promise<void> {
     return config;
   };
 
-  const render = async (targets: string[]): Promise<Map<string, ConvertResult>> => {
+  /**
+   * Render the targets. An input that fails to convert is an outcome, not an
+   * exception: it lands in `failures`, and the inputs that succeeded beside it
+   * are still reported and returned. Only something else going wrong throws.
+   */
+  const render = async (targets: string[]): Promise<RenderOutcome> => {
     const config = await loadConfig();
 
     // Store results for info display
     const results: Map<string, ConvertResult> = new Map();
+    const failures: Map<string, Error> = new Map();
 
     const getListrTask = (file: string): Listr.ListrTask => ({
       title: `generating ${convertOptions.format === "html" ? "HTML" : "PDF"} from ${basename(file)}`,
-      task: async (): Promise<ConvertResult> => {
-        const result = await convertMdToPdf({ path: file }, config, convertOptions);
-        results.set(file, result);
+      task: async (): Promise<void> => {
+        let result: ConvertResult;
 
-        return result;
+        try {
+          result = await convertMdToPdf({ path: file }, config, convertOptions);
+        } catch (thrown) {
+          const error = thrown instanceof Error ? thrown : new Error(String(thrown));
+          failures.set(file, error);
+          // Rethrown so Listr shows the task as failed
+          throw error;
+        }
+
+        results.set(file, result);
       },
     });
 
-    await new Listr(targets.map(getListrTask), {
-      concurrent: true,
-      exitOnError: false,
-    }).run();
+    try {
+      await new Listr(targets.map(getListrTask), {
+        concurrent: true,
+        exitOnError: false,
+      }).run();
+    } catch (error) {
+      // Listr rejects with an aggregate (`errors: Error[]`) once any task
+      // failed. One made only of errors the tasks recorded is already in
+      // `failures`; anything else, an empty aggregate included, is not an
+      // input failure.
+      const recorded = new Set<unknown>(failures.values());
+      const errors = error instanceof Error && "errors" in error ? error.errors : undefined;
+
+      const isInputFailures =
+        Array.isArray(errors) && errors.length > 0 && errors.every((each) => recorded.has(each));
+
+      if (!isInputFailures) throw error;
+    }
+
+    for (const [file, error] of failures) {
+      console.error(`${basename(file)}: ${error.message}`);
+    }
 
     // Display conversion info for each file
     for (const [file, result] of results) {
@@ -236,10 +268,10 @@ async function main(args: typeof cliFlags): Promise<void> {
       }
     }
 
-    return results;
+    return { results, failures };
   };
 
-  let initial: Map<string, ConvertResult>;
+  let initial: RenderOutcome;
 
   try {
     initial = await render(files);
@@ -251,17 +283,28 @@ async function main(args: typeof cliFlags): Promise<void> {
   if (!args["--watch"]) {
     await closeBrowser();
 
+    if (initial.failures.size > 0) process.exitCode = 1;
+
     return;
   }
+
+  // Watch mode starts even when inputs failed: fixing them is what the user
+  // is about to do, and a failed input is watched for that edit.
 
   const configFile = args["--config-file"];
 
   watchAndRerender(
     files,
-    initial,
+    initial.results,
     () => (configFile ? [resolve(configFile), ...configDependencies] : []),
     render,
   );
+}
+
+/** One render's per-input results, and the inputs that failed to convert. */
+interface RenderOutcome {
+  results: Map<string, ConvertResult>;
+  failures: Map<string, Error>;
 }
 
 // --
@@ -277,12 +320,13 @@ function watchAndRerender(
   initial: Map<string, ConvertResult>,
   /** The config file and the files it references, as of the last render. */
   configFiles: () => string[],
-  render: (targets: string[]) => Promise<Map<string, ConvertResult>>,
+  render: (targets: string[]) => Promise<RenderOutcome>,
 ): void {
   const debounceMs = 150;
 
   // input -> absolute paths it depends on: itself plus info.dependencies of its
-  // last completed render (a render that throws keeps the previous set)
+  // last successful render (a failed input keeps the previous set, and one
+  // that never succeeded watches only itself)
   const inputTargets = new Map<string, Set<string>>();
   // The config file and its @file references as of the last config load;
   // every input depends on them
@@ -323,14 +367,12 @@ function watchAndRerender(
     queued.clear();
 
     try {
-      const results = await render(targets);
+      // A failed input keeps its previous targets
+      const { results } = await render(targets);
 
-      for (const file of targets) {
-        const result = results.get(file);
-
-        if (result) setInputTargets(file, result);
-      }
+      for (const [file, result] of results) setInputTargets(file, result);
     } catch (error) {
+      // Not an input failure (those render reports itself)
       console.error(error instanceof Error ? error.message : error);
     } finally {
       // The config was reloaded even if the render then failed
