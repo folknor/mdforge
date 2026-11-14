@@ -1,6 +1,6 @@
 import type { Theme } from "@mdforge/renderer-electron/browser";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import type {
   ConversionConfig,
   ConversionProgress,
@@ -26,29 +26,161 @@ interface FileItem {
   error?: string;
 }
 
-export default function App(): React.ReactElement {
-  const [files, setFiles] = useState<FileItem[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [outputDir, setOutputDir] = useState<string>("");
-  const [theme, setTheme] = useState<Theme>("beryl");
-  const [fontPairing, setFontPairing] = useState("beryl");
-  const [author, setAuthor] = useState("");
-  const [isConverting, setIsConverting] = useState(false);
+/** The last PDF that generated successfully for the selected file. */
+interface PreviewDocument {
+  data: Uint8Array;
+  generatedAt: Date;
+}
 
-  // Preview state
-  const [previewData, setPreviewData] = useState<Uint8Array | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+/** The latest preview attempt that finished, successful or not. */
+interface PreviewOutcome {
+  generation: number;
+  error: string | null;
+}
 
-  const [previewGeneratedAt, setPreviewGeneratedAt] = useState<Date | null>(null);
+/**
+ * Files, selection, settings and preview live in one reducer so that every
+ * change to a preview input is one place that bumps `generation`. The preview
+ * effect keys on it, and a result is current only when it carries the current
+ * generation, so a superseded or out-of-order IPC response is ignored and
+ * "loading" is derived rather than set from inside the effect.
+ */
+interface AppState {
+  files: FileItem[];
+  selectedFile: string | null;
+  theme: Theme;
+  fontPairing: string;
+  author: string;
+  /** Never reset, so a later request can never reuse an earlier number. */
+  generation: number;
+  document: PreviewDocument | null;
+  outcome: PreviewOutcome | null;
+}
 
-  const watchedFileRef = useRef<string | null>(null);
+type AppAction =
+  | { type: "filesAdded"; paths: string[] }
+  | { type: "fileRemoved"; path: string }
+  | { type: "filesCleared" }
+  | { type: "fileSelected"; path: string }
+  | { type: "themeChanged"; theme: Theme }
+  | { type: "fontPairingChanged"; fontPairing: string }
+  | { type: "authorChanged"; author: string }
+  | { type: "sourceChanged"; path: string }
+  | { type: "previewSucceeded"; generation: number; data: Uint8Array }
+  | { type: "previewFailed"; generation: number; error: string }
+  | { type: "conversionStarted" }
+  | { type: "conversionProgressed"; progress: ConversionProgress }
+  | { type: "conversionFinished"; results: ConversionResult[] };
 
-  // Listen for conversion progress
-  useEffect(() => {
-    const unsubscribe = window.electron.onConversionProgress((progress: ConversionProgress) => {
-      setFiles((prev) =>
-        prev.map((f) =>
+const initialState: AppState = {
+  files: [],
+  selectedFile: null,
+  theme: "beryl",
+  fontPairing: "beryl",
+  author: "",
+  generation: 0,
+  document: null,
+  outcome: null,
+};
+
+/**
+ * Selects a file and starts a new preview generation. The previous file's PDF
+ * is dropped rather than kept under the new file's name.
+ */
+function select(state: AppState, selectedFile: string | null): AppState {
+  if (selectedFile === state.selectedFile) return state;
+
+  return {
+    ...state,
+    selectedFile,
+    generation: state.generation + 1,
+    document: null,
+    outcome: null,
+  };
+}
+
+/** A settings change regenerates the preview but keeps the current PDF on screen meanwhile. */
+function invalidate(state: AppState): AppState {
+  return { ...state, generation: state.generation + 1 };
+}
+
+function reducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case "filesAdded": {
+      const existing = new Set(state.files.map((f) => f.path));
+
+      const added: FileItem[] = action.paths
+        .filter((path) => !existing.has(path))
+        .map((path) => ({
+          path,
+          name: path.split(/[/\\]/).pop() ?? path,
+          status: "pending",
+          progress: 0,
+        }));
+
+      const next = { ...state, files: [...state.files, ...added] };
+      const first = added[0];
+
+      return state.selectedFile == null && first ? select(next, first.path) : next;
+    }
+
+    case "fileRemoved": {
+      const files = state.files.filter((f) => f.path !== action.path);
+      const next = { ...state, files };
+
+      return action.path === state.selectedFile ? select(next, files[0]?.path ?? null) : next;
+    }
+
+    case "filesCleared":
+      return select({ ...state, files: [] }, null);
+
+    case "fileSelected":
+      return select(state, action.path);
+
+    case "themeChanged":
+      return action.theme === state.theme ? state : invalidate({ ...state, theme: action.theme });
+
+    case "fontPairingChanged":
+      return action.fontPairing === state.fontPairing
+        ? state
+        : invalidate({ ...state, fontPairing: action.fontPairing });
+
+    case "authorChanged":
+      return action.author === state.author
+        ? state
+        : invalidate({ ...state, author: action.author });
+
+    case "sourceChanged":
+      // A change notification from a watcher that was being torn down can
+      // arrive after the selection moved on, so match the current selection.
+      return action.path === state.selectedFile ? invalidate(state) : state;
+
+    case "previewSucceeded":
+      if (action.generation !== state.generation || state.selectedFile == null) return state;
+
+      return {
+        ...state,
+        document: { data: action.data, generatedAt: new Date() },
+        outcome: { generation: action.generation, error: null },
+      };
+
+    case "previewFailed":
+      if (action.generation !== state.generation || state.selectedFile == null) return state;
+
+      return { ...state, outcome: { generation: action.generation, error: action.error } };
+
+    case "conversionStarted":
+      return {
+        ...state,
+        files: state.files.map((f) => ({ ...f, status: "converting", progress: 0 })),
+      };
+
+    case "conversionProgressed": {
+      const { progress } = action;
+
+      return {
+        ...state,
+        files: state.files.map((f) =>
           f.path === progress.file
             ? {
                 ...f,
@@ -57,95 +189,107 @@ export default function App(): React.ReactElement {
               }
             : f,
         ),
-      );
-    });
+      };
+    }
 
-    return unsubscribe;
+    case "conversionFinished":
+      return {
+        ...state,
+        files: state.files.map((f) => {
+          const result = action.results.find((r) => r.inputPath === f.path);
+
+          if (!result) return f;
+
+          return {
+            ...f,
+            status: result.success ? "done" : "error",
+            progress: 100,
+            error: result.error,
+          };
+        }),
+      };
+  }
+}
+
+export default function App(): React.ReactElement {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [outputDir, setOutputDir] = useState<string>("");
+  const [isConverting, setIsConverting] = useState(false);
+  const { files, selectedFile, theme, fontPairing, author, generation, outcome } = state;
+  const previewDocument = state.document;
+
+  // Listen for conversion progress
+  useEffect(() => {
+    return window.electron.onConversionProgress((progress: ConversionProgress) => {
+      dispatch({ type: "conversionProgressed", progress });
+    });
   }, []);
 
-  // Generate preview for selected file
-  const generatePreview = useCallback(
-    async (filePath: string) => {
-      setPreviewLoading(true);
-      setPreviewError(null);
-
-      const config: PreviewConfig = {
-        theme,
-        fontPairing,
-        author: author || undefined,
-      };
-
-      const result = await window.electron.generatePreview(filePath, config);
-
-      if (result.success && result.pdfData) {
-        setPreviewData(result.pdfData);
-        setPreviewError(null);
-        setPreviewGeneratedAt(new Date());
-      } else {
-        setPreviewError(result.error ?? "Failed to generate preview");
-      }
-
-      setPreviewLoading(false);
-    },
-    [theme, fontPairing, author],
-  );
-
-  // Watch selected file for changes
+  // Watch the selected file and regenerate the preview when it changes on disk.
   useEffect(() => {
     if (!selectedFile) return;
 
-    // Start watching the file
-    const watchedFile = selectedFile;
-    void window.electron.watchFile(watchedFile);
-    watchedFileRef.current = watchedFile;
-
-    // Listen for file changes
-    const unsubscribe = window.electron.onFileChanged((filePath) => {
-      if (filePath === watchedFile) {
-        void generatePreview(watchedFile);
-      }
+    const unsubscribe = window.electron.onFileChanged((path) => {
+      dispatch({ type: "sourceChanged", path });
     });
+
+    void window.electron.watchFile(selectedFile);
 
     return (): void => {
       unsubscribe();
-      void window.electron.unwatchFile(watchedFile);
-      watchedFileRef.current = null;
+      void window.electron.unwatchFile(selectedFile);
     };
-  }, [selectedFile, generatePreview]);
+  }, [selectedFile]);
 
-  // Generate preview when selected file or config changes
+  // Generate the preview for the current generation. The other dependencies
+  // only ever change together with `generation`.
   useEffect(() => {
-    if (selectedFile) {
-      void generatePreview(selectedFile);
-    } else {
-      setPreviewData(null);
-      setPreviewError(null);
-    }
-  }, [selectedFile, generatePreview]);
+    if (!selectedFile) return;
 
-  const handleFilesAdded = useCallback((paths: string[]) => {
-    const newFiles: FileItem[] = paths.map((path) => ({
-      path,
-      name: path.split(/[/\\]/).pop() ?? path,
-      status: "pending",
-      progress: 0,
-    }));
+    let cancelled = false;
 
-    setFiles((prev) => {
-      const existingPaths = new Set(prev.map((f) => f.path));
-      const unique = newFiles.filter((f) => !existingPaths.has(f.path));
-      const updated = [...prev, ...unique];
+    const config: PreviewConfig = {
+      theme,
+      fontPairing,
+      author: author || undefined,
+    };
 
-      // Auto-select first file if nothing is selected
-      const first = unique[0];
+    const run = async (): Promise<void> => {
+      let action: AppAction;
 
-      if (first) {
-        setSelectedFile((current) => current ?? first.path);
+      try {
+        const result = await window.electron.generatePreview(selectedFile, config);
+
+        action =
+          result.success && result.pdfData
+            ? { type: "previewSucceeded", generation, data: result.pdfData }
+            : {
+                type: "previewFailed",
+                generation,
+                error: result.error ?? "Failed to generate preview",
+              };
+      } catch (error) {
+        // The main process reports conversion errors in the result; this is
+        // the IPC invocation itself failing.
+        action = {
+          type: "previewFailed",
+          generation,
+          error: error instanceof Error ? error.message : String(error),
+        };
       }
 
-      return updated;
-    });
-  }, []);
+      if (!cancelled) dispatch(action);
+    };
+
+    void run();
+
+    return (): void => {
+      cancelled = true;
+    };
+  }, [generation, selectedFile, theme, fontPairing, author]);
+
+  const previewLoading = selectedFile != null && outcome?.generation !== generation;
+  const previewError = outcome?.generation === generation ? outcome.error : null;
 
   const handleSelectOutputDir = async (): Promise<void> => {
     const dir = await window.electron.selectOutputDir();
@@ -159,7 +303,7 @@ export default function App(): React.ReactElement {
     if (files.length === 0 || !outputDir) return;
 
     setIsConverting(true);
-    setFiles((prev) => prev.map((f) => ({ ...f, status: "converting" as const, progress: 0 })));
+    dispatch({ type: "conversionStarted" });
 
     const config: ConversionConfig = {
       theme,
@@ -173,64 +317,23 @@ export default function App(): React.ReactElement {
       config,
     );
 
-    setFiles((prev) =>
-      prev.map((f) => {
-        const result = results.find((r: ConversionResult) => r.inputPath === f.path);
-
-        if (result) {
-          return {
-            ...f,
-            status: result.success ? "done" : "error",
-            progress: 100,
-            error: result.error,
-          };
-        }
-
-        return f;
-      }),
-    );
-
+    dispatch({ type: "conversionFinished", results });
     setIsConverting(false);
-  };
-
-  const handleSelectFile = (path: string): void => {
-    setSelectedFile(path);
-  };
-
-  const handleRemoveFile = (path: string): void => {
-    setFiles((prev) => {
-      const updated = prev.filter((f) => f.path !== path);
-
-      // If we removed the selected file, select another one
-      if (path === selectedFile) {
-        setSelectedFile(updated[0]?.path ?? null);
-      }
-
-      return updated;
-    });
-  };
-
-  const handleClearFiles = (): void => {
-    setFiles([]);
-    setSelectedFile(null);
-    setPreviewData(null);
-    setPreviewError(null);
-    setPreviewGeneratedAt(null);
   };
 
   return (
     <div className="h-screen bg-gray-100 flex">
       {/* Left panel - controls */}
       <div className="w-80 flex-shrink-0 p-4 overflow-y-auto">
-        <DropZone onFilesAdded={handleFilesAdded} />
+        <DropZone onFilesAdded={(paths) => dispatch({ type: "filesAdded", paths })} />
 
         {files.length > 0 && (
           <FileList
             files={files}
             selectedPath={selectedFile}
-            onSelect={handleSelectFile}
-            onRemove={handleRemoveFile}
-            onClear={handleClearFiles}
+            onSelect={(path) => dispatch({ type: "fileSelected", path })}
+            onRemove={(path) => dispatch({ type: "fileRemoved", path })}
+            onClear={() => dispatch({ type: "filesCleared" })}
           />
         )}
 
@@ -238,9 +341,11 @@ export default function App(): React.ReactElement {
           theme={theme}
           fontPairing={fontPairing}
           author={author}
-          onThemeChange={setTheme}
-          onFontPairingChange={setFontPairing}
-          onAuthorChange={setAuthor}
+          onThemeChange={(value) => dispatch({ type: "themeChanged", theme: value })}
+          onFontPairingChange={(value) =>
+            dispatch({ type: "fontPairingChanged", fontPairing: value })
+          }
+          onAuthorChange={(value) => dispatch({ type: "authorChanged", author: value })}
         />
 
         <div className="mt-4 bg-white rounded-lg shadow p-4">
@@ -273,13 +378,13 @@ export default function App(): React.ReactElement {
       {/* Right panel - preview */}
       <div className="flex-1 p-4 pl-0">
         <PdfPreview
-          pdfData={previewData}
+          pdfData={previewDocument?.data ?? null}
           isLoading={previewLoading}
           error={previewError}
           fileName={
             selectedFile ? (files.find((f) => f.path === selectedFile)?.name ?? null) : null
           }
-          generatedAt={previewGeneratedAt}
+          generatedAt={previewDocument?.generatedAt ?? null}
         />
       </div>
     </div>

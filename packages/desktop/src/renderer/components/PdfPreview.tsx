@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface PdfPreviewProps {
   pdfData: Uint8Array | null;
@@ -24,30 +24,32 @@ export default function PdfPreview({
   fileName,
   generatedAt,
 }: PdfPreviewProps): React.ReactElement {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Create blob URL when PDF data changes
+  // The object URL is an external resource with a lifetime, so the effect owns
+  // it and points the iframe at it directly; `src` is deliberately not in the
+  // JSX. The iframe stays mounted whenever there is data (the loading and
+  // error overlays sit on top of it), so an unchanged pdfData never needs a
+  // fresh URL for a fresh element.
   useEffect(() => {
-    if (pdfData) {
-      // SAFETY: pdfData only ever comes from the generatePreview IPC result,
-      // and IPC structured-clones it into a Uint8Array backed by a plain
-      // ArrayBuffer rather than a SharedArrayBuffer, which Blob requires.
-      const blob = new Blob([pdfData as Uint8Array<ArrayBuffer>], {
-        type: "application/pdf",
-      });
+    const frame = iframeRef.current;
 
-      const url = URL.createObjectURL(blob);
-      setBlobUrl(url);
+    if (pdfData == null || frame == null) return;
 
-      // Cleanup old blob URL
-      return (): void => {
-        URL.revokeObjectURL(url);
-      };
-    }
+    // SAFETY: pdfData only ever comes from the generatePreview IPC result,
+    // and IPC structured-clones it into a Uint8Array backed by a plain
+    // ArrayBuffer rather than a SharedArrayBuffer, which Blob requires.
+    const blob = new Blob([pdfData as Uint8Array<ArrayBuffer>], {
+      type: "application/pdf",
+    });
 
-    setBlobUrl(null);
+    const url = URL.createObjectURL(blob);
+    frame.src = url;
 
-    return;
+    return (): void => {
+      frame.removeAttribute("src");
+      URL.revokeObjectURL(url);
+    };
   }, [pdfData]);
 
   return (
@@ -87,7 +89,7 @@ export default function PdfPreview({
           </div>
         ) : null}
 
-        {error == null && blobUrl == null && !isLoading ? (
+        {error == null && pdfData == null && !isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-center p-4">
               <svg
@@ -109,7 +111,7 @@ export default function PdfPreview({
           </div>
         ) : null}
 
-        {isLoading && blobUrl == null ? (
+        {isLoading && pdfData == null ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="text-center p-4">
               <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -118,11 +120,21 @@ export default function PdfPreview({
           </div>
         ) : null}
 
-        {blobUrl != null ? (
-          <iframe src={blobUrl} title="PDF Preview" className="w-full h-full border-0" />
+        {pdfData != null ? (
+          // The preview uses Chromium's built-in PDF viewer, which refuses to
+          // load inside a sandboxed frame (Chromium rejects MimeHandlerView
+          // loads there, and no sandbox token re-enables it), so a sandbox
+          // attribute would leave the preview blank. That was not reproduced
+          // on this app's Electron version. The PDF is built from user
+          // Markdown, so its content is not trusted; what keeps it away from
+          // the app is the viewer running in its own origin and process, not
+          // where the bytes came from. Development runs with --no-sandbox,
+          // which drops the OS sandbox around that process too.
+          // oxlint-disable-next-line react/iframe-missing-sandbox -- see above
+          <iframe ref={iframeRef} title="PDF Preview" className="w-full h-full border-0" />
         ) : null}
 
-        {isLoading && blobUrl != null ? (
+        {isLoading && pdfData != null ? (
           <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
             Updating...
           </div>
