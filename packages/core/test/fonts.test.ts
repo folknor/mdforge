@@ -17,7 +17,8 @@ describe("font presets", () => {
     }
   });
 
-  it("produces no stylesheet for a prototype key", async () => {
-    assert.equal(await generateFontStylesheet("toString"), undefined);
+  it("produces no stylesheet without fonts", async () => {
+    assert.equal(await generateFontStylesheet(), undefined);
+    assert.equal(await generateFontStylesheet({}), undefined);
   });
 });

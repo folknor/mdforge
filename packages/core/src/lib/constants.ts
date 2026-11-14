@@ -19,8 +19,25 @@
  * declared constants — the parser below is the whole language.
  */
 
-/** A constant's declared value. */
-export type ConstantValue = number | string;
+/**
+ * A constant's declared value. Only numbers take part in arithmetic; text is
+ * substituted verbatim for a bare `{{ name }}`. The kind is decided once, when
+ * the config is parsed, so nothing here inspects the runtime type.
+ */
+export type Constant =
+  | { kind: "number"; value: number }
+  | { kind: "text"; value: string };
+
+/** Declared constants by name. Look names up with `Object.hasOwn`. */
+export type Constants = Readonly<Record<string, Constant>>;
+
+/** The declared constant `name`, ignoring inherited names like `toString`. */
+function findConstant(
+  constants: Constants,
+  name: string,
+): Constant | undefined {
+  return Object.hasOwn(constants, name) ? constants[name] : undefined;
+}
 
 export interface ConstantsOptions {
   /**
@@ -66,7 +83,7 @@ class Evaluator {
 
   constructor(
     private readonly source: string,
-    private readonly constants: Record<string, ConstantValue>,
+    private readonly constants: Constants,
   ) {}
 
   evaluate(): number {
@@ -192,19 +209,19 @@ class Evaluator {
   }
 
   private lookup(name: string): number {
-    if (!(name in this.constants)) {
+    const constant = findConstant(this.constants, name);
+
+    if (!constant) {
       throw new ExpressionError(`unknown constant "${name}"`);
     }
 
-    const value = this.constants[name];
-
-    if (typeof value !== "number") {
+    if (constant.kind === "text") {
       throw new ExpressionError(
         `constant "${name}" is text and can't be used in arithmetic`,
       );
     }
 
-    return value;
+    return constant.value;
   }
 }
 
@@ -239,7 +256,7 @@ function formatNumber(
  */
 export function processConstants(
   content: string,
-  constants: Record<string, ConstantValue> | undefined,
+  constants: Constants | undefined,
   options: ConstantsOptions = {},
 ): ConstantsResult {
   const warnings: string[] = [];
@@ -281,10 +298,10 @@ export function processConstants(
 
       // A bare name may resolve to text; anything else must be arithmetic
       if (BARE_IDENT_REGEX.test(trimmed)) {
-        const value = constants[trimmed];
+        const constant = findConstant(constants, trimmed);
 
-        if (typeof value === "string") {
-          return value;
+        if (constant?.kind === "text") {
+          return constant.value;
         }
       }
 

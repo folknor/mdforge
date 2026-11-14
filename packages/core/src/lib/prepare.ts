@@ -9,7 +9,12 @@ import { basename, dirname, relative, resolve } from "node:path";
 import process from "node:process";
 import type { FrameAddScriptTagOptions, PDFOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.js";
-import { type Config, themes, themesDir } from "./config.js";
+import {
+  type Config,
+  type HeaderFooterColumn,
+  themes,
+  themesDir,
+} from "./config.js";
 import {
   formatConfigIssues,
   parseConfigYaml,
@@ -22,7 +27,11 @@ import {
 } from "./conversion-info.js";
 import { formatCssErrors, validateCss } from "./css-validator.js";
 import { ConfigError, IncludeError } from "./errors.js";
-import { type EmbeddedFontData, generateFontStylesheet } from "./fonts.js";
+import {
+  type EmbeddedFontData,
+  fontPairings,
+  generateFontStylesheet,
+} from "./fonts.js";
 import { formFieldsCss } from "./form-fields.js";
 import { processIcons } from "./icons.js";
 import { processIncludes } from "./includes.js";
@@ -31,11 +40,21 @@ import {
   buildPuppeteerTemplate,
   generatePagedCss,
   hasBackground,
+  hasContent,
 } from "./paged-css.js";
 import { extractFirstHeading, getOutputFilePath } from "./util.js";
 import { hasPageRefs, processXref } from "./xref.js";
 
 const require: NodeRequire = createRequire(import.meta.url);
+
+/** One-line summary of a header or footer for the conversion info. */
+function summarize(columns: HeaderFooterColumn | undefined): string | undefined {
+  return (
+    [columns?.left, columns?.center, columns?.right]
+      .filter(Boolean)
+      .join(" | ") || undefined
+  );
+}
 
 /** Options that can be passed from CLI or other callers */
 export interface ConvertOptions {
@@ -208,8 +227,11 @@ export async function prepareConversion(
   }
 
   // Generate font stylesheet from config (fonts are cached locally)
-  // If no fonts specified but theme is set, use theme name as default preset
-  const effectiveFonts = config.fonts || config.theme || undefined;
+  // If no fonts specified but theme is set, use the theme's pairing. Resolved
+  // here, not when parsing, so a front-matter theme still picks the default.
+  const effectiveFonts =
+    config.fonts ?? (config.theme ? fontPairings[config.theme] : undefined);
+
   const fontResult = await generateFontStylesheet(effectiveFonts);
   const fontCss = fontResult?.css;
 
@@ -260,38 +282,33 @@ export async function prepareConversion(
   }
 
   // Process simplified header/footer config
-  if (config.header || config.footer) {
+  // Empty headers/footers are dropped here, so everything below sees only
+  // ones with content (see hasContent).
+  const header = hasContent(config.header) ? config.header : undefined;
+  const footer = hasContent(config.footer) ? config.footer : undefined;
+
+  if (header || footer) {
     const headerFooterConfig = {
-      header: config.header,
-      footer: config.footer,
+      header,
+      footer,
       page_numbers: config.page_numbers,
       title: docTitle,
-    };
-
-    // Helper to summarize header/footer config
-    const summarize = (cfg: typeof config.header): string | undefined => {
-      if (!cfg) return;
-
-      if (typeof cfg === "string") return cfg;
-      const parts = [cfg.left, cfg.center, cfg.right].filter(Boolean);
-
-      return parts.join(" | ") || undefined;
     };
 
     // Check if backgrounds are used (requires Puppeteer templates)
     if (hasBackground(headerFooterConfig)) {
       // Use Puppeteer's native header/footer templates for backgrounds
-      if (config.header) {
+      if (header) {
         config.pdf_options.headerTemplate = await buildPuppeteerTemplate(
-          config.header,
+          header,
           "header",
           baseDir,
         );
       }
 
-      if (config.footer) {
+      if (footer) {
         config.pdf_options.footerTemplate = await buildPuppeteerTemplate(
-          config.footer,
+          footer,
           "footer",
           baseDir,
         );
@@ -300,8 +317,8 @@ export async function prepareConversion(
       config.pdf_options.displayHeaderFooter = true;
       info.headerFooter = {
         type: "puppeteer",
-        header: summarize(config.header),
-        footer: summarize(config.footer),
+        header: summarize(header),
+        footer: summarize(footer),
       };
     } else {
       // Use paged.js for text-only headers/footers
@@ -352,8 +369,8 @@ export async function prepareConversion(
 
       info.headerFooter = {
         type: "css @page",
-        header: summarize(config.header),
-        footer: summarize(config.footer),
+        header: summarize(header),
+        footer: summarize(footer),
       };
     }
   } else {

@@ -2,7 +2,6 @@ import { promises as fs } from "node:fs";
 import { extname, resolve } from "node:path";
 import type {
   HeaderFooterColumn,
-  HeaderFooterValue,
   PageNumberFormat,
   PageNumbersConfig,
 } from "./config.js";
@@ -284,26 +283,23 @@ async function buildContentValue(
 }
 
 /**
- * Normalize header/footer value to column format
+ * Whether a header or footer shows anything. One with no non-empty column and
+ * no background (e.g. `header: ""` overriding an inherited one) is inactive:
+ * it neither switches on the header/footer layout nor replaces a raw
+ * `pdf_options` template.
  */
-function normalizeToColumns(
-  value: HeaderFooterValue | undefined,
-): HeaderFooterColumn {
-  if (!value) return {};
-
-  if (typeof value === "string") {
-    return { center: value };
-  }
-
-  return value;
+export function hasContent(columns: HeaderFooterColumn | undefined): boolean {
+  return Boolean(
+    columns?.left || columns?.center || columns?.right || columns?.background,
+  );
 }
 
 /**
  * Configuration for paged CSS generation
  */
 export interface PagedCssConfig {
-  header?: HeaderFooterValue;
-  footer?: HeaderFooterValue;
+  header?: HeaderFooterColumn;
+  footer?: HeaderFooterColumn;
   page_numbers?: PageNumbersConfig;
   /** Document title for {title} variable */
   title?: string;
@@ -314,22 +310,17 @@ export interface PagedCssConfig {
  * (requires Puppeteer templates instead of paged.js)
  */
 export function hasBackground(config: PagedCssConfig): boolean {
-  const header = normalizeToColumns(config.header);
-  const footer = normalizeToColumns(config.footer);
-
-  return header.background !== undefined || footer.background !== undefined;
+  return Boolean(config.header?.background || config.footer?.background);
 }
 
 /**
  * Build a Puppeteer header/footer template HTML
  */
 export async function buildPuppeteerTemplate(
-  value: HeaderFooterValue | undefined,
+  columns: HeaderFooterColumn,
   type: "header" | "footer",
   baseDir: string,
 ): Promise<string> {
-  const columns = normalizeToColumns(value);
-
   // Build content for each column
   const left = columns.left ? processTextForHtml(columns.left) : "";
   const center = columns.center ? processTextForHtml(columns.center) : "";
@@ -453,8 +444,8 @@ export async function generatePagedCss(
   // Transform simple selectors to @page rules
   const processedCss = transformCssSelectors(themeCss);
 
-  const header = normalizeToColumns(config.header);
-  const footer = normalizeToColumns(config.footer);
+  const header = config.header ?? {};
+  const footer = config.footer ?? {};
   const pageFormat = config.page_numbers?.format;
   const pageStart = config.page_numbers?.start;
 

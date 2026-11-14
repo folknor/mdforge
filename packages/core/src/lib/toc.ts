@@ -133,10 +133,10 @@ class MarkedAdapter {
     const headingToken = token as Tokens.Heading;
     const headingDepth = headingToken.depth;
 
-    const text = this.getTokenText(token);
+    const text = headingToken.text;
     // Every heading is slugged and numbered, even ones the TOC will not show,
     // so de-duplication suffixes and counters match the rendered document.
-    const slug = this.slugger.slug(cleanForSlug(headingToken.text));
+    const slug = this.slugger.slug(cleanForSlug(text));
 
     const numbered = this.numberer
       ? this.numberer.apply(headingDepth, text)
@@ -156,48 +156,6 @@ class MarkedAdapter {
     };
 
     this.headings.push(heading);
-  }
-
-  // The assertions below rely on marked's lexer emitting each built-in `type`
-  // only for its matching token interface. Checking `type` cannot narrow on
-  // its own because Token also includes Tokens.Generic (`type: string`).
-  private getTokenText(token: Token): string {
-    if (token.type === "heading") {
-      // SAFETY: the lexer emits `type: "heading"` only for Tokens.Heading.
-      return (token as Tokens.Heading).text;
-    }
-
-    if (token.type === "text") {
-      // SAFETY: the lexer emits `type: "text"` only for Tokens.Text.
-      return (token as Tokens.Text).text;
-    }
-
-    if (token.type === "link") {
-      // SAFETY: the lexer emits `type: "link"` only for Tokens.Link.
-      const linkToken = token as Tokens.Link;
-
-      return linkToken.text || linkToken.href;
-    }
-
-    if (
-      token.type === "strong" ||
-      token.type === "em" ||
-      token.type === "codespan"
-    ) {
-      // SAFETY: the lexer emits these three types only for the matching
-      // Tokens.Strong, Tokens.Em and Tokens.Codespan interfaces.
-      return (token as Tokens.Strong | Tokens.Em | Tokens.Codespan).text;
-    }
-
-    if ("text" in token && typeof token.text === "string") {
-      return token.text;
-    }
-
-    if ("tokens" in token && Array.isArray(token.tokens)) {
-      return token.tokens.map((t) => this.getTokenText(t)).join("");
-    }
-
-    return "";
   }
 
   private processHeadings(): void {

@@ -44,11 +44,40 @@ constants:
       theme: "tufte",
       print_urls: true,
       font_scale: 1.2,
-      fonts: "classic-elegant",
+      fonts: {
+        heading: "Playfair Display",
+        body: "Libre Baskerville",
+        mono: "Fira Code",
+      },
       header: { right: "Page {page}" },
       heading_numbers: false,
-      constants: { rate: 1500, name: "Acme" },
+      constants: {
+        rate: { kind: "number", value: 1500 },
+        name: { kind: "text", value: "Acme" },
+      },
     });
+  });
+
+  it("decodes a plain header string as the centered column", async () => {
+    const { config } = await parse('header: "{title}"\nfooter: ""');
+
+    assert.deepEqual(config.header, { center: "{title}" });
+    assert.deepEqual(config.footer, { center: "" });
+  });
+
+  it("drops a header string whose @file is missing", async () => {
+    const { config, issues } = await parse('header: "@missing.txt"');
+
+    assert.equal(config.header, undefined);
+    assert.deepEqual(paths(issues), ["header"]);
+  });
+
+  it("resolves a font preset to a copy of its pairing", async () => {
+    const one = await parse("fonts: beryl");
+    const two = await parse("fonts: beryl");
+
+    assert.deepEqual(one.config.fonts, two.config.fonts);
+    assert.notEqual(one.config.fonts, two.config.fonts);
   });
 
   it("drops unknown and mistyped keys, keeping valid siblings", async () => {

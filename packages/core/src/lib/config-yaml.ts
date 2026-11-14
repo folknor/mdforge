@@ -52,15 +52,15 @@ import {
 import {
   type Config,
   type HeaderFooterColumn,
-  type HeaderFooterValue,
   type PageNumberFormat,
   type PageNumbersConfig,
   type Theme,
   themes,
 } from "./config.js";
-import type { ConstantValue } from "./constants.js";
+import type { Constant } from "./constants.js";
 import {
   type FontConfig,
+  type FontPairingConfig,
   fontPairings,
   isFontPairingPreset,
 } from "./fonts.js";
@@ -679,8 +679,18 @@ const headerFooterColumn = record<HeaderFooterColumn>({
   firstPage: boolean,
 });
 
-const headerFooter: Decoder<HeaderFooterValue> = async (ctx, path, value) =>
-  isString(value) ? text(ctx, path, value) : headerFooterColumn(ctx, path, value);
+/**
+ * A plain string is the centered column; the rest of mdforge sees only
+ * columns. A string that fails to decode (e.g. a missing `@file`) is dropped,
+ * so an inherited header survives rather than being replaced by nothing.
+ */
+const headerFooter: Decoder<HeaderFooterColumn> = async (ctx, path, value) => {
+  if (!isString(value)) return headerFooterColumn(ctx, path, value);
+
+  const center = await text(ctx, path, value);
+
+  return center === undefined ? undefined : { center };
+};
 
 const metadata = record<PdfMetadata>({
   title: text,
@@ -697,11 +707,12 @@ const fontFields = record<FontConfig>({
   mono: literal,
 });
 
-const fonts: Decoder<FontConfig | string> = async (ctx, path, value) => {
+/** A preset name is resolved here, to a copy so no config aliases the table. */
+const fonts: Decoder<FontPairingConfig> = async (ctx, path, value) => {
   if (!isString(value)) return fontFields(ctx, path, value);
 
   return isFontPairingPreset(value)
-    ? value
+    ? { ...fontPairings[value] }
     : report(
         ctx,
         path,
@@ -736,8 +747,17 @@ const headingNumbers: Decoder<HeadingNumbersConfig | false> = async (
   value,
 ) => (value === false ? false : headingNumberFields(ctx, path, value));
 
-const constantValue: Decoder<ConstantValue> = async (ctx, path, value) =>
-  isNumber(value) ? number()(ctx, path, value) : text(ctx, path, value);
+const constantValue: Decoder<Constant> = async (ctx, path, value) => {
+  if (isNumber(value)) {
+    const n = await number()(ctx, path, value);
+
+    return n === undefined ? undefined : { kind: "number", value: n };
+  }
+
+  const s = await text(ctx, path, value);
+
+  return s === undefined ? undefined : { kind: "text", value: s };
+};
 
 const constants = dictionary(constantValue, {
   pattern: /^[A-Za-z_][A-Za-z0-9_]*$/,

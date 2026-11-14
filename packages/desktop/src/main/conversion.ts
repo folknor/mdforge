@@ -3,6 +3,8 @@ import {
   type Config,
   convertMdToPdf,
   defaultConfig,
+  fontPairings,
+  isFontPairingPreset,
 } from "@mdforge/renderer-electron";
 import type {
   ConversionConfig,
@@ -38,8 +40,9 @@ export async function convertFile(
       mergedConfig.theme = config.theme;
     }
 
-    if (config.fontPairing) {
-      mergedConfig.fonts = config.fontPairing;
+    // An unknown name leaves fonts unset, so the theme's pairing applies
+    if (config.fontPairing && isFontPairingPreset(config.fontPairing)) {
+      mergedConfig.fonts = { ...fontPairings[config.fontPairing] };
     }
 
     if (config.author) {
@@ -125,8 +128,9 @@ export async function generatePreview(
       mergedConfig.theme = config.theme;
     }
 
-    if (config.fontPairing) {
-      mergedConfig.fonts = config.fontPairing;
+    // An unknown name leaves fonts unset, so the theme's pairing applies
+    if (config.fontPairing && isFontPairingPreset(config.fontPairing)) {
+      mergedConfig.fonts = { ...fontPairings[config.fontPairing] };
     }
 
     if (config.author) {

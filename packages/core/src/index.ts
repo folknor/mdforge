@@ -18,7 +18,7 @@ export {
 } from "./lib/config.js";
 
 // Document constants
-export type { ConstantValue } from "./lib/constants.js";
+export type { Constant, Constants } from "./lib/constants.js";
 
 // Conversion info for CLI output
 export {

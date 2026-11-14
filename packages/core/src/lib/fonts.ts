@@ -331,26 +331,14 @@ function extractEmbeddedFonts(css: string): EmbeddedFontData[] {
 /**
  * Generate complete font CSS from config
  *
- * @param fonts - Either a preset name (string) or custom font config (object)
+ * @param fontConfig - Fonts with optional fallbacks; preset names are resolved
+ *   by the caller (see `isFontPairingPreset`)
  * @returns CSS with embedded fonts (cached locally) and resolution info
  */
 export async function generateFontStylesheet(
-  fonts?: FontConfig | string,
+  fontConfig?: FontPairingConfig,
 ): Promise<FontStylesheetResult | undefined> {
-  // Resolve font config from preset name or direct config
-  let fontConfig: FontPairingConfig | undefined;
-
-  if (typeof fonts === "string") {
-    // Preset name
-    if (isFontPairingPreset(fonts)) {
-      fontConfig = fontPairings[fonts];
-    }
-  } else if (fonts && (fonts.heading || fonts.body || fonts.mono)) {
-    // Custom font config - no fallbacks defined
-    fontConfig = fonts;
-  }
-
-  if (!fontConfig) return;
+  if (!(fontConfig?.heading || fontConfig?.body || fontConfig?.mono)) return;
 
   const warnings: string[] = [];
 

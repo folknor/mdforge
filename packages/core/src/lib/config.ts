@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
-import type { ConstantValue } from "./constants.js";
-import type { FontConfig } from "./fonts.js";
+import type { Constants } from "./constants.js";
+import type { FontPairingConfig } from "./fonts.js";
 import type { HeadingNumbersConfig } from "./heading-numbers.js";
 import type { TemplatesConfig } from "./includes.js";
 import { type Theme, themes } from "./presets.js";
@@ -25,7 +25,6 @@ export interface HeaderFooterColumn {
   firstPage?: boolean; // show on first page (default: true, only works without background)
 }
 
-export type HeaderFooterValue = string | HeaderFooterColumn;
 
 /**
  * Page number format options.
@@ -171,17 +170,19 @@ export interface Config {
 
   /**
    * Simplified header template. Supports placeholders: {title}, {date}, {page}, {pages}, {url}
-   * Can be a simple string (centered) or object with left/center/right columns.
+   * Left/center/right columns; a plain YAML string is decoded as `{ center }`.
+   * A header with no non-empty column or background is inactive.
    * Markdown is supported and will be converted to HTML.
    */
-  header?: HeaderFooterValue;
+  header?: HeaderFooterColumn;
 
   /**
    * Simplified footer template. Supports placeholders: {title}, {date}, {page}, {pages}, {url}
-   * Can be a simple string (centered) or object with left/center/right columns.
+   * Left/center/right columns; a plain YAML string is decoded as `{ center }`.
+   * A footer with no non-empty column or background is inactive.
    * Markdown is supported and will be converted to HTML.
    */
-  footer?: HeaderFooterValue;
+  footer?: HeaderFooterColumn;
 
   /**
    * PDF metadata (author, title, subject, keywords, etc.)
@@ -190,13 +191,13 @@ export interface Config {
   metadata?: PdfMetadata;
 
   /**
-   * Font configuration. Can be:
-   * - A preset name: "classic-elegant", "modern-professional", etc.
-   * - An object with custom fonts: { heading, body, mono }
-   *
-   * Theme names (beryl, tufte, etc.) are also valid presets.
+   * Font configuration: { heading, body, mono } plus optional fallbacks.
+   * A YAML preset name ("classic-elegant", a theme name, ...) is resolved to
+   * its pairing when the config is parsed; programmatic callers resolve with
+   * `isFontPairingPreset` and `fontPairings`. When unset, the theme's pairing
+   * is used.
    */
-  fonts?: FontConfig | string;
+  fonts?: FontPairingConfig;
 
   /**
    * Scale factor for all font sizes. Default: 1.
@@ -236,7 +237,7 @@ export interface Config {
    * Named values substituted into `{{ ... }}` placeholders in the document.
    * Numeric constants can also be combined arithmetically: `{{ rate * 1.5 }}`.
    */
-  constants?: Record<string, ConstantValue>;
+  constants?: Constants;
 
   /**
    * BCP 47 locale used to format numeric `{{ ... }}` results, e.g. "nb-NO"
