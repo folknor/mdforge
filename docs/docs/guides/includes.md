@@ -60,7 +60,10 @@ Browse available icons at [icon-sets.iconify.design](https://icon-sets.iconify.d
 
 Icons are fetched from `https://api.iconify.design` unless the config file sets
 `iconify_api` (see [Icon Server](../reference/configuration.md#icon-server)), and
-cached in `~/.cache/mdforge/iconify/`, separately for each server.
+cached in `~/.cache/mdforge/iconify/`, separately for each server. An icon that
+cannot be fetched, including one whose server gives no complete answer within
+15 seconds, is rendered as the placeholder `[icon:prefix:name]` and reported as
+a warning.
 
 ## Cross-References
 

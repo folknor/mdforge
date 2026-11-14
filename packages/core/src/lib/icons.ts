@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { describeFailure, fetchText } from "./remote.ts";
 
 /**
  * Iconify icon support for mdforge
@@ -62,12 +63,21 @@ export type IconOptions = {
   cacheRoot?: string;
   /** Fetch implementation (tests inject one). */
   fetch?: typeof fetch;
+  /** Per-request deadline; defaults to REMOTE_TIMEOUT_MS (tests shorten it). */
+  timeoutMs?: number;
+};
+
+export type IconResult = {
+  content: string;
+  /** One per icon that could not be fetched and was left as a placeholder. */
+  warnings: string[];
 };
 
 type IconSource = {
   base: URL;
   cacheDir: string;
-  fetch: typeof fetch;
+  fetch: typeof fetch | undefined;
+  timeoutMs: number | undefined;
 };
 
 function iconCachePath(source: IconSource, prefix: string, name: string): string {
@@ -98,35 +108,33 @@ async function writeCached(path: string, svg: string): Promise<void> {
   }
 }
 
-async function fetchIcon(source: IconSource, prefix: string, name: string): Promise<string | null> {
+/** An icon's SVG, or why it could not be had. */
+type IconLookup = { svg: string } | { problem: string };
+
+async function fetchIcon(source: IconSource, prefix: string, name: string): Promise<IconLookup> {
   const cachePath = iconCachePath(source, prefix, name);
   const cached = await readCached(cachePath);
 
   if (cached) {
-    return cached;
+    return { svg: cached };
   }
 
-  let svg: string;
+  const url = new URL(`${prefix}/${name}.svg`, source.base);
+  const result = await fetchText(url, { fetch: source.fetch, timeoutMs: source.timeoutMs });
 
-  try {
-    const response = await source.fetch(new URL(`${prefix}/${name}.svg`, source.base));
-
-    if (!response.ok) {
-      return null;
-    }
-
-    svg = await response.text();
-  } catch {
-    return null;
+  if (!result.ok) {
+    return { problem: `${url.href}: ${describeFailure(result.failure)}` };
   }
+
+  const svg = result.value;
 
   if (!svg.includes("<svg")) {
-    return null;
+    return { problem: `${url.href}: response is not an SVG` };
   }
 
   await writeCached(cachePath, svg);
 
-  return svg;
+  return { svg };
 }
 
 /**
@@ -173,9 +181,14 @@ function iconKey(prefix: string, name: string): IconId {
 /**
  * Process icons in markdown content.
  * Fetches icons from the Iconify server and replaces :icon[prefix:name]
- * syntax with inline SVGs. Throws if `apiUrl` is not a valid server URL.
+ * syntax with inline SVGs. An icon that cannot be fetched (including one whose
+ * request exceeds its deadline) becomes a `[icon:prefix:name]` placeholder and
+ * a warning. Throws if `apiUrl` is not a valid server URL.
  */
-export async function processIcons(content: string, options: IconOptions = {}): Promise<string> {
+export async function processIcons(
+  content: string,
+  options: IconOptions = {},
+): Promise<IconResult> {
   const ids = new Map<string, IconId>();
 
   for (const match of content.matchAll(ICON_REGEX)) {
@@ -188,7 +201,7 @@ export async function processIcons(content: string, options: IconOptions = {}): 
   }
 
   if (ids.size === 0) {
-    return content;
+    return { content, warnings: [] };
   }
 
   const base = iconifyBase(options.apiUrl ?? DEFAULT_ICONIFY_API);
@@ -199,32 +212,45 @@ export async function processIcons(content: string, options: IconOptions = {}): 
       options.cacheRoot ?? DEFAULT_CACHE_ROOT,
       createHash("sha256").update(base.href).digest("hex"),
     ),
-    fetch: options.fetch ?? fetch,
+    fetch: options.fetch,
+    timeoutMs: options.timeoutMs,
   };
 
   const iconMap = new Map<string, string>();
+  const warnings: string[] = [];
 
-  await Promise.all(
-    [...ids].map(async ([key, { prefix, name }]) => {
-      const svg = await fetchIcon(source, prefix, name);
-
-      if (svg) {
-        iconMap.set(key, svg);
-      }
-    }),
+  const lookups = await Promise.all(
+    [...ids].map(async ([key, { prefix, name }]) => ({
+      key,
+      lookup: await fetchIcon(source, prefix, name),
+    })),
   );
 
-  return content.replace(ICON_REGEX, (_match, prefix: string, name: string, sizeStr?: string) => {
-    const id = iconKey(prefix, name);
-    const svg = iconMap.get(id.key);
-
-    if (!svg) {
-      // Placeholder if the icon couldn't be fetched
-      return `[icon:${id.prefix}:${id.name}]`;
+  // Collected in first-reference order, so warnings do not depend on timing.
+  for (const { key, lookup } of lookups) {
+    if ("svg" in lookup) {
+      iconMap.set(key, lookup.svg);
+    } else {
+      warnings.push(`Icon ${key} could not be fetched (${lookup.problem})`);
     }
+  }
 
-    const size = sizeStr ? Number.parseInt(sizeStr, 10) : undefined;
+  const replaced = content.replace(
+    ICON_REGEX,
+    (_match, prefix: string, name: string, sizeStr?: string) => {
+      const id = iconKey(prefix, name);
+      const svg = iconMap.get(id.key);
 
-    return createInlineSvg(svg, size);
-  });
+      if (!svg) {
+        // Placeholder if the icon couldn't be fetched
+        return `[icon:${id.prefix}:${id.name}]`;
+      }
+
+      const size = sizeStr ? Number.parseInt(sizeStr, 10) : undefined;
+
+      return createInlineSvg(svg, size);
+    },
+  );
+
+  return { content: replaced, warnings };
 }

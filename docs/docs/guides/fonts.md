@@ -2,6 +2,8 @@
 
 Load custom fonts from Google Fonts for headings, body text, and code. System fonts are used when available; missing fonts are downloaded from Google Fonts and cached in `~/.cache/mdforge/fonts/`.
 
+Each request to Google Fonts must complete within 15 seconds. A font file that cannot be downloaded is left out with a warning (text it would have covered uses the next font in the stack), and only a complete download is cached, so the next conversion tries again.
+
 ## Font Presets
 
 Use a preset by name:
