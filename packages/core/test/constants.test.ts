@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { processConstants } from "../dist/lib/constants.js";
+import { processConstants } from "../src/lib/constants.ts";
 
 const constants = {
   rate: { kind: "number", value: 1500 },

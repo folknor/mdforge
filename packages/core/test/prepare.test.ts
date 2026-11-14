@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { type Config, defaultConfig } from "../dist/lib/config.js";
-import { baseElement, prepareConversion } from "../dist/lib/prepare.js";
+import { type Config, defaultConfig } from "../src/lib/config.ts";
+import { baseElement, prepareConversion } from "../src/lib/prepare.ts";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "prepare");
 

@@ -9,7 +9,7 @@ import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import type { FrameAddScriptTagOptions } from "puppeteer";
-import { admonitionsCss } from "./admonitions.js";
+import { admonitionsCss } from "./admonitions.ts";
 import {
   type Config,
   type HeaderFooterColumn,
@@ -17,25 +17,25 @@ import {
   type StylesheetEntry,
   themes,
   themesDir,
-} from "./config.js";
-import { formatConfigIssues, parseConfigYaml, splitFrontMatter } from "./config-yaml.js";
-import { processConstants } from "./constants.js";
-import { type ConversionInfo, createConversionInfo } from "./conversion-info.js";
-import { formatCssErrors, validateCss } from "./css-validator.js";
-import { ConfigError, IncludeError } from "./errors.js";
-import { type EmbeddedFontData, fontPairings, generateFontStylesheet } from "./fonts.js";
-import { formFieldsCss } from "./form-fields.js";
-import { processIcons } from "./icons.js";
-import { processIncludes } from "./includes.js";
-import { getHtml } from "./markdown.js";
+} from "./config.ts";
+import { formatConfigIssues, parseConfigYaml, splitFrontMatter } from "./config-yaml.ts";
+import { processConstants } from "./constants.ts";
+import { type ConversionInfo, createConversionInfo } from "./conversion-info.ts";
+import { formatCssErrors, validateCss } from "./css-validator.ts";
+import { ConfigError, IncludeError } from "./errors.ts";
+import { type EmbeddedFontData, fontPairings, generateFontStylesheet } from "./fonts.ts";
+import { formFieldsCss } from "./form-fields.ts";
+import { processIcons } from "./icons.ts";
+import { processIncludes } from "./includes.ts";
+import { getHtml } from "./markdown.ts";
 import {
   buildPuppeteerTemplate,
   generatePagedCss,
   hasBackground,
   hasContent,
-} from "./paged-css.js";
-import { extractFirstHeading, getOutputFilePath } from "./util.js";
-import { hasPageRefs, processXref } from "./xref.js";
+} from "./paged-css.ts";
+import { extractFirstHeading, getOutputFilePath } from "./util.ts";
+import { hasPageRefs, processXref } from "./xref.ts";
 
 const require: NodeRequire = createRequire(import.meta.url);
 

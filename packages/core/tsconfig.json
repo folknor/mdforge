@@ -3,7 +3,13 @@
   "compilerOptions": {
     "lib": ["ES2024", "DOM"],
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Tests run the sources directly under Node's type stripping (no build
+    // step), so sources import siblings by their .ts names and use only
+    // erasable syntax; emit rewrites the specifiers to .js.
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test"]

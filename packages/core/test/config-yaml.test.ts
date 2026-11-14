@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { dirname, join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { type ConfigSource, parseConfigYaml, splitFrontMatter } from "../dist/lib/config-yaml.js";
+import { type ConfigSource, parseConfigYaml, splitFrontMatter } from "../src/lib/config-yaml.ts";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "config-yaml");
 

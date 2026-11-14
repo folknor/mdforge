@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { generateFontStylesheet, isFontPairingPreset } from "../dist/lib/fonts.js";
+import { generateFontStylesheet, isFontPairingPreset } from "../src/lib/fonts.ts";
 
 describe("font presets", () => {
   it("recognises preset names", () => {

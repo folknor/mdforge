@@ -5,7 +5,7 @@ import {
   HeadingNumberer,
   type HeadingNumbersConfig,
   headingNumbers,
-} from "../dist/lib/heading-numbers.js";
+} from "../src/lib/heading-numbers.ts";
 
 /** Feed a sequence of heading depths to a numberer and collect the prefixes. */
 function numbersFor(depths: number[], config: HeadingNumbersConfig = {}): (string | undefined)[] {

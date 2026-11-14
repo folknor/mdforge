@@ -1,7 +1,7 @@
 import GithubSlugger from "github-slugger";
 import { marked } from "marked";
-import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.js";
-import { cleanForSlug } from "./slugger.js";
+import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.ts";
+import { cleanForSlug } from "./slugger.ts";
 
 /**
  * Cross-reference processing for mdforge.

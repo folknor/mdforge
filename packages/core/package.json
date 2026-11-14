@@ -63,7 +63,6 @@
     "dev": "tsc --watch",
     "postbuild": "cp -r src/data dist/",
     "prebuild": "node scripts/generate-google-fonts-list.js",
-    "pretest": "pnpm run build",
     "test": "node --test \"test/*.test.ts\""
   },
   "dependencies": {

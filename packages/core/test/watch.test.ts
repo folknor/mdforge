@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
-import { createTargetWatcher } from "../dist/lib/watch.js";
+import { createTargetWatcher } from "../src/lib/watch.ts";
 
 // Scratch directories live beside the tests, not in the system temp dir
 const scratchRoot = join(import.meta.dirname, ".scratch");

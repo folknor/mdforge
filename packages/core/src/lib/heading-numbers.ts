@@ -1,6 +1,6 @@
 import GithubSlugger from "github-slugger";
 import type { MarkedExtension, Tokens } from "marked";
-import { cleanForSlug } from "./slugger.js";
+import { cleanForSlug } from "./slugger.ts";
 
 /**
  * Heading number format options (same as page number formats).

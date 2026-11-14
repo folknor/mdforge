@@ -3,14 +3,14 @@ import { fileURLToPath } from "node:url";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type { MarkedExtension } from "marked";
 import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
-import type { Constants } from "./constants.js";
-import type { FontPairingConfig } from "./fonts.js";
-import type { HeadingNumbersConfig } from "./heading-numbers.js";
-import type { TemplatesConfig } from "./includes.js";
-import { type Theme, themes } from "./presets.js";
-import type { TOCOptions } from "./toc.js";
+import type { Constants } from "./constants.ts";
+import type { FontPairingConfig } from "./fonts.ts";
+import type { HeadingNumbersConfig } from "./heading-numbers.ts";
+import type { TemplatesConfig } from "./includes.ts";
+import { type Theme, themes } from "./presets.ts";
+import type { TOCOptions } from "./toc.ts";
 
-export type { HeadingNumbersConfig } from "./heading-numbers.js";
+export type { HeadingNumbersConfig } from "./heading-numbers.ts";
 
 export { type Theme, themes };
 

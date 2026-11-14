@@ -8,9 +8,9 @@
 
 import GithubSlugger from "github-slugger";
 import { marked, type Token, type Tokens } from "marked";
-import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.js";
-import { cleanForSlug } from "./slugger.js";
-import { pageRefSpan } from "./xref.js";
+import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.ts";
+import { cleanForSlug } from "./slugger.ts";
+import { pageRefSpan } from "./xref.ts";
 
 /** Output shape of a generated table of contents. */
 export type TOCStyle = "bullet" | "ordered" | "table";

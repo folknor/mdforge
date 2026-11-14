@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { HeadingNumbersConfig } from "../dist/lib/heading-numbers.js";
-import { insertToc, type TOCOptions } from "../dist/lib/toc.js";
+import type { HeadingNumbersConfig } from "../src/lib/heading-numbers.ts";
+import { insertToc, type TOCOptions } from "../src/lib/toc.ts";
 
 /** Everything between the two TOC markers, without the markers themselves. */
 function tocBody(

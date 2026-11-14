@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import { extname, resolve } from "node:path";
-import type { HeaderFooterColumn, PageNumberFormat, PageNumbersConfig } from "./config.js";
+import type { HeaderFooterColumn, PageNumberFormat, PageNumbersConfig } from "./config.ts";
 
 /**
  * MIME types for image embedding

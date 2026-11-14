@@ -4,13 +4,13 @@ import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
 import markedLinkifyIt from "marked-linkify-it";
 import { markedSmartypants } from "marked-smartypants";
-import { admonitions } from "./admonitions.js";
-import type { Config } from "./config.js";
-import { formFields } from "./form-fields.js";
-import { headingNumbers } from "./heading-numbers.js";
-import { gfmHeadingId } from "./slugger.js";
-import { insertToc } from "./toc.js";
-import { resolveNumberRefs } from "./xref.js";
+import { admonitions } from "./admonitions.ts";
+import type { Config } from "./config.ts";
+import { formFields } from "./form-fields.ts";
+import { headingNumbers } from "./heading-numbers.ts";
+import { gfmHeadingId } from "./slugger.ts";
+import { insertToc } from "./toc.ts";
+import { resolveNumberRefs } from "./xref.ts";
 
 /**
  * Create a configured Marked instance with syntax highlighting and extensions.

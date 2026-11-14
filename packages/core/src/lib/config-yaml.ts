@@ -62,17 +62,17 @@ import {
   type StylesheetEntry,
   type Theme,
   themes,
-} from "./config.js";
-import type { Constant } from "./constants.js";
+} from "./config.ts";
+import type { Constant } from "./constants.ts";
 import {
   type FontConfig,
   type FontPairingConfig,
   fontPairings,
   isFontPairingPreset,
-} from "./fonts.js";
-import type { HeadingNumbersConfig } from "./heading-numbers.js";
-import type { TemplatesConfig } from "./includes.js";
-import type { TOCOptions, TOCStyle } from "./toc.js";
+} from "./fonts.ts";
+import type { HeadingNumbersConfig } from "./heading-numbers.ts";
+import type { TemplatesConfig } from "./includes.ts";
+import type { TOCOptions, TOCStyle } from "./toc.ts";
 
 /** One thing in the YAML that was not accepted. */
 export interface ConfigIssue {

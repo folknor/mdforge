@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { HeadingNumbersConfig } from "../dist/lib/heading-numbers.js";
-import { pageRefSpan, resolveNumberRefs, resolvePageRefs } from "../dist/lib/xref.js";
+import type { HeadingNumbersConfig } from "../src/lib/heading-numbers.ts";
+import { pageRefSpan, resolveNumberRefs, resolvePageRefs } from "../src/lib/xref.ts";
 
 /** Resolve a single page reference and return the text it ended up showing. */
 function resolve(slug: string, headings: Record<string, number>) {

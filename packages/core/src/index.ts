@@ -17,13 +17,13 @@ export {
   type StylesheetEntry,
   type Theme,
   themes,
-} from "./lib/config.js";
+} from "./lib/config.ts";
 
 // Document constants
-export type { Constant, Constants } from "./lib/constants.js";
+export type { Constant, Constants } from "./lib/constants.ts";
 
 // Conversion info for CLI output
-export { type ConversionInfo, formatConversionInfo } from "./lib/conversion-info.js";
+export { type ConversionInfo, formatConversionInfo } from "./lib/conversion-info.ts";
 
 // Error types
 export {
@@ -32,7 +32,7 @@ export {
   GenerationError,
   IncludeError,
   MdforgeError,
-} from "./lib/errors.js";
+} from "./lib/errors.ts";
 
 // Font configuration
 export {
@@ -42,10 +42,10 @@ export {
   type FontPairingPreset,
   fontPairings,
   isFontPairingPreset,
-} from "./lib/fonts.js";
+} from "./lib/fonts.ts";
 
 // Include templates
-export type { TemplatesConfig } from "./lib/includes.js";
+export type { TemplatesConfig } from "./lib/includes.ts";
 
 // Preparation function (the main API for renderers)
 export {
@@ -57,7 +57,7 @@ export {
   type PreparedConversion,
   prepareConversion,
   writeOutput,
-} from "./lib/prepare.js";
+} from "./lib/prepare.ts";
 
 // Parsing user YAML (config files, front matter) into configuration
 export {
@@ -67,4 +67,4 @@ export {
   formatConfigIssues,
   type ParsedConfig,
   parseConfigYaml,
-} from "./lib/config-yaml.js";
+} from "./lib/config-yaml.ts";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { hasBackground, hasContent } from "../dist/lib/paged-css.js";
+import { hasBackground, hasContent } from "../src/lib/paged-css.ts";
 
 describe("header/footer activity", () => {
   it("counts only non-empty columns and backgrounds as content", () => {

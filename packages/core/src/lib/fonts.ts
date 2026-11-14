@@ -5,10 +5,10 @@
  * System fonts are used when available; fallbacks are downloaded from Google Fonts.
  */
 
-import { getGoogleFontsCss, isSystemFont } from "./font-cache.js";
-import type { FontPairingPreset, Theme } from "./presets.js";
+import { getGoogleFontsCss, isSystemFont } from "./font-cache.ts";
+import type { FontPairingPreset, Theme } from "./presets.ts";
 
-export type { FontPairingPreset } from "./presets.js";
+export type { FontPairingPreset } from "./presets.ts";
 
 export interface FontConfig {
   heading?: string;

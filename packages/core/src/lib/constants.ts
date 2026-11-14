@@ -75,11 +75,13 @@ class ExpressionError extends Error {}
  */
 class Evaluator {
   private pos = 0;
+  private readonly source: string;
+  private readonly constants: Constants;
 
-  constructor(
-    private readonly source: string,
-    private readonly constants: Constants,
-  ) {}
+  constructor(source: string, constants: Constants) {
+    this.source = source;
+    this.constants = constants;
+  }
 
   evaluate(): number {
     const value = this.parseExpression();
