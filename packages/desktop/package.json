@@ -32,8 +32,11 @@
     "url": "https://github.com/folknor/mdforge"
   },
   "scripts": {
+    "build-deps": "pnpm --filter \"@mdforge/desktop^...\" run build",
     "build": "pnpm run typecheck && vite build",
     "dev": "vite",
+    "prebuild": "pnpm run build-deps",
+    "predev": "pnpm run build-deps",
     "typecheck": "tsc --build",
     "package": "electron-builder",
     "package:linux": "electron-builder --linux AppImage",
