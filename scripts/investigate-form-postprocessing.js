@@ -25,8 +25,8 @@ import { fileURLToPath } from "node:url";
 const puppeteer = require("../packages/core/node_modules/puppeteer");
 const { PDFDocument, rgb } = require("../packages/core/node_modules/pdf-lib");
 
-const __dirname = resolve(fileURLToPath(import.meta.url), "..");
-const outputDir = join(__dirname, "..", "tmp");
+const scriptDir = resolve(fileURLToPath(import.meta.url), "..");
+const outputDir = join(scriptDir, "..", "tmp");
 
 // Version tracking for output files
 const VERSION = 4; // Increment this when making changes
@@ -220,7 +220,7 @@ async function analyzePdf(pdfPath) {
 /**
  * Step 3: Add AcroForm fields at calculated positions
  */
-async function addFormFields(pdfDoc, pages, fieldPositions, pageInfo) {
+async function addFormFields(pdfDoc, pages, fieldPositions) {
   console.log("\n=== Step 3: Add AcroForm fields ===\n");
 
   const page = pages[0];
@@ -331,9 +331,15 @@ async function embedPositionsInPdf(pdfPath, fieldPositions, pageInfo) {
   // Verify we can read it back
   const reloadedPdf = await PDFDocument.load(modifiedBytes);
   const keywords = reloadedPdf.getKeywords();
-  console.log(
-    `Keywords type: ${typeof keywords}, value: ${JSON.stringify(keywords)?.slice(0, 100)}`,
-  );
+
+  // pdf-lib returns a string or undefined; older versions may return an array.
+  const keywordsType = Array.isArray(keywords)
+    ? "object"
+    : keywords === undefined
+      ? "undefined"
+      : "string";
+
+  console.log(`Keywords type: ${keywordsType}, value: ${JSON.stringify(keywords)?.slice(0, 100)}`);
 
   // Keywords might be a string or array depending on pdf-lib version
   const keywordStr = Array.isArray(keywords) ? keywords.join(" ") : keywords || "";
@@ -540,7 +546,7 @@ async function fullPipeline() {
       .filter(Boolean);
   });
 
-  const pageInfo = await page.evaluate(() => ({
+  await page.evaluate(() => ({
     width: document.documentElement.scrollWidth,
     height: document.documentElement.scrollHeight,
   }));
@@ -558,7 +564,7 @@ async function fullPipeline() {
   const pdfDoc = await PDFDocument.load(pdfBuffer);
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
-  const { width: pdfWidth, height: pdfHeight } = firstPage.getSize();
+  const { height: pdfHeight } = firstPage.getSize();
   const form = pdfDoc.getForm();
 
   const marginPt = 20 * (72 / 25.4);
@@ -759,7 +765,7 @@ async function main() {
   try {
     const { pdfPath, fieldPositions, pageInfo } = await generateTestPdf();
     const { pdfDoc, pages } = await analyzePdf(pdfPath);
-    await addFormFields(pdfDoc, pages, fieldPositions, pageInfo);
+    await addFormFields(pdfDoc, pages, fieldPositions);
     await embedPositionsInPdf(pdfPath, fieldPositions, pageInfo);
     await fullPipeline();
     printSummary();

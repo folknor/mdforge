@@ -6,9 +6,9 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const __dirname = resolve(fileURLToPath(import.meta.url), "..");
-const examplesDir = join(__dirname, "..", "examples");
-const cliPath = join(__dirname, "..", "packages", "cli", "dist", "cli.js");
+const scriptDir = resolve(fileURLToPath(import.meta.url), "..");
+const examplesDir = join(scriptDir, "..", "examples");
+const cliPath = join(scriptDir, "..", "packages", "cli", "dist", "cli.js");
 
 /**
  * Get all outputs to generate for an example directory.
@@ -86,7 +86,7 @@ async function regenerateExamples() {
     let exampleDirs = entries
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
-      .sort();
+      .toSorted();
 
     // Filter to single example if specified
     if (filterExample) {
