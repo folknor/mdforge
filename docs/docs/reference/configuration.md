@@ -276,6 +276,11 @@ heading_numbers:
   skip_first_h1: true # Skip first h1
 ```
 
+A level skipped in the document counts as an implicit section 1: an h4
+directly under the first h2 is `1.1.1.`, and a following h3 is `1.2.`. The
+same holds for sections under a skipped first h1 when `start_depth` is 1, so
+the next h1 after them is `2.`.
+
 Prose can refer to a generated number with `@numberof(Heading Text)`, which
 prints it bare (`8.1`) and follows the heading if the document is renumbered.
 Unresolvable references are left in the output verbatim. See

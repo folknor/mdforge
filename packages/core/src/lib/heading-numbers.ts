@@ -119,12 +119,6 @@ export class HeadingNumberer {
   /** Counter per heading level (1-6). */
   private readonly counters = [0, 0, 0, 0, 0, 0];
   private firstH1Seen = false;
-  /**
-   * True while the level-1 counter holds a stand-in for a skipped first h1:
-   * its sections need a parent number ("1.1.", not "0.1."), but the skipped
-   * heading itself must not consume one, so the next real h1 is still "1.".
-   */
-  private phantomH1 = false;
 
   constructor(config: HeadingNumbersConfig = {}) {
     const {
@@ -157,14 +151,8 @@ export class HeadingNumberer {
       this.firstH1Seen = true;
     }
 
+    // Unnumbered headings consume no number at any level.
     if (!shouldNumber) {
-      // A skipped first h1 still parents the sections under it, so give it a
-      // stand-in number when level 1 is part of the printed prefix.
-      if (depth === 1 && this.startDepth === 1) {
-        this.counters[0] = 1;
-        this.phantomH1 = true;
-      }
-
       return undefined;
     }
 
@@ -173,14 +161,20 @@ export class HeadingNumberer {
       this.counters[i] = 0;
     }
 
-    const counterIndex = depth - 1;
-
-    // The stand-in was never a real number, so the first numbered h1 takes it
-    // over rather than following it.
-    if (depth === 1 && this.phantomH1) {
-      this.counters[0] = 0;
-      this.phantomH1 = false;
+    // A printed level with no heading of its own since its parent (h2 then h4,
+    // or sections under a skipped first h1) counts as an implicit section 1,
+    // consumed like a real one: h2, h4, h3 number "1.", "1.1.1.", "1.2.". A
+    // zero would print as "" in roman and alpha formats, leaving doubled
+    // separators that smartypants turns "--" into a dash; and handing the
+    // implicit 1 over to the next real heading would repeat a number already
+    // printed under it.
+    for (let i = this.startDepth - 1; i < depth - 1; i++) {
+      if (this.counters[i] === 0) {
+        this.counters[i] = 1;
+      }
     }
+
+    const counterIndex = depth - 1;
 
     this.counters[counterIndex] = (this.counters[counterIndex] ?? 0) + 1;
 

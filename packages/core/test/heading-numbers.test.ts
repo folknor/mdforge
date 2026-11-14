@@ -66,9 +66,30 @@ describe("HeadingNumberer", () => {
   });
 
   it("skips only the first h1 when start_depth is 1", () => {
-    // The skipped h1 still parents its sections ("1.1.", never "0.1."), but
-    // does not consume a number: the next real h1 is "1.".
-    assert.deepEqual(numbersFor([1, 2, 1], { start_depth: 1 }), [undefined, "1.1.", "1."]);
+    // Sections under the skipped h1 sit in an implicit section 1 ("1.1.",
+    // never "0.1."), which is consumed, so the next real h1 is "2." and its
+    // sections never repeat "1.1.". With no sections before it, it is "1.".
+    assert.deepEqual(numbersFor([1, 2, 1, 2], { start_depth: 1 }), [
+      undefined,
+      "1.1.",
+      "2.",
+      "2.1.",
+    ]);
+    assert.deepEqual(numbersFor([1, 1], { start_depth: 1 }), [undefined, "1."]);
+  });
+
+  it("numbers a skipped level as an implicit, consumed section 1", () => {
+    assert.deepEqual(numbersFor([2, 4, 4, 3, 4]), ["1.", "1.1.1.", "1.1.2.", "1.2.", "1.2.1."]);
+    assert.deepEqual(numbersFor([4, 3, 2]), ["1.1.1.", "1.2.", "2."]);
+    assert.deepEqual(numbersFor([2, 4, 3], { format: "roman-upper", separator: "-" }), [
+      "I-",
+      "I-I-I-",
+      "I-II-",
+    ]);
+  });
+
+  it("lets a heading deeper than max_depth consume nothing", () => {
+    assert.deepEqual(numbersFor([2, 4, 3], { max_depth: 3 }), ["1.", undefined, "1.1."]);
   });
 
   it("numbers the first h1 when skip_first_h1 is false", () => {
@@ -141,8 +162,8 @@ describe("numbered heading rendering", () => {
       {},
       { start_depth: 1, skip_first_h1: false },
       { max_depth: 3 },
-      // Not "-": smartypants would turn the "--" of an empty level into a dash.
-      { format: "roman-upper" as const, separator: "/" },
+      // The h2-then-h4 skip leaves no empty level for smartypants to dash.
+      { format: "roman-upper" as const, separator: "-" },
     ] satisfies HeadingNumbersConfig[]) {
       const numberer = new HeadingNumberer(config);
 
