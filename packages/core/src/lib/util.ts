@@ -15,6 +15,19 @@ export const getOutputFilePath = (mdFilePath: string, extension: "html" | "pdf")
 };
 
 /**
+ * Escape text for HTML element content or a double-quoted attribute value.
+ * A file URL keeps `&` and `'` as they are, and `&` would start a character
+ * reference.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+/**
  * Check whether the input is a URL.
  */
 export const isHttpUrl = (input: string): boolean => {

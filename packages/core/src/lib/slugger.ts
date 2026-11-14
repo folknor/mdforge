@@ -1,5 +1,4 @@
-import GithubSlugger from "github-slugger";
-import type { MarkedExtension, Tokens } from "marked";
+import GithubSlugger, { slug } from "github-slugger";
 import { transliterate } from "transliteration";
 
 const unescapeTest = /&(#(?:\d+)|(?:#x[0-9A-Fa-f]+)|(?:\w+));?/gi;
@@ -26,7 +25,6 @@ function decodeHtmlEntities(html: string): string {
 /**
  * Clean text for slug generation: unescape HTML entities, strip HTML tags,
  * and transliterate Unicode to ASCII for CSS selector compatibility.
- * Exported for use by toc.ts to ensure consistent slug generation.
  */
 export function cleanForSlug(text: string): string {
   const cleaned = decodeHtmlEntities(text)
@@ -38,22 +36,28 @@ export function cleanForSlug(text: string): string {
 }
 
 /**
- * Add `id` attribute to headings (h1, h2, h3, etc) like GitHub.
- * Handles duplicate headings by appending -1, -2, etc.
- *
- * @returns A {@link MarkedExtension} to be passed to {@link marked.use | `marked.use()`}
+ * Hands out heading ids for one rendered document, de-duplicating repeats as
+ * GitHub does (`notes`, `notes-1`, ...). The input is the heading's rendered
+ * inline HTML. A heading whose text yields no slug at all (empty, or only
+ * punctuation) is called `section`, through the same de-duplication, so its
+ * TOC link never degenerates to `#`.
  */
-export function gfmHeadingId(): MarkedExtension {
-  const slugger = new GithubSlugger();
+export class HeadingIdAssigner {
+  private readonly slugger = new GithubSlugger();
 
-  return {
-    renderer: {
-      heading({ tokens, depth }: Tokens.Heading): string {
-        const text = this.parser.parseInline(tokens);
-        const id = slugger.slug(cleanForSlug(text));
+  public assign(renderedText: string): string {
+    const cleaned = cleanForSlug(renderedText);
 
-        return `<h${depth} id="${id}">${text}</h${depth}>\n`;
-      },
-    },
-  };
+    return this.slugger.slug(slug(cleaned) ? cleaned : "section");
+  }
+}
+
+/**
+ * The id a cross-reference argument (`@see`, `@pageof`, `@numberof`,
+ * `@anchor`) names. Each reference is slugged on its own, without
+ * de-duplication: a later repeated heading is named by its suffixed id, as in
+ * `@pageof(Notes-1)`.
+ */
+export function referenceSlug(name: string): string {
+  return slug(cleanForSlug(name.trim()));
 }

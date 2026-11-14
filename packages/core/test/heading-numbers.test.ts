@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Marked } from "marked";
-import {
-  HeadingNumberer,
-  type HeadingNumbersConfig,
-  headingNumbers,
-} from "../src/lib/heading-numbers.ts";
+import { defaultConfig } from "../src/lib/config.ts";
+import { HeadingNumberer, type HeadingNumbersConfig } from "../src/lib/heading-numbers.ts";
+import { getHtml } from "../src/lib/markdown.ts";
+
+/** Render through the full pipeline with heading numbering on. */
+function render(markdown: string, config: HeadingNumbersConfig = {}): string {
+  return getHtml(markdown, { ...defaultConfig, heading_numbers: config });
+}
 
 /** Feed a sequence of heading depths to a numberer and collect the prefixes. */
 function numbersFor(depths: number[], config: HeadingNumbersConfig = {}): (string | undefined)[] {
@@ -19,8 +21,7 @@ function numbersFor(depths: number[], config: HeadingNumbersConfig = {}): (strin
  * each heading back out, so extension output can be compared to the class.
  */
 function renderedHeadingTexts(markdown: string, config: HeadingNumbersConfig = {}): string[] {
-  const marked = new Marked(headingNumbers(config));
-  const html = marked.parse(markdown, { async: false });
+  const html = render(markdown, config);
   const texts: string[] = [];
   const regex = /<h[1-6][^>]*>(.*?)<\/h[1-6]>/g;
   let match = regex.exec(html);
@@ -110,17 +111,14 @@ describe("HeadingNumberer", () => {
   });
 });
 
-describe("headingNumbers() extension", () => {
+describe("numbered heading rendering", () => {
   it("derives heading ids from the un-numbered text", () => {
-    const marked = new Marked(headingNumbers());
-    const html = marked.parse("## Avvik\n", { async: false });
+    const html = render("## Avvik\n");
     assert.match(html, /<h2 id="avvik">1\. Avvik<\/h2>/);
   });
 
   it("de-duplicates ids for repeated heading text", () => {
-    const marked = new Marked(headingNumbers());
-
-    const html = marked.parse("## Notes\n\n## Notes\n", { async: false });
+    const html = render("## Notes\n\n## Notes\n");
 
     assert.match(html, /<h2 id="notes">1\. Notes<\/h2>/);
     assert.match(html, /<h2 id="notes-1">2\. Notes<\/h2>/);
@@ -143,7 +141,8 @@ describe("headingNumbers() extension", () => {
       {},
       { start_depth: 1, skip_first_h1: false },
       { max_depth: 3 },
-      { format: "roman-upper" as const, separator: "-" },
+      // Not "-": smartypants would turn the "--" of an empty level into a dash.
+      { format: "roman-upper" as const, separator: "/" },
     ] satisfies HeadingNumbersConfig[]) {
       const numberer = new HeadingNumberer(config);
 

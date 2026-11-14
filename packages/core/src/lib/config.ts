@@ -161,7 +161,12 @@ export interface Config {
   launch_options: PuppeteerLaunchOptions;
 
   /**
-   * Custm Extensions to be passed to marked.
+   * Custom extensions to be passed to marked.
+   *
+   * Headings they render themselves are outside mdforge's outline (no id,
+   * not in the TOC or `@numberof`); they must not add, clone or reorder
+   * heading tokens after lexing, and must lex without side effects. The full
+   * contract is in outline.ts.
    *
    * @see https://marked.js.org/using_pro#extensions
    */

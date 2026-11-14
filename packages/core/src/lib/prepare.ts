@@ -34,7 +34,7 @@ import {
   hasBackground,
   hasContent,
 } from "./paged-css.ts";
-import { extractFirstHeading, getOutputFilePath } from "./util.ts";
+import { escapeHtml, extractFirstHeading, getOutputFilePath } from "./util.ts";
 import { hasPageRefs, processXref } from "./xref.ts";
 
 const require: NodeRequire = createRequire(import.meta.url);
@@ -79,22 +79,9 @@ export interface ConvertOptions {
  */
 export type MarkdownInput = { path: string } | { content: string; baseDir?: string };
 
-/**
- * A value escaped for a double-quoted HTML attribute. A file URL keeps `&` and
- * `'` as they are, and `&` would start a character reference inside the
- * attribute.
- */
-function attributeValue(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
 /** The `<base>` element for a prepared document's `baseUrl`. */
 export function baseElement(baseUrl: string): string {
-  return `<base href="${attributeValue(baseUrl)}">`;
+  return `<base href="${escapeHtml(baseUrl)}">`;
 }
 
 /**
@@ -103,7 +90,7 @@ export function baseElement(baseUrl: string): string {
  * against its own directory rather than the document's.
  */
 export function stylesheetLink(href: string): string {
-  return `<link rel="stylesheet" href="${attributeValue(href)}">`;
+  return `<link rel="stylesheet" href="${escapeHtml(href)}">`;
 }
 
 /** Write a converted document to its target. */

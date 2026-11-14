@@ -1,268 +1,125 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { HeadingNumbersConfig } from "../src/lib/heading-numbers.ts";
-import { insertToc, type TOCOptions } from "../src/lib/toc.ts";
+import { renderToc, type TocEntry } from "../src/lib/toc.ts";
 
-/** Everything between the two TOC markers, without the markers themselves. */
-function tocBody(
-  markdown: string,
-  options: TOCOptions = {},
-  headingNumbers?: HeadingNumbersConfig | false,
-): string {
-  const result = insertToc(markdown, options, headingNumbers);
-  const start = result.indexOf("<!-- toc -->");
-  const stop = result.indexOf("<!-- tocstop -->");
-  assert.notEqual(start, -1, "no <!-- toc --> marker in output");
-  assert.notEqual(stop, -1, "no <!-- tocstop --> marker in output");
-
-  return result.slice(start + "<!-- toc -->".length, stop).trim();
+function entry(depth: number, id: string, label = id): TocEntry {
+  return { depth, id, label };
 }
 
-const DOC = [
-  "# Title",
-  "",
-  "<!-- toc -->",
-  "",
-  "## Alpha",
-  "",
-  "### Beta",
-  "",
-  "## Gamma",
-  "",
-].join("\n");
+const ENTRIES = [entry(2, "alpha", "Alpha"), entry(3, "beta", "Beta"), entry(2, "gamma", "Gamma")];
 
-describe("insertToc", () => {
-  it("returns the input unchanged when there is no marker", () => {
-    const markdown = "# Title\n\n## Alpha\n";
-    assert.equal(insertToc(markdown), markdown);
-  });
+/** The unresolved page-reference span the TOC emits for a heading id. */
+function pageRef(id: string): string {
+  const target = `<a href="#${id}" style="display:none" aria-hidden="true"></a>`;
 
-  it("inserts a TOC and a stop marker for the single-marker form", () => {
-    const result = insertToc(DOC);
-    assert.match(result, /<!-- toc -->/);
-    assert.match(result, /<!-- tocstop -->/);
-    // The document content survives on both sides of the TOC.
-    assert.ok(result.startsWith("# Title"));
-    assert.ok(result.includes("## Alpha"));
-  });
+  return `<span class="mdforge-pageref" data-mdforge-pageref="${id}">${target}??</span>`;
+}
 
-  it("regenerates over an existing TOC for the three-marker form", () => {
-    const withStale = [
-      "# Title",
-      "",
-      "<!-- toc -->",
-      "",
-      "- [Stale entry](#stale-entry)",
-      "",
-      "<!-- tocstop -->",
-      "",
-      "## Alpha",
-      "",
-    ].join("\n");
-
-    const result = insertToc(withStale);
-    assert.ok(!result.includes("Stale entry"));
-    assert.ok(result.includes("- [Alpha](#alpha)"));
-    // Still exactly one TOC block.
-    assert.equal(result.match(/<!-- toc -->/g)?.length, 1);
-    assert.equal(result.match(/<!-- tocstop -->/g)?.length, 1);
-  });
-
-  it("rejects documents with more than one TOC", () => {
-    const twoTocs = "<!-- toc -->\n\n<!-- tocstop -->\n\n<!-- toc -->\n\n<!-- tocstop -->\n";
-
-    assert.throws(() => insertToc(twoTocs), /only supports one Table of Contents/);
-  });
-
-  it("preserves trailing newlines", () => {
-    const result = insertToc("<!-- toc -->\n\n## Alpha\n\n\n");
-    assert.ok(result.endsWith("\n\n\n"));
-  });
-});
-
-describe("TOC styles", () => {
-  it("renders a bullet list indented by heading depth", () => {
+describe("renderToc lists", () => {
+  it("nests a bullet list by heading depth", () => {
     assert.equal(
-      tocBody(DOC),
-      ["- [Alpha](#alpha)", "  - [Beta](#beta)", "- [Gamma](#gamma)"].join("\n"),
-    );
-  });
-
-  it("indents relative to the shallowest heading in the TOC", () => {
-    const markdown = "<!-- toc -->\n\n### Deep\n\n#### Deeper\n";
-    assert.equal(tocBody(markdown), ["- [Deep](#deep)", "  - [Deeper](#deeper)"].join("\n"));
-  });
-
-  it("renders an ordered list", () => {
-    assert.equal(
-      tocBody(DOC, { style: "ordered" }),
-      ["1. [Alpha](#alpha)", "  1. [Beta](#beta)", "1. [Gamma](#gamma)"].join("\n"),
-    );
-  });
-
-  it("renders a headerless two-column table by default", () => {
-    assert.equal(
-      tocBody(DOC, { style: "table" }),
+      renderToc(ENTRIES),
       [
-        "|  |  |",
-        "| --- | --- |",
-        "| [Alpha](#alpha) |  |",
-        "| &nbsp;&nbsp;[Beta](#beta) |  |",
-        "| [Gamma](#gamma) |  |",
+        "<ul>",
+        '<li><a href="#alpha">Alpha</a>',
+        "<ul>",
+        '<li><a href="#beta">Beta</a></li>',
+        "</ul></li>",
+        '<li><a href="#gamma">Gamma</a></li>',
+        "</ul>",
+        "",
       ].join("\n"),
     );
   });
 
-  it("uses configured table headers", () => {
-    const body = tocBody(DOC, {
-      style: "table",
-      table_headers: ["Innhold", "Side"],
-    });
-
-    assert.ok(body.startsWith("| Innhold | Side |\n| --- | --- |\n"));
-  });
-});
-
-describe("TOC filtering", () => {
-  it("drops headings deeper than maxdepth", () => {
-    const body = tocBody(DOC, { maxdepth: 2 });
-    assert.equal(body, ["- [Alpha](#alpha)", "- [Gamma](#gamma)"].join("\n"));
+  it("nests an ordered list the same way", () => {
+    const html = renderToc(ENTRIES, { style: "ordered" });
+    assert.equal(html.match(/<ol>/g)?.length, 2);
+    assert.ok(!html.includes("<ul>"));
   });
 
-  it("drops the leading h1 when skip_first_h1 is set", () => {
-    const markdown = ["<!-- toc -->", "", "# Title", "", "## Alpha", "", "## Gamma", ""].join("\n");
-
+  it("nests a jump of several levels by one level, keeping later siblings in that list", () => {
+    const html = renderToc([entry(2, "a"), entry(4, "b"), entry(3, "c"), entry(2, "d")]);
     assert.equal(
-      tocBody(markdown, { skip_first_h1: true }),
-      ["- [Alpha](#alpha)", "- [Gamma](#gamma)"].join("\n"),
+      html,
+      [
+        "<ul>",
+        '<li><a href="#a">a</a>',
+        "<ul>",
+        '<li><a href="#b">b</a></li>',
+        '<li><a href="#c">c</a></li>',
+        "</ul></li>",
+        '<li><a href="#d">d</a></li>',
+        "</ul>",
+        "",
+      ].join("\n"),
     );
   });
 
-  it("keeps the leading h1 by default", () => {
-    const markdown = "<!-- toc -->\n\n# Title\n\n## Alpha\n";
-    assert.equal(tocBody(markdown), ["- [Title](#title)", "  - [Alpha](#alpha)"].join("\n"));
+  it("puts an entry shallower than the first one in the outer list", () => {
+    const html = renderToc([entry(3, "a"), entry(2, "b")]);
+    assert.equal(html.match(/<ul>/g)?.length, 1);
+  });
+
+  it("is empty when nothing is listed", () => {
+    assert.equal(renderToc([]), "");
   });
 });
 
-/** The unresolved page-reference span the TOC emits for a heading slug. */
-function pageRef(slug: string): string {
-  const target = `<a href="#${slug}" style="display:none" aria-hidden="true"></a>`;
-
-  return `<span class="mdforge-pageref" data-mdforge-pageref="${slug}">${target}??</span>`;
-}
-
-describe("TOC page numbers", () => {
-  it("appends a page reference span pointing at the heading slug", () => {
-    const body = tocBody(DOC, { page_numbers: true, maxdepth: 2 });
-    assert.equal(
-      body,
-      [`- [Alpha](#alpha) — ${pageRef("alpha")}`, `- [Gamma](#gamma) — ${pageRef("gamma")}`].join(
-        "\n",
-      ),
-    );
+describe("renderToc table", () => {
+  it("renders a headerless two-column table with indented titles", () => {
+    const html = renderToc(ENTRIES, { style: "table" });
+    assert.ok(html.startsWith("<table>\n<thead>\n<tr>\n<th></th>\n<th></th>\n</tr>\n</thead>"));
+    assert.ok(html.includes('<td>&nbsp;&nbsp;<a href="#beta">Beta</a></td>'));
+    assert.ok(html.includes('<td><a href="#alpha">Alpha</a></td>'));
   });
 
-  it("uses page_label and page_separator", () => {
-    const body = tocBody(DOC, {
+  it("escapes configured table headers as text", () => {
+    const html = renderToc(ENTRIES, { style: "table", table_headers: ["Innhold & mer", "Side"] });
+    assert.ok(html.includes("<th>Innhold &amp; mer</th>\n<th>Side</th>"));
+  });
+});
+
+describe("renderToc filtering", () => {
+  it("drops entries deeper than maxdepth", () => {
+    assert.ok(!renderToc(ENTRIES, { maxdepth: 2 }).includes("beta"));
+  });
+
+  it("drops a leading h1 when skip_first_h1 is set, and keeps it by default", () => {
+    const withTitle = [entry(1, "title"), ...ENTRIES];
+    assert.ok(!renderToc(withTitle, { skip_first_h1: true }).includes("#title"));
+    assert.ok(renderToc(withTitle).includes("#title"));
+  });
+
+  it("only skips the first entry, and only if it is an h1", () => {
+    const html = renderToc([entry(2, "a"), entry(1, "b")], { skip_first_h1: true });
+    assert.ok(html.includes("#a") && html.includes("#b"));
+  });
+});
+
+describe("renderToc page numbers", () => {
+  it("appends a page reference to each entry after the separator", () => {
+    const html = renderToc(ENTRIES, { page_numbers: true, maxdepth: 2 });
+    assert.ok(html.includes(`<a href="#alpha">Alpha</a> — ${pageRef("alpha")}`));
+    assert.ok(html.includes(`<a href="#gamma">Gamma</a> — ${pageRef("gamma")}`));
+  });
+
+  it("uses page_label and page_separator as text", () => {
+    const html = renderToc(ENTRIES, {
       page_numbers: true,
-      maxdepth: 2,
       page_label: "Side ",
-      page_separator: " ... ",
+      page_separator: " <> ",
     });
 
-    assert.ok(body.includes(`- [Alpha](#alpha) ... Side ${pageRef("alpha")}`));
+    assert.ok(html.includes(`<a href="#alpha">Alpha</a> &lt;&gt; Side ${pageRef("alpha")}`));
   });
 
   it("puts the page reference in the second table column", () => {
-    const body = tocBody(DOC, {
-      style: "table",
-      page_numbers: true,
-      maxdepth: 2,
-    });
-
-    assert.ok(body.includes(`| [Alpha](#alpha) | ${pageRef("alpha")} |`));
+    const html = renderToc(ENTRIES, { style: "table", page_numbers: true });
+    assert.ok(html.includes(`<td>${pageRef("alpha")}</td>`));
   });
 
   it("emits no page reference when page_numbers is off", () => {
-    assert.ok(!tocBody(DOC).includes("mdforge-pageref"));
-  });
-});
-
-describe("TOC heading numbering", () => {
-  it("numbers entries but links to the un-numbered slug", () => {
-    const body = tocBody(DOC, {}, {});
-    assert.equal(
-      body,
-      ["- [1. Alpha](#alpha)", "  - [1.1. Beta](#beta)", "- [2. Gamma](#gamma)"].join("\n"),
-    );
-  });
-
-  it("does not number entries when heading numbering is disabled", () => {
-    assert.ok(!tocBody(DOC, {}, false).includes("1."));
-  });
-
-  it("counts headings before the marker so numbers stay in step", () => {
-    const markdown = [
-      "# Title",
-      "",
-      "## Before",
-      "",
-      "<!-- toc -->",
-      "",
-      "## After",
-      "",
-      "### Deeper",
-      "",
-    ].join("\n");
-
-    assert.equal(
-      tocBody(markdown, {}, {}),
-      ["- [2. After](#after)", "  - [2.1. Deeper](#deeper)"].join("\n"),
-    );
-  });
-
-  it("counts headings before the marker so slugs stay de-duplicated", () => {
-    const markdown = ["# Intro", "", "<!-- toc -->", "", "## Intro", ""].join("\n");
-
-    assert.equal(tocBody(markdown), "- [Intro](#intro-1)");
-  });
-
-  it("de-duplicates slugs within the TOC itself", () => {
-    const markdown = "<!-- toc -->\n\n## Notes\n\n## Notes\n";
-    assert.equal(tocBody(markdown), ["- [Notes](#notes)", "- [Notes](#notes-1)"].join("\n"));
-  });
-
-  it("keeps numbering in step when regenerating over an existing TOC", () => {
-    const markdown = [
-      "# Title",
-      "",
-      "## Before",
-      "",
-      "<!-- toc -->",
-      "",
-      "- [stale](#stale)",
-      "",
-      "<!-- tocstop -->",
-      "",
-      "## After",
-      "",
-    ].join("\n");
-
-    assert.equal(tocBody(markdown, {}, {}), "- [2. After](#after)");
-  });
-});
-
-describe("TOC escaping", () => {
-  it("escapes pipes in table cells", () => {
-    const markdown = "<!-- toc -->\n\n## Pipe | Char\n";
-    const body = tocBody(markdown, { style: "table" });
-    assert.ok(body.includes("[Pipe \\| Char]"), `pipe not escaped in: ${body}`);
-  });
-
-  it("escapes brackets in link text", () => {
-    const markdown = "<!-- toc -->\n\n## Note [draft]\n";
-    const body = tocBody(markdown);
-    // An unescaped "]" would terminate the link text early and break the link.
-    assert.ok(body.includes("[Note \\[draft\\]]("), `brackets not escaped in: ${body}`);
+    assert.ok(!renderToc(ENTRIES).includes("mdforge-pageref"));
   });
 });

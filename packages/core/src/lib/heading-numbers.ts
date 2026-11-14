@@ -1,7 +1,3 @@
-import GithubSlugger from "github-slugger";
-import type { MarkedExtension, Tokens } from "marked";
-import { cleanForSlug } from "./slugger.ts";
-
 /**
  * Heading number format options (same as page number formats).
  */
@@ -107,10 +103,11 @@ function formatNumber(num: number, format: HeadingNumberFormat): string {
 /**
  * Hierarchical heading counter.
  *
- * Shared by the marked renderer extension and the TOC generator so both produce
- * the same numbers from the same config. It is stateful: feed it every heading
- * of the document, in document order, exactly once — including headings it will
- * not number, since they still affect the first-h1 tracking.
+ * Driven by the heading renderer (outline.ts), the one place headings are
+ * numbered; the TOC and `@numberof` read the numbers it handed out. It is
+ * stateful: feed it every heading of the document, in document order, exactly
+ * once — including headings it will not number, since they still affect the
+ * first-h1 tracking.
  */
 export class HeadingNumberer {
   private readonly format: HeadingNumberFormat;
@@ -206,38 +203,4 @@ export class HeadingNumberer {
 
     return prefix === undefined ? text : `${prefix} ${text}`;
   }
-}
-
-/**
- * Create a Marked extension that adds hierarchical numbering to headings.
- *
- * @param config - Configuration for heading numbering
- * @returns A MarkedExtension to be passed to marked.use()
- *
- * @example
- * ```yaml
- * heading_numbers:
- *   format: arabic      # 1.1, 1.2, 2.1 (default)
- *   start_depth: 2      # Start numbering at h2 (default)
- *   max_depth: 4        # Stop numbering at h4 (default: 6)
- *   separator: "."      # Number separator (default)
- * ```
- */
-export function headingNumbers(config: HeadingNumbersConfig = {}): MarkedExtension {
-  const slugger = new GithubSlugger();
-  const numberer = new HeadingNumberer(config);
-
-  return {
-    renderer: {
-      heading({ tokens, depth }: Tokens.Heading): string | false {
-        const text = this.parser.parseInline(tokens);
-        // The id is derived from the un-numbered text so TOC links and
-        // @see/@pageof references keep resolving when numbering is enabled.
-        const id = slugger.slug(cleanForSlug(text));
-        const numberedText = numberer.apply(depth, text);
-
-        return `<h${depth} id="${id}">${numberedText}</h${depth}>\n`;
-      },
-    },
-  };
 }

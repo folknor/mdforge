@@ -228,7 +228,14 @@ page_numbers:
 
 ## Table of Contents
 
-Insert `<!-- toc -->` in the document where the contents list should go.
+Insert `<!-- toc -->` on a line of its own, outside any list, quote or code
+block, where the contents list should go. Anything between it and a later
+`<!-- tocstop -->` line is replaced. The contents list every document-level
+heading after the marker; headings inside quotes, lists or admonitions keep
+their own anchors and numbers but are not listed. Entries link to exactly the
+anchors the headings render with, and show the heading's formatting without
+its links, footnote references or raw HTML. `page_label`, `page_separator` and
+`table_headers` are plain text.
 
 ```yaml
 toc_options:

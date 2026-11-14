@@ -96,7 +96,10 @@ If "Overtid" is the first subsection of section 8, that renders as "etter punkt
 quietly pointing at the wrong clause.
 
 The heading is named by its visible text (without the number), or by its anchor
-as `@numberof(#overtid)` — the same argument style as `@see` and `@pageof`. The
+as `@numberof(#overtid)` — the same argument style as `@see` and `@pageof`. A
+heading's anchor comes from its text as displayed, so `## [Overtid](https://…)`
+is `overtid`, and repeated headings are told apart the same way as for
+`@pageof` below. Inside code, `@numberof(...)` is left as written. The
 number is printed bare, without a trailing separator and without a link; pair it
 with `@see` if you want the reference to be clickable.
 

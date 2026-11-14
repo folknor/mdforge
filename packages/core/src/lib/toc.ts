@@ -6,10 +6,7 @@
  * Released under the MIT License.
  */
 
-import GithubSlugger from "github-slugger";
-import { marked, type Token, type Tokens } from "marked";
-import { HeadingNumberer, type HeadingNumbersConfig } from "./heading-numbers.ts";
-import { cleanForSlug } from "./slugger.ts";
+import { escapeHtml } from "./util.ts";
 import { pageRefSpan } from "./xref.ts";
 
 /** Output shape of a generated table of contents. */
@@ -47,274 +44,139 @@ export interface TOCOptions {
   table_headers?: [string, string];
 }
 
-export interface HeadingToken {
-  content: string;
-  slug: string;
-  lvl: number;
-  i: number;
-  seen: number;
-}
-
-interface TOCResult {
-  content: string;
-  json: HeadingToken[];
-  highest: number;
+/** One heading as the TOC lists it. */
+export interface TocEntry {
+  depth: number;
+  /** The heading's element id, exactly as rendered. */
+  id: string;
+  /** Finished inline HTML for the entry, number prefix included. */
+  label: string;
 }
 
 /**
- * Adapter to work with marked tokens and provide TOC generation.
+ * The TOC markup for `entries`, the document-level headings that follow the
+ * TOC marker, in document order.
+ *
+ * The TOC is generated as HTML, not markdown: its labels are already rendered
+ * heading HTML, and feeding that back through markdown would re-interpret it
+ * (a heading written `\*x\*` renders `*x*`, which markdown would emphasise).
  */
-class MarkedAdapter {
-  private options: TOCOptions;
-  private slugger = new GithubSlugger();
-  private numberer: HeadingNumberer | undefined;
-  private headings: HeadingToken[] = [];
+export function renderToc(entries: readonly TocEntry[], options: TOCOptions = {}): string {
+  const maxdepth = options.maxdepth ?? 6;
+  let listed = entries.filter((entry) => entry.depth <= maxdepth);
+  const first = listed[0];
 
-  constructor(options: TOCOptions = {}, headingNumbers?: HeadingNumbersConfig) {
-    this.options = {
-      skip_first_h1: false,
-      maxdepth: 6,
-      style: "bullet",
-      page_numbers: false,
-      page_label: "",
-      page_separator: " — ",
-      ...options,
-    };
-    this.numberer = headingNumbers ? new HeadingNumberer(headingNumbers) : undefined;
+  // Skip the first entry if it is an h1 (usually the document title).
+  if (options.skip_first_h1 && first?.depth === 1) {
+    listed = listed.slice(1);
   }
 
-  /**
-   * @param content - Markdown the TOC is generated from (everything after the marker)
-   * @param preceding - Markdown before the marker; its headings are consumed to
-   *   keep slug de-duplication and heading numbering in step with the document,
-   *   but they do not appear in the TOC.
-   */
-  public parse(content: string, preceding = ""): TOCResult {
-    if (preceding.trim()) {
-      this.extractHeadings(marked.lexer(preceding));
-      // Those headings only primed the slugger/numberer.
-      this.headings = [];
-    }
-
-    const tokens = marked.lexer(content);
-    this.extractHeadings(tokens);
-    this.processHeadings();
-    const tocContent = this.generateTOCContent();
-    const jsonOutput = this.generateJSONOutput();
-
-    return {
-      content: tocContent,
-      json: jsonOutput,
-      highest: this.getHighestLevel(),
-    };
+  if (listed.length === 0) {
+    return "";
   }
 
-  private extractHeadings(tokens: Token[]): void {
-    for (const token of tokens) {
-      if (token.type === "heading") {
-        this.processHeadingToken(token);
+  if (options.style === "table") {
+    return renderTable(listed, options);
+  }
+
+  return renderList(listed, options);
+}
+
+/** Page reference for an entry, or "" when page numbers are off. */
+function pageRef(entry: TocEntry, options: TOCOptions): string {
+  if (!options.page_numbers) {
+    return "";
+  }
+
+  return `${escapeHtml(options.page_label ?? "")}${pageRefSpan(entry.id)}`;
+}
+
+function entryLink(entry: TocEntry): string {
+  return `<a href="#${entry.id}">${entry.label}</a>`;
+}
+
+/**
+ * Nested lists, one level per step down in heading depth. A jump of several
+ * levels (h2 straight to h4) nests one level, and an entry shallower than the
+ * first one joins the outermost list.
+ */
+function renderList(entries: readonly TocEntry[], options: TOCOptions): string {
+  const tag = options.style === "ordered" ? "ol" : "ul";
+  const separator = escapeHtml(options.page_separator ?? " — ");
+  const parts: string[] = [];
+  // Depth of each open list, outermost first. Every open list has an open <li>.
+  const open: number[] = [];
+
+  for (const entry of entries) {
+    let top = open.at(-1);
+
+    if (top === undefined) {
+      parts.push(`<${tag}>\n<li>`);
+      open.push(entry.depth);
+    } else {
+      while (open.length > 1 && top !== undefined && entry.depth < top) {
+        const outer = open.at(-2) ?? 0;
+
+        // Deeper than the enclosing list: a sibling in the current one (h2,
+        // h4, h3 lists the h4 and h3 together under the h2).
+        if (entry.depth > outer) {
+          open[open.length - 1] = entry.depth;
+          top = entry.depth;
+          break;
+        }
+
+        parts.push(`</li>\n</${tag}>`);
+        open.pop();
+        top = open.at(-1);
+      }
+
+      if (top !== undefined && entry.depth > top) {
+        parts.push(`\n<${tag}>\n<li>`);
+        open.push(entry.depth);
+      } else {
+        if (top !== undefined && entry.depth < top) {
+          open[open.length - 1] = entry.depth;
+        }
+
+        parts.push("</li>\n<li>");
       }
     }
+
+    const page = pageRef(entry, options);
+    parts.push(`${entryLink(entry)}${page ? `${separator}${page}` : ""}`);
   }
 
-  private processHeadingToken(token: Token): void {
-    if (token.type !== "heading") {
-      return;
-    }
-
-    // SAFETY: tokens come from `marked.lexer`, which only emits `type:
-    // "heading"` for Tokens.Heading; the check above cannot narrow because
-    // Token also includes Tokens.Generic, whose `type` is any string.
-    const headingToken = token as Tokens.Heading;
-    const headingDepth = headingToken.depth;
-
-    const text = headingToken.text;
-    // Every heading is slugged and numbered, even ones the TOC will not show,
-    // so de-duplication suffixes and counters match the rendered document.
-    const slug = this.slugger.slug(cleanForSlug(text));
-
-    const numbered = this.numberer ? this.numberer.apply(headingDepth, text) : text;
-
-    // Skip headings beyond maxdepth
-    if (headingDepth > (this.options.maxdepth ?? 6)) {
-      return;
-    }
-
-    const heading: HeadingToken = {
-      content: numbered,
-      slug,
-      lvl: headingDepth,
-      i: this.headings.length,
-      seen: 0,
-    };
-
-    this.headings.push(heading);
+  for (let i = 0; i < open.length; i++) {
+    parts.push(`</li>\n</${tag}>`);
   }
 
-  private processHeadings(): void {
-    // Skip first h1 if enabled (usually the document title)
-    const firstHeading = this.headings[0];
-
-    if (this.options.skip_first_h1 && firstHeading && firstHeading.lvl === 1) {
-      this.headings = this.headings.slice(1);
-    }
-  }
-
-  /** Page reference cell for a heading, or "" when page numbers are off. */
-  private pageRef(heading: HeadingToken): string {
-    if (!this.options.page_numbers) {
-      return "";
-    }
-
-    return `${this.options.page_label ?? ""}${pageRefSpan(heading.slug)}`;
-  }
-
-  private generateTOCContent(): string {
-    if (this.options.style === "table") {
-      return this.generateTable();
-    }
-
-    return this.generateList();
-  }
-
-  private generateList(): string {
-    const lines: string[] = [];
-    const highestLevel = this.getHighestLevel();
-    const marker = this.options.style === "ordered" ? "1." : "-";
-
-    // `this.headings` only ever holds headings within maxdepth; deeper ones
-    // are dropped while extracting.
-    for (const heading of this.headings) {
-      const indentLevel = Math.max(0, heading.lvl - highestLevel);
-      const indentation = "  ".repeat(indentLevel);
-      const page = this.pageRef(heading);
-
-      const suffix = page ? `${this.options.page_separator ?? " — "}${page}` : "";
-
-      lines.push(
-        `${indentation}${marker} [${escapeLinkText(heading.content)}](#${heading.slug})${suffix}`,
-      );
-    }
-
-    return lines.join("\n");
-  }
-
-  /** Two-column contents table, the shape printed documents usually want. */
-  private generateTable(): string {
-    const highestLevel = this.getHighestLevel();
-    const [titleHeader, pageHeader] = this.options.table_headers ?? ["", ""];
-
-    const lines = [`| ${escapeCell(titleHeader)} | ${escapeCell(pageHeader)} |`, "| --- | --- |"];
-
-    for (const heading of this.headings) {
-      // Markdown indentation is meaningless inside a table cell, so nesting is
-      // expressed with non-breaking spaces instead.
-      const indentLevel = Math.max(0, heading.lvl - highestLevel);
-      const indentation = "&nbsp;&nbsp;".repeat(indentLevel);
-      // Both escapes apply here: the text is link text inside a table cell.
-      const title = `${indentation}[${escapeCell(escapeLinkText(heading.content))}](#${heading.slug})`;
-      lines.push(`| ${title} | ${this.pageRef(heading)} |`);
-    }
-
-    return lines.join("\n");
-  }
-
-  private generateJSONOutput(): HeadingToken[] {
-    return this.headings.map((heading) => ({
-      content: heading.content,
-      slug: heading.slug,
-      lvl: heading.lvl,
-      i: heading.i,
-      seen: heading.seen,
-    }));
-  }
-
-  private getHighestLevel(): number {
-    if (this.headings.length === 0) return 1;
-
-    return Math.min(...this.headings.map((h) => h.lvl));
-  }
+  return `${parts.join("")}\n`;
 }
 
-/** Escape the one character that would break out of a markdown table cell. */
-function escapeCell(text: string): string {
-  return text.replace(/\|/g, "\\|");
-}
+/** Two-column contents table, the shape printed documents usually want. */
+function renderTable(entries: readonly TocEntry[], options: TOCOptions): string {
+  const highest = Math.min(...entries.map((entry) => entry.depth));
+  const [titleHeader, pageHeader] = options.table_headers ?? ["", ""];
 
-/**
- * Escape the brackets that would terminate (or nest inside) the `[...]` part
- * of a markdown link. A heading like "Arrays [advanced]" otherwise closes the
- * link text early and leaves stray text and a broken anchor in the TOC.
- */
-function escapeLinkText(text: string): string {
-  return text.replace(/[[\]]/g, "\\$&");
-}
+  const rows = entries.map((entry) => {
+    // Nesting is expressed with non-breaking spaces inside the title cell.
+    const indentation = "&nbsp;&nbsp;".repeat(entry.depth - highest);
 
-/**
- * Generate a table of contents from markdown content.
- */
-function toc(
-  str: string,
-  options: TOCOptions = {},
-  headingNumbers?: HeadingNumbersConfig,
-  preceding = "",
-): TOCResult {
-  const adapter = new MarkedAdapter(options, headingNumbers);
+    return `<tr>\n<td>${indentation}${entryLink(entry)}</td>\n<td>${pageRef(entry, options)}</td>\n</tr>`;
+  });
 
-  return adapter.parse(str, preceding);
-}
-
-/**
- * Insert a table of contents into markdown content.
- * Looks for <!-- toc --> and <!-- tocstop --> markers.
- *
- * @param str - Markdown string
- * @param options - TOC generation options
- * @param headingNumbers - Heading numbering config, when enabled, so entries
- *   carry the same numbers as the rendered headings
- * @returns Markdown with TOC inserted (or original if no markers)
- */
-export function insertToc(
-  str: string,
-  options: TOCOptions = {},
-  headingNumbers?: HeadingNumbersConfig | false,
-): string {
-  const regex = /(?:<!-- toc(?:\s*stop)? -->)/g;
-  const open = "<!-- toc -->\n\n";
-  const close = "\n<!-- tocstop -->";
-
-  // Preserve trailing newlines
-  const newlines = (/\n+$/.exec(str) || [""])[0];
-
-  const sections = str.split(regex).map((s) => s.trim());
-
-  if (sections.length === 1) {
-    // No markers found, return unchanged
-    return str;
-  }
-
-  if (sections.length > 3) {
-    throw new Error("mdforge only supports one Table of Contents per file.");
-  }
-
-  // At least two sections exist here, so neither fallback below is ever used.
-  const last = sections.at(-1) ?? "";
-  // Headings before the opening marker still consume slugs and heading
-  // numbers. Only sections[0] is document text: when both markers are present
-  // sections[1] is the previously generated TOC body, which must not be
-  // re-parsed or its links would consume slugs a second time.
-  const preceding = sections[0] ?? "";
-
-  const tocContent = toc(last, options, headingNumbers || undefined, preceding).content;
-
-  if (sections.length === 3) {
-    // Both markers present: <!-- toc --> content <!-- tocstop -->
-    sections.splice(1, 1, open + tocContent);
-    sections.splice(2, 0, close);
-  } else if (sections.length === 2) {
-    // Only opening marker: <!-- toc -->
-    sections.splice(1, 0, `${open}${tocContent}${close}`);
-  }
-
-  return sections.join("\n\n") + newlines;
+  return [
+    "<table>",
+    "<thead>",
+    "<tr>",
+    `<th>${escapeHtml(titleHeader)}</th>`,
+    `<th>${escapeHtml(pageHeader)}</th>`,
+    "</tr>",
+    "</thead>",
+    "<tbody>",
+    ...rows,
+    "</tbody>",
+    "</table>",
+    "",
+  ].join("\n");
 }
