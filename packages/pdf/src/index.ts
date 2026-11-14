@@ -8,6 +8,6 @@ export {
   MARKER_URL_PREFIX,
 } from "./acroform.js";
 
-export { injectPdfMetadata, type PdfMetadata } from "./metadata.js";
+export { readDestinations } from "./destinations.js";
 
-export { type OutlineEntry, readOutline } from "./outline.js";
+export { injectPdfMetadata, type PdfMetadata } from "./metadata.js";

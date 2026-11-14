@@ -2,22 +2,20 @@
  * The render passes that resolve page references, shared by every renderer.
  *
  * A page reference (`@pageof(...)` or a TOC page number) can only be filled in
- * once the document has been laid out, so the PDF is rendered, its outline
- * read back for the page each heading landed on, and rendered again with the
- * numbers in place, until they settle.
+ * once the document has been laid out, so the PDF is rendered, its named
+ * destinations read back for the page each referenced element landed on, and
+ * rendered again with the numbers in place, until they settle.
  */
 
 import type { PreparedConversion } from "./prepare.ts";
 import { hasPageRefs, resolvePageRefs } from "./xref.ts";
 
 /**
- * Reads a PDF's outline: each heading's text and 1-based page, in document
- * order. Renderers pass `readOutline` from `@mdforge/pdf`; it is a parameter so
- * core carries no runtime dependency on the PDF library.
+ * Reads a PDF's named destinations: element id to 1-based page. Renderers pass
+ * `readDestinations` from `@mdforge/pdf`; it is a parameter so core carries no
+ * runtime dependency on the PDF library.
  */
-export type OutlineReader = (
-  pdf: Uint8Array,
-) => Promise<readonly { title: string; page: number }[]>;
+export type DestinationReader = (pdf: Uint8Array) => Promise<ReadonlyMap<string, number>>;
 
 /**
  * The most renders spent on one document while page references settle.
@@ -30,28 +28,28 @@ const MAX_RENDERS = 3;
 
 /**
  * Render a prepared conversion, re-rendering until its page references match
- * the pages its headings landed on.
+ * the pages their targets landed on.
  *
  * HTML output, or a document without page references, is rendered exactly
- * once. Otherwise every render's outline is read back, including the last, so
+ * once. Otherwise every render's destinations are read back, including the last, so
  * the result is a render whose numbers were checked against its own layout.
  *
  * This is best effort. If the numbers are still changing after the last
  * allowed render, that render is returned anyway, with a warning that its page
- * numbers may be wrong. References no heading answered for in the returned
+ * numbers may be wrong. References no destination answered for in the returned
  * render are named in a warning; in a settled render they print `??`.
  * Warnings are added to `prepared.info`, so call this once per prepared
  * conversion.
  *
  * @param prepared - The prepared conversion; its `html` is never reassigned
  * @param render - Renders the conversion it is given, freshly, every call
- * @param readOutline - Reads the rendered PDF's outline
+ * @param readDestinations - Reads the rendered PDF's named destinations
  * @returns The last complete render result
  */
 export async function renderResolvingPageRefs<R extends { content: Buffer | Uint8Array | string }>(
   prepared: PreparedConversion,
   render: (prepared: PreparedConversion) => Promise<R>,
-  readOutline: OutlineReader,
+  readDestinations: DestinationReader,
 ): Promise<R> {
   let output = await render(prepared);
 
@@ -69,7 +67,7 @@ export async function renderResolvingPageRefs<R extends { content: Buffer | Uint
       throw new Error("Expected PDF output while resolving page references");
     }
 
-    const resolved = resolvePageRefs(html, await readOutline(output.content));
+    const resolved = resolvePageRefs(html, await readDestinations(output.content));
 
     // The numbers in this render already match its own layout.
     const settled = !resolved.changed;

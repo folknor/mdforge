@@ -118,8 +118,8 @@ function mapPdfOptions(pdfOptions: PreparedConversion["pdfOptions"]): Electron.P
   const options: Electron.PrintToPDFOptions = {
     printBackground: pdfOptions.printBackground ?? true,
     landscape: pdfOptions.landscape ?? false,
-    // The outline gives the PDF its bookmarks and is what page references are
-    // resolved from. Chromium builds it from the tagged structure: without
+    // The outline gives the PDF its bookmarks (page references are resolved
+    // from named destinations, not from it). Chromium builds it from the tagged structure: without
     // generateTaggedPDF (Electron's default is off, Puppeteer's on), Electron
     // 45 writes no outline at all, as observed on Chrome 156.
     generateDocumentOutline: true,

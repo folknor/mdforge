@@ -252,7 +252,7 @@ toc_options:
 | `table_headers` | `[string, string]` | `["", ""]` | Header cells for `style: table` |
 
 Page numbers use the same machinery as `@pageof(...)`: the PDF is rendered,
-its outline is read back, and the real numbers are filled in on a second pass.
+the page each heading landed on is read back, and the real numbers are filled in on a second pass.
 They are therefore only available when producing a PDF, not with `--as-html`.
 
 When `heading_numbers` is enabled, contents entries carry the same numbers as

@@ -146,7 +146,9 @@ describe("TOC filtering", () => {
 
 /** The unresolved page-reference span the TOC emits for a heading slug. */
 function pageRef(slug: string): string {
-  return `<span class="mdforge-pageref" data-mdforge-pageref="${slug}">??</span>`;
+  const target = `<a href="#${slug}" style="display:none" aria-hidden="true"></a>`;
+
+  return `<span class="mdforge-pageref" data-mdforge-pageref="${slug}">${target}??</span>`;
 }
 
 describe("TOC page numbers", () => {

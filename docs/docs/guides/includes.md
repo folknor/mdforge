@@ -123,9 +123,11 @@ most three renders; if they are still changing, the last render is kept with a
 warning that some numbers may be wrong). A reference that names a heading which
 does not exist is left as `??` with a warning, rather than failing the build.
 
-Headings are found by their title, so when two headings share a title, a
-reference resolves to the first of them, and the TOC page number of the second
-may be missing or wrong.
+Headings are found by their anchor, not their title. When two headings share a
+title, the second gets the anchor `notes-1` (the third `notes-2`, and so on):
+`@pageof(Notes)` names the first, and `@pageof(Notes-1)` the second. TOC page
+numbers always point at the heading they list. Any anchor works, including one
+made with `@anchor(...)`.
 
 This works for PDF output only. In HTML there are no pages, so the placeholder
 is left as-is. Because the extra pass costs another render, it only happens for

@@ -3,136 +3,94 @@ import { describe, it } from "node:test";
 import type { HeadingNumbersConfig } from "../src/lib/heading-numbers.ts";
 import { pageRefSpan, resolveNumberRefs, resolvePageRefs } from "../src/lib/xref.ts";
 
-/** Outline entries in document (insertion) order. */
-function outline(headings: Record<string, number>) {
-  return Object.entries(headings).map(([title, page]) => ({ title, page }));
+/** Destinations from element id to page. */
+function pages(byId: Record<string, number>): Map<string, number> {
+  return new Map(Object.entries(byId));
+}
+
+/** The number text each page-reference span shows, in document order. */
+function shown(html: string): string[] {
+  return [...html.matchAll(/<span[^>]*><a [^>]*><\/a>([^<]*)<\/span>/g)].map((m) => m[1] ?? "");
 }
 
 /** Resolve a single page reference and return the text it ended up showing. */
-function resolve(slug: string, headings: Record<string, number>) {
-  const { html, changed } = resolvePageRefs(pageRefSpan(slug), outline(headings));
-
-  const text = /<span[^>]*>([^<]*)<\/span>/.exec(html)?.[1];
+function resolve(slug: string, byId: Record<string, number>) {
+  const { html, changed } = resolvePageRefs(pageRefSpan(slug), pages(byId));
+  const [text] = shown(html);
   assert.ok(text !== undefined, `no page-reference span left in: ${html}`);
 
   return { text, changed };
 }
 
+describe("pageRefSpan", () => {
+  it("carries a hidden link to its target, so the PDF gets a destination for it", () => {
+    assert.ok(pageRefSpan("notes-1").includes('<a href="#notes-1" style="display:none"'));
+  });
+});
+
 describe("resolvePageRefs", () => {
-  it("fills in the page of a directly matching heading", () => {
-    assert.deepEqual(resolve("avvik", { Avvik: 5 }), {
-      text: "5",
-      changed: true,
-    });
+  it("fills in the page of the target's destination", () => {
+    assert.deepEqual(resolve("avvik", { avvik: 5 }), { text: "5", changed: true });
   });
 
   it("leaves the placeholder alone when nothing matches", () => {
-    assert.deepEqual(resolve("mangler", { Avvik: 5 }), {
-      text: "??",
-      changed: false,
-    });
+    assert.deepEqual(resolve("mangler", { avvik: 5 }), { text: "??", changed: false });
   });
 
   it("reports no change when the number is already correct", () => {
     const { html, changed } = resolvePageRefs(
       pageRefSpan("avvik").replace(">??<", ">5<"),
-      outline({ Avvik: 5 }),
+      pages({ avvik: 5 }),
     );
 
     assert.equal(changed, false);
-    assert.ok(html.includes(">5<"));
+    assert.deepEqual(shown(html), ["5"]);
   });
 
   it("resolves every reference in the document", () => {
     const { html } = resolvePageRefs(
       `<p>See ${pageRefSpan("alpha")} and ${pageRefSpan("beta")}.</p>`,
-      outline({ Alpha: 2, Beta: 7 }),
+      pages({ alpha: 2, beta: 7 }),
     );
 
-    assert.ok(html.includes(">2</span> and "));
-    assert.ok(html.includes(">7</span>."));
+    assert.deepEqual(shown(html), ["2", "7"]);
   });
 
-  it("resolves a title repeated in the outline to its first page", () => {
-    const { html } = resolvePageRefs(pageRefSpan("notes"), [
-      { title: "Notes", page: 2 },
-      { title: "Notes", page: 7 },
-    ]);
+  it("tells headings with repeated titles apart by id", () => {
+    // "Notes", "Notes", "Notes-1" get the ids notes, notes-1, notes-1-1.
+    const { html, unresolved } = resolvePageRefs(
+      `${pageRefSpan("notes")} ${pageRefSpan("notes-1")} ${pageRefSpan("notes-1-1")}`,
+      pages({ notes: 1, "notes-1": 2, "notes-1-1": 3 }),
+    );
 
-    assert.ok(html.includes(">2<"));
+    assert.deepEqual(shown(html), ["1", "2", "3"]);
+    assert.deepEqual(unresolved, []);
   });
 
-  it("resets a stale number to the placeholder once its heading is gone", () => {
-    const result = resolvePageRefs(pageRefSpan("gone").replace(">??<", ">4<"), outline({}));
+  it("keeps the hidden target link through repeated passes", () => {
+    const first = resolvePageRefs(pageRefSpan("alpha"), pages({ alpha: 2 }));
+    const second = resolvePageRefs(first.html, pages({ alpha: 3 }));
+
+    assert.ok(second.html.includes('<a href="#alpha"'));
+    assert.deepEqual(shown(second.html), ["3"]);
+  });
+
+  it("resets a stale number to the placeholder once its target is gone", () => {
+    const result = resolvePageRefs(pageRefSpan("gone").replace(">??<", ">4<"), pages({}));
 
     assert.deepEqual(result.unresolved, ["gone"]);
     assert.equal(result.changed, true);
-    assert.ok(result.html.includes(">??<"));
+    assert.deepEqual(shown(result.html), ["??"]);
   });
 
   it("lists each unresolved reference once", () => {
     const result = resolvePageRefs(
       `${pageRefSpan("x")} ${pageRefSpan("x")} ${pageRefSpan("alpha")}`,
-      outline({ Alpha: 1 }),
+      pages({ alpha: 1 }),
     );
 
     assert.deepEqual(result.unresolved, ["x"]);
     assert.equal(result.changed, true);
-  });
-
-  it("prefers a direct slug match over a numbered fallback", () => {
-    assert.equal(resolve("avvik", { Avvik: 5, "8. Avvik": 9 }).text, "5");
-  });
-
-  it("prefers a direct slug match regardless of map order", () => {
-    assert.equal(resolve("avvik", { "8. Avvik": 9, Avvik: 5 }).text, "5");
-  });
-
-  it("resolves a repeated heading to its first occurrence", () => {
-    assert.equal(resolve("notes", { Notes: 3, "Notes.": 8 }).text, "3");
-  });
-
-  it("resolves an un-numbered slug from a numbered outline title", () => {
-    assert.equal(resolve("avvik", { "8. Avvik": 9 }).text, "9");
-  });
-
-  it("resolves an un-numbered slug from a multi-level numbered title", () => {
-    assert.equal(resolve("detaljer", { "3.1. Detaljer": 12 }).text, "12");
-  });
-
-  it("strips a single-letter list label", () => {
-    assert.equal(resolve("skjema", { "A) Skjema": 4 }).text, "4");
-  });
-
-  it("strips a roman-numeral label", () => {
-    assert.equal(resolve("forord", { "iv. Forord": 2 }).text, "2");
-  });
-
-  it("does not strip a word that merely looks like a label", () => {
-    assert.deepEqual(resolve("viktig", { "NB. Viktig": 3 }), {
-      text: "??",
-      changed: false,
-    });
-  });
-
-  it("undoes Chrome's doubled outline title", () => {
-    assert.equal(resolve("intro", { "2. Intro2. Intro": 4 }).text, "4");
-  });
-
-  it("undoes a doubled and numbered outline title", () => {
-    assert.equal(resolve("late", { "3.1. Late3.1. Late": 11 }).text, "11");
-  });
-
-  it("resolves a doubled title by its own slug too", () => {
-    assert.equal(resolve("2-intro2-intro", { "2. Intro2. Intro": 4 }).text, "4");
-  });
-
-  it("does not undouble a heading that is genuinely repetitive", () => {
-    assert.equal(resolve("blahblah", { blahblah: 6 }).text, "6");
-    assert.deepEqual(resolve("blah", { blahblah: 6 }), {
-      text: "??",
-      changed: false,
-    });
   });
 });
 

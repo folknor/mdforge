@@ -38,9 +38,13 @@ export const PAGEREF_ATTR = "data-mdforge-pageref";
  */
 const PAGEREF_PLACEHOLDER = "??";
 
-/** Matches one rendered page-reference span, capturing its slug and body. */
+/**
+ * Matches one rendered page-reference span, capturing its opening (the span
+ * tag plus its hidden target link, which every pass must keep), its slug, and
+ * the number text that is replaced.
+ */
 const PAGEREF_SPAN_REGEX = new RegExp(
-  `(<span[^>]*\\b${PAGEREF_ATTR}="([^"]+)"[^>]*>)([^<]*)</span>`,
+  `(<span[^>]*\\b${PAGEREF_ATTR}="([^"]+)"[^>]*>(?:<a [^>]*></a>)?)([^<]*)</span>`,
   "g",
 );
 
@@ -59,54 +63,17 @@ function generateSlug(sectionName: string): string {
  * Exported so generators that run *after* {@link processXref} (the TOC, which
  * is expanded during markdown-to-HTML conversion) can emit page references
  * directly instead of `@pageof(...)` text that would never be processed.
+ *
+ * The span carries a hidden link to `#slug`. Chromium writes a named PDF
+ * destination for every element an in-document link points at, hidden links
+ * included, and that destination is how the page is found afterwards: by the
+ * target's id, never by its title. Being `display: none`, the link adds no
+ * annotation, no tagged `Link` element and no visible text.
  */
 export function pageRefSpan(slug: string): string {
-  return `<span class="mdforge-pageref" ${PAGEREF_ATTR}="${slug}">${PAGEREF_PLACEHOLDER}</span>`;
-}
+  const target = `<a href="#${slug}" style="display:none" aria-hidden="true"></a>`;
 
-/**
- * Strip a leading heading number such as `8. `, `2.3. `, `A) ` or `iv. `
- * from a title. Returns `undefined` when there is nothing to strip.
- *
- * Only labels a list actually produces are recognised: digits (possibly
- * dotted), a single letter, or a roman numeral. Anything broader would eat
- * real words — "NB. Viktig" is a title, not a numbered heading.
- */
-function stripHeadingNumber(title: string): string | undefined {
-  // The roman branch comes first so "ii. " strips as a numeral rather than
-  // leaving "i. " behind; a single letter that is also a roman digit (i, v,
-  // x, …) strips identically either way, so the overlap is harmless.
-  const stripped = title.replace(/^(?:[0-9]+(?:[.)][0-9]+)*|[ivxlcdm]+|[a-z])[.)]\s+/i, "");
-
-  return stripped === title || stripped.length === 0 ? undefined : stripped;
-}
-
-/**
- * Undo Chrome's doubled outline titles.
- *
- * A heading that lands against a page boundary is sometimes written to the
- * outline with its text repeated verbatim ("2. Intro2. Intro"), which no slug
- * can match. Only an exact two-halves repeat is undone, so a heading genuinely
- * named "blahblah" is left alone. Returns `undefined` when nothing was doubled.
- */
-function numberedHalf(title: string): string | undefined {
-  const half = undoubleTitle(title);
-
-  // Chrome repeats the *rendered* title, heading number included, so a half
-  // without a leading label is a real heading rather than a doubled one.
-  return half !== undefined && stripHeadingNumber(half) !== undefined ? half : undefined;
-}
-
-/** The first half of an exact two-halves repeat, or `undefined`. */
-function undoubleTitle(title: string): string | undefined {
-  if (title.length < 2 || title.length % 2 !== 0) {
-    return undefined;
-  }
-
-  const half = title.length / 2;
-  const first = title.slice(0, half);
-
-  return first === title.slice(half) ? first : undefined;
+  return `<span class="mdforge-pageref" ${PAGEREF_ATTR}="${slug}">${target}${PAGEREF_PLACEHOLDER}</span>`;
 }
 
 /**
@@ -237,23 +204,23 @@ export interface PageRefResolution {
   html: string;
   /** False once the page numbers have settled. */
   changed: boolean;
-  /** Slugs of references no outline entry answered for, each listed once. */
+  /** Slugs of references no destination answered for, each listed once. */
   unresolved: string[];
 }
 
 /**
- * Fill resolved page numbers into the placeholders left by `@pageof(...)`.
+ * Fill resolved page numbers into the placeholders left by `@pageof(...)` and
+ * the TOC.
  *
- * `headingPages` lists the PDF outline's entries (heading text and 1-based
- * page) in document order. Headings are matched by slug, the same way `@see`
- * links are, so a reference works with the heading's visible text.
+ * `pageById` maps element ids to the 1-based page they landed on, as read from
+ * the PDF's named destinations. Each placeholder's slug is the id of its
+ * target, so it is looked up exactly: the second of two "Notes" headings (id
+ * `notes-1`) gets its own page, and a heading literally titled "Notes-1" (id
+ * `notes-1-1`) gets its. Titles are never consulted - an earlier design matched
+ * outline titles and so confused repeated and numbered headings.
  *
- * Matching is by title alone, so headings whose titles collide are not told
- * apart: a reference to the second of two "Notes" headings (id `notes-1`)
- * finds no entry, or the page of a heading literally titled "Notes-1".
- *
- * A reference with no matching entry is reset to the `??` placeholder, so a
- * number from an earlier pass never survives once its heading is gone.
+ * A reference with no destination is reset to the `??` placeholder, so a
+ * number from an earlier pass never survives once its target is gone.
  *
  * Returns the updated HTML, whether anything actually changed, and the
  * references left unresolved. An unchanged result means the numbers have
@@ -261,61 +228,15 @@ export interface PageRefResolution {
  */
 export function resolvePageRefs(
   html: string,
-  headingPages: readonly { title: string; page: number }[],
+  pageById: ReadonlyMap<string, number>,
 ): PageRefResolution {
-  const pageBySlug = new Map<string, number>();
-  // Fallbacks for outline titles carrying an automatic heading number: the
-  // heading's id is built from the un-numbered text, so "8. Avvik" in the
-  // outline must also answer for the slug "avvik". Only used when no heading
-  // claims that slug directly.
-  const fallbackBySlug = new Map<string, number>();
-
-  const addFallback = (title: string, page: number): void => {
-    const slug = generateSlug(title);
-
-    if (!fallbackBySlug.has(slug)) {
-      fallbackBySlug.set(slug, page);
-    }
-  };
-
-  for (const { title, page } of headingPages) {
-    const slug = generateSlug(title);
-
-    // A repeated heading resolves to its first occurrence.
-    if (!pageBySlug.has(slug)) {
-      pageBySlug.set(slug, page);
-    }
-
-    // Both manglings can apply at once: Chrome doubles a numbered heading as
-    // "3.1. Late3.1. Late", which has to be undoubled before the number strips.
-    // Only a numbered half counts as doubling — otherwise a heading genuinely
-    // named "blahblah" would claim the slug "blah" and answer for it wrongly.
-    const undoubled = numberedHalf(title);
-
-    if (undoubled !== undefined) {
-      addFallback(undoubled, page);
-    }
-
-    for (const variant of [title, undoubled]) {
-      if (variant === undefined) {
-        continue;
-      }
-
-      const unnumbered = stripHeadingNumber(variant);
-
-      if (unnumbered !== undefined) {
-        addFallback(unnumbered, page);
-      }
-    }
-  }
-
   let changed = false;
   const unresolved = new Set<string>();
 
   const updated = html.replace(
     PAGEREF_SPAN_REGEX,
     (match, open: string, slug: string, body: string) => {
-      const page = pageBySlug.get(slug) ?? fallbackBySlug.get(slug);
+      const page = pageById.get(slug);
 
       if (page === undefined) {
         unresolved.add(slug);

@@ -14,7 +14,7 @@ import {
   prepareConversion,
   writeOutput,
 } from "@mdforge/core/prepare";
-import { readOutline } from "@mdforge/pdf";
+import { readDestinations } from "@mdforge/pdf";
 import { render } from "./render.js";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
@@ -59,7 +59,7 @@ export async function convertMdToPdf(
   let output: Awaited<ReturnType<typeof render>>;
 
   try {
-    output = await renderResolvingPageRefs(prepared, render, readOutline);
+    output = await renderResolvingPageRefs(prepared, render, readDestinations);
     log("Render succeeded");
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

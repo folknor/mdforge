@@ -14,7 +14,7 @@ import {
   writeOutput,
 } from "@mdforge/core/prepare";
 import { renderResolvingPageRefs } from "@mdforge/core/page-refs";
-import { readOutline } from "@mdforge/pdf";
+import { readDestinations } from "@mdforge/pdf";
 import type { Browser } from "puppeteer";
 import { render } from "./render.js";
 
@@ -49,7 +49,11 @@ export async function convertMdToPdf(
   let output: Awaited<ReturnType<typeof render>>;
 
   try {
-    output = await renderResolvingPageRefs(prepared, (pass) => render(pass, browser), readOutline);
+    output = await renderResolvingPageRefs(
+      prepared,
+      (pass) => render(pass, browser),
+      readDestinations,
+    );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     const outputType = prepared.format.toUpperCase();
