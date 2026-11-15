@@ -105,8 +105,8 @@ file at all. Scripts, and anything else in the document, should
 not change form fields, page references or layout in reaction to printing
 (`beforeprint`/`afterprint`): mdforge reads them from the live page around
 printing and prints the page more than once. In fillable PDFs each field's
-font and text size are read from the page after printing, where it is laid
-out at the screen width, so field styles that depend on the layout width
+font, text size and content-box insets are read from the page after printing,
+where it is laid out at the screen width, so field styles that depend on the layout width
 (width media queries, `vw` units) are not carried over; a field gets the
 first font in its font-family stack installed on the system (web fonts are
 not used), else Helvetica.
@@ -274,7 +274,10 @@ the printed controls out, mdforge marks them `aria-hidden` while printing;
 document CSS that styles `[aria-hidden]` is not supported. A field that
 cannot be created (for example a name used twice) is left out with a
 warning. The tagged structure is otherwise Chromium's; mdforge makes no
-PDF/UA claim.
+PDF/UA claim. Text, textarea and select widgets use the control's content
+box (its own padding and borders), scaled by the printed page-scale marker.
+If that scale cannot be measured or the content box is empty, the field
+covers the whole control instead; it is still created.
 
 Page references (`@pageof`, TOC page numbers) count pages of the whole
 document, also when `pageRanges` selects some of them: the numbers are worked

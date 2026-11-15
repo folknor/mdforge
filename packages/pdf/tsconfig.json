@@ -3,7 +3,14 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    // Tests run the sources directly under Node's type stripping (no build
+    // step), so sources import siblings by their .ts names and use only
+    // erasable syntax. JavaScript emit rewrites the specifiers to .js, as in
+    // packages/core.
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

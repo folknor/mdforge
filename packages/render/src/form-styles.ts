@@ -1,6 +1,6 @@
 /**
  * What fillable PDF fields are built from: each select's options, and each
- * text, textarea and select field's font size and the font files that can
+ * text, textarea and select field's content box, font size and font files that can
  * reproduce its font. They are read from the live page after printing, so
  * styles that depend on the print layout (rather than the media type, which
  * is the same) are not supported.
@@ -29,6 +29,7 @@ export interface PageFieldStyle {
   /** The computed font-family stack, unquoted, in order. */
   families: string[];
   fontSizePx: number;
+  textInsetsPx?: FieldStyle["textInsetsPx"];
   weight: number;
   style: string;
 }
@@ -111,6 +112,29 @@ export function readPageFields(): PageFields {
     }
 
     const style = window.getComputedStyle(control);
+    const marker = field.querySelector(".form-marker");
+    const box = control.getBoundingClientRect();
+    const anchor = marker?.getBoundingClientRect();
+
+    // Measure the content box, including asymmetric borders/padding and any
+    // wrapper/control offset. Read beside the font in this one evaluation.
+    // Untransformed boxes only: bounding rects include transforms, computed
+    // padding and borders do not.
+    const textInsetsPx = anchor && {
+      left:
+        box.left - anchor.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft),
+      top: box.top - anchor.top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop),
+      right:
+        anchor.right -
+        box.right +
+        parseFloat(style.borderRightWidth) +
+        parseFloat(style.paddingRight),
+      bottom:
+        anchor.bottom -
+        box.bottom +
+        parseFloat(style.borderBottomWidth) +
+        parseFloat(style.paddingBottom),
+    };
 
     fields.push({
       name,
@@ -121,6 +145,7 @@ export function readPageFields(): PageFields {
         .map((family) => family.trim().replace(/^["']|["']$/g, ""))
         .filter((family) => family !== ""),
       fontSizePx: parseFloat(style.fontSize),
+      textInsetsPx,
       weight: parseFloat(style.fontWeight) || 400,
       style: style.fontStyle.startsWith("oblique") ? "oblique" : style.fontStyle,
     });
@@ -232,7 +257,11 @@ export async function formConfig(page: PageFields): Promise<AcroFormConfig> {
       if (found) fonts.push(found);
     }
 
-    fieldStyles.set(field.name, { fontSizePx: field.fontSizePx, fonts });
+    fieldStyles.set(field.name, {
+      fontSizePx: field.fontSizePx,
+      textInsetsPx: field.textInsetsPx,
+      fonts,
+    });
   }
 
   return {

@@ -630,15 +630,8 @@ code, kbd, samp, pre {
   pointer-events: none;
 }
 
-/* Inset marker for inputs/textareas to account for border and padding */
-.form-text .form-marker,
-.form-textarea .form-marker,
-.form-select .form-marker {
-  top: 1px;
-  left: calc(0.5em + 1px);
-  width: calc(100% - 0.5em - 2px);
-  height: calc(100% - 2px);
-}
+/* Text-control markers cover the wrapper. The renderer measures the control's
+   content box relative to this marker; wrapper em units are not control padding. */
 
 /* For checkbox/radio, the wrapper is inline */
 .form-option .form-input-wrapper {

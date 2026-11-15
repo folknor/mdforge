@@ -10,8 +10,8 @@ export {
   MARKER_URL_PREFIX,
   SCALE_MARKER_PX,
   SCALE_MARKER_URL,
-} from "./acroform.js";
+} from "./acroform.ts";
 
-export { type PdfLayout, readPdfLayout } from "./destinations.js";
+export { type PdfLayout, readPdfLayout } from "./destinations.ts";
 
-export { injectPdfMetadata, type PdfMetadata } from "./metadata.js";
+export { injectPdfMetadata, type PdfMetadata } from "./metadata.ts";

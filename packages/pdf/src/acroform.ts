@@ -30,7 +30,7 @@ import {
   StandardFonts,
 } from "@folknor/pdf-lib";
 import fontkit, { type Font as FontkitFont } from "@pdf-lib/fontkit";
-import { TaggedStructure } from "./structure.js";
+import { TaggedStructure } from "./structure.ts";
 
 /**
  * Marker URL prefix used to identify form field markers in PDF link annotations.
@@ -86,6 +86,8 @@ export const SCALE_MARKER_PX = 100;
 export interface FieldStyle {
   /** The control's computed font size, in CSS px. */
   fontSizePx: number;
+  /** Control content-box edges relative to its marker, in CSS px. */
+  textInsetsPx?: { left: number; top: number; right: number; bottom: number };
   /**
    * Font files for the field, best first; the first that can be embedded,
    * covers the field's characters and does not clash with another file's
@@ -558,6 +560,48 @@ export async function addAcroFormFields(
   return { pdf: await pdfDoc.save({ updateFieldAppearances: false }), warnings };
 }
 
+/** A widget rectangle in PDF points, origin at its bottom left. */
+interface WidgetBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The widget rectangle for a text, textarea or select field: the control's
+ * measured content box inside its marker, scaled to points. The geometry only
+ * refines placement and never decides whether a field exists: without a
+ * printed scale or insets, or when the content box comes out empty or
+ * non-finite, the whole marker box is used and the field is still created.
+ */
+function contentBox(
+  marker: WidgetBox,
+  inset: FieldStyle["textInsetsPx"],
+  ptPerPx: number | undefined,
+): WidgetBox {
+  const whole: WidgetBox = { x: marker.x, y: marker.y, width: marker.width, height: marker.height };
+
+  if (!inset || !ptPerPx) return whole;
+
+  // The fork's text and dropdown appearance providers inset by 1pt even with
+  // borderWidth: 0. Expand the widget so its text bounds, rather than its
+  // annotation rectangle, match the HTML content box. PDF y grows upward, so
+  // the bottom inset moves the origin.
+  const box: WidgetBox = {
+    x: marker.x + inset.left * ptPerPx - 1,
+    y: marker.y + inset.bottom * ptPerPx - 1,
+    width: marker.width - (inset.left + inset.right) * ptPerPx + 2,
+    height: marker.height - (inset.top + inset.bottom) * ptPerPx + 2,
+  };
+
+  if (!Object.values(box).every(Number.isFinite) || box.width <= 2 || box.height <= 2) {
+    return whole;
+  }
+
+  return box;
+}
+
 async function buildFields(
   pdfDoc: PDFDocument,
   fields: FieldPosition[],
@@ -609,7 +653,7 @@ async function buildFields(
     // its first field (creating the second fails, with a warning).
     const style = config.fieldStyles?.get(field.name);
     const fontSize = fieldFontSize(style, ptPerPx);
-    const box = { x: field.x, y: field.y, width: field.width, height: field.height };
+    const box = contentBox(field, style?.textInsetsPx, ptPerPx);
     let arrowSize: number | undefined;
 
     const created = await createField(form, field.name, built, warnings, async (made) => {
