@@ -52,6 +52,14 @@ failed.
 Unknown options and options missing a required value are reported on stderr
 with a `--help` hint and exit status 1.
 
+Ctrl-C (SIGINT), SIGTERM and SIGHUP stop a run in either mode. The CLI stops
+watching, drops pending re-renders, and closes the browser, which fails the
+conversion in progress. Then it waits up to 10 seconds for that render to
+finish cleaning up, and ends by re-raising the same signal. A shell therefore
+sees an interrupted run (status 130, 143 or 129), not a success. A second signal,
+or the 10 seconds running out, exits at once with that same status. Writing an
+output that was already underway may then be cut short.
+
 ## Watch mode
 
 `--watch` renders once, then re-renders whenever an input changes. Alongside the

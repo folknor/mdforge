@@ -69,3 +69,15 @@ dev runs unfused), or serve the render page and its local resources from a
 custom protocol with a defined origin mapping and CORS policy. Choosing one is
 a design decision. docs/docs/reference/configuration.md "Trust" states the
 current behaviour.
+
+## Output files are overwritten in place, not replaced atomically
+
+`writeOutput` (packages/core/src/lib/prepare.ts) writes the PDF or HTML with a
+plain `fs.writeFile` to the final path, so a process that dies mid-write
+leaves a truncated file where the previous good output was. The CLI's
+graceful stop waits for a write in progress, so a single signal is safe. A
+second signal, the CLI's 10 s stop deadline, SIGKILL or a crash can still
+cut a write short, in the desktop app as well. The fix is to write a sibling
+temp file and rename it over the target. Open questions are where the temp
+file lives (the output directory has to be writable) and how it is cleaned up
+when the write fails.

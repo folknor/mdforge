@@ -282,7 +282,11 @@ Puppeteer launch options that YAML can express: `executablePath`, `browser`,
 `channel`, `headless`, `args`, `ignoreDefaultArgs`, `enableExtensions`,
 `userDataDir`, `env`, `timeout`, `protocolTimeout`, `slowMo`, `dumpio`, `pipe`,
 `devtools`, `debuggingPort`, `acceptInsecureCerts`, `waitForInitialPage`,
-`handleSIGINT`, `handleSIGTERM` and `handleSIGHUP`.
+`handleSIGINT`, `handleSIGTERM` and `handleSIGHUP`. The CLI parses the last
+three but always launches with them off. It handles those signals itself, so
+that stopping waits for the render in progress (see the CLI reference). They
+take effect only for a program that passes the parsed settings to its own
+`BrowserPool`.
 
 ```yaml
 launch_options:

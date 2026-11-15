@@ -3,6 +3,7 @@
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, resolve } from "node:path";
+import os from "node:os";
 import process from "node:process";
 import { createTargetWatcher } from "@mdforge/core/watch";
 import {
@@ -76,7 +77,141 @@ const cliSpec = {
 // --
 // Run
 
+/**
+ * The run's owner for process signals. The CLI handles SIGINT, SIGTERM and
+ * SIGHUP itself for its whole life, in both modes, and launches every browser
+ * with Puppeteer's own handlers off: Puppeteer's SIGINT handler kills the
+ * browser and calls `process.exit(130)` at once, which pre-empts any cleanup
+ * and every in-flight render's `finally` (scratch pages, output writes).
+ *
+ * On the first signal: stop taking work (the stop hooks), close every browser
+ * pool, wait for the renders in flight to settle, then end the process by the
+ * same signal so a calling shell sees the interruption (130/143/129). A second
+ * signal, or the grace period running out, exits at once with that status.
+ * The grace period counts event-loop time: a synchronous slice of conversion
+ * work already running when the signal arrives finishes first.
+ */
+class Run {
+  signal: NodeJS.Signals | undefined;
+  readonly #pools = new Set<BrowserPool>();
+  readonly #work = new Set<Promise<unknown>>();
+  readonly #stopHooks: (() => void)[] = [];
+  readonly #onSignal = (signal: NodeJS.Signals): void => this.#stop(signal);
+
+  static readonly signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"];
+  static readonly graceMs = 10_000;
+
+  constructor() {
+    for (const signal of Run.signals) process.on(signal, this.#onSignal);
+  }
+
+  get stopped(): boolean {
+    return this.signal !== undefined;
+  }
+
+  /** Throw when stopping, so no new work or browser starts. */
+  check(): void {
+    if (this.stopped) throw new Stopped();
+  }
+
+  /** A browser pool with Puppeteer's signal handling off, closed on a stop. */
+  pool(settings: LaunchSettings): BrowserPool {
+    this.check();
+
+    const pool = new BrowserPool({
+      ...settings,
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    });
+
+    this.#pools.add(pool);
+
+    return pool;
+  }
+
+  /** Close a pool and forget it once closed. */
+  async closePool(pool: BrowserPool): Promise<void> {
+    try {
+      await pool.close();
+    } finally {
+      this.#pools.delete(pool);
+    }
+  }
+
+  /** Track work a stop waits for. Registered before the caller yields. */
+  track<T>(work: Promise<T>): Promise<T> {
+    this.#work.add(work);
+
+    const forget = (): void => {
+      this.#work.delete(work);
+    };
+
+    work.then(forget, forget);
+
+    return work;
+  }
+
+  onStop(hook: () => void): void {
+    this.#stopHooks.push(hook);
+  }
+
+  /** Normal completion: the handlers go, so default signal handling returns. */
+  dispose(): void {
+    for (const signal of Run.signals) process.off(signal, this.#onSignal);
+  }
+
+  #stop(signal: NodeJS.Signals): void {
+    const status = 128 + (os.constants.signals[signal] ?? 0);
+
+    if (this.stopped) process.exit(status);
+
+    this.signal = signal;
+
+    // Referenced, so the process lives until it either fires or is cleared
+    const deadline = setTimeout(() => process.exit(status), Run.graceMs);
+
+    const settle = async (): Promise<void> => {
+      for (const hook of this.#stopHooks) {
+        try {
+          hook();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      await Promise.allSettled([
+        ...[...this.#pools].map((pool) => this.closePool(pool)),
+        ...this.#work,
+      ]);
+    };
+
+    // Cannot reject: hooks are caught one by one and the rest is allSettled
+    void settle().finally(() => {
+      clearTimeout(deadline);
+      this.dispose();
+      // Another listener could swallow the re-raised signal
+      setTimeout(() => process.exit(status), 1000);
+      process.kill(process.pid, signal);
+    });
+  }
+}
+
+/** Work refused because the run is stopping on a signal. */
+class Stopped extends Error {
+  constructor() {
+    super("Stopped by a signal");
+  }
+}
+
+const run = new Run();
+
 main().catch((error) => {
+  // A signal's stop finishes the process
+  if (run.stopped) return;
+
+  run.dispose();
+
   if (error instanceof arg.ArgError) {
     console.error(`Error: ${error.message}. See --help for usage.`);
   } else {
@@ -192,9 +327,15 @@ async function main(): Promise<void> {
     // their JSON identifies them.
     const settings = JSON.stringify(launchSettings);
 
+    run.check();
+
     if (pool === undefined || settings !== poolSettings) {
-      await pool?.close();
-      pool = new BrowserPool(launchSettings);
+      const old = pool;
+      pool = undefined;
+
+      if (old) await run.closePool(old);
+      // Checked again after the await: a stop closes only the pools it sees
+      pool = run.pool(launchSettings);
       poolSettings = settings;
     }
 
@@ -202,8 +343,10 @@ async function main(): Promise<void> {
   };
 
   const closeBrowser = async (): Promise<void> => {
-    await pool?.close();
+    const closing = pool;
     pool = undefined;
+
+    if (closing) await run.closePool(closing);
   };
 
   /**
@@ -213,6 +356,8 @@ async function main(): Promise<void> {
    */
   const render = async (targets: string[]): Promise<RenderOutcome> => {
     const { config, browser } = await loadConfig();
+
+    run.check();
 
     // Store results for info display
     const results: Map<string, ConvertResult> = new Map();
@@ -255,6 +400,9 @@ async function main(): Promise<void> {
       if (!isInputFailures) throw error;
     }
 
+    // Failures after a signal are the interruption, not the inputs'
+    if (run.stopped) return { results, failures };
+
     for (const [file, error] of failures) {
       console.error(`${basename(file)}: ${error.message}`);
     }
@@ -289,14 +437,20 @@ async function main(): Promise<void> {
   let initial: RenderOutcome;
 
   try {
-    initial = await render(files);
+    initial = await run.track(render(files));
   } catch (error) {
+    if (run.stopped) return;
     await closeBrowser();
     throw error;
   }
 
+  // A signal mid-render: the stop finishes the process, and its failures
+  // are the interruption, not the inputs
+  if (run.stopped) return;
+
   if (!args["--watch"]) {
     await closeBrowser();
+    run.dispose();
 
     if (initial.failures.size > 0) process.exitCode = 1;
 
@@ -313,7 +467,6 @@ async function main(): Promise<void> {
     initial.results,
     () => (configFile ? [resolve(configFile), ...configDependencies] : []),
     render,
-    closeBrowser,
   );
 }
 
@@ -337,7 +490,6 @@ function watchAndRerender(
   /** The config file and the files it references, as of the last render. */
   configFiles: () => string[],
   render: (targets: string[]) => Promise<RenderOutcome>,
-  closeBrowser: () => Promise<void>,
 ): void {
   const debounceMs = 150;
 
@@ -378,30 +530,34 @@ function watchAndRerender(
   let rendering = false;
 
   const rerender = async (): Promise<void> => {
-    if (rendering || queued.size === 0) return;
+    if (run.stopped || rendering || queued.size === 0) return;
     rendering = true;
     const targets = [...queued];
     queued.clear();
 
     try {
       // A failed input keeps its previous targets
-      const { results } = await render(targets);
+      const { results } = await run.track(render(targets));
 
       for (const [file, result] of results) setInputTargets(file, result);
     } catch (error) {
       // Not an input failure (those render reports itself)
-      console.error(error instanceof Error ? error.message : error);
+      if (!run.stopped) console.error(error instanceof Error ? error.message : error);
     } finally {
+      rendering = false;
+    }
+
+    if (!run.stopped) {
       // The config was reloaded even if the render then failed
       configTargets = new Set(configFiles());
       watcher.setTargets(wantedTargets());
-      rendering = false;
       // Changes that landed mid-render
       void rerender();
     }
   };
 
   const schedule = (file: string): void => {
+    if (run.stopped) return;
     clearTimeout(timers.get(file));
     timers.set(
       file,
@@ -439,14 +595,14 @@ function watchAndRerender(
   configTargets = new Set(configFiles());
   watcher.setTargets(wantedTargets());
 
-  const shutdown = (): void => {
-    watcher.close();
-
-    void closeBrowser().then(() => process.exit(0));
-  };
-
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  // A stop ends watching and any debounced re-render; the run closes the
+  // browser and waits for a render in flight
+  run.onStop(() => watcher.close());
+  run.onStop(() => {
+    for (const timer of timers.values()) clearTimeout(timer);
+    timers.clear();
+    queued.clear();
+  });
 
   const first = files[0];
 
