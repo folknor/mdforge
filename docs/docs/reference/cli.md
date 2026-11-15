@@ -43,7 +43,17 @@ mdforge --watch document.md
 
 The output path and format are chosen only here: neither a config file nor a
 document's front matter can set them. Without `-o`, each input is written
-beside itself with a `.pdf` (or `.html`) extension.
+beside itself with a `.pdf` (or `.html`) extension, replacing only the last
+extension. An input given twice (`a.md ./a.md`) is rendered once.
+
+One run never lets an input replace a file the run wrote for another input:
+`a.md` and `a.markdown` in one folder, `Notes.md` and `notes.md` on a
+case-insensitive volume, or an output name that is a symlink to another
+output. The files themselves are compared (device and inode), not their
+names. The input given first on the command line keeps the file; the later
+one fails with an error naming it. In watch mode this holds for the whole
+session, so the later input keeps failing on every re-render. Files that
+existed before the run are replaced as usual.
 
 File output (PDF or HTML, including through the JavaScript API and desktop)
 is written to a unique sibling temp file, closed, then renamed over the destination.
@@ -57,7 +67,8 @@ Ownership and ACLs are not copied. On Windows, an open destination or permission
 may prevent replacement; the conversion fails without deleting the old output.
 This protects against interrupted writes, not power-loss durability (no fsync).
 
-Each input renders independently: one that fails is reported on stderr and the
+Each input renders independently (concurrently, then written in command-line
+order): one that fails is reported on stderr and the
 others are still written. Without `--watch`, the exit status is 1 if any input
 failed.
 

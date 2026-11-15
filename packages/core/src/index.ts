@@ -66,6 +66,12 @@ export {
   writeOutput,
 } from "./lib/prepare.ts";
 
+// Refusing to let one run's inputs replace each other's output files
+export { OutputClaims } from "./lib/output-claims.ts";
+
+// Output file beside a path input
+export { getOutputFilePath } from "./lib/util.ts";
+
 // Parsing user YAML (config files, front matter) into configuration
 export {
   type ConfigIssue,

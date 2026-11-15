@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, resolve } from "node:path";
 import os from "node:os";
 import process from "node:process";
+import { getOutputFilePath, OutputClaims } from "@mdforge/core";
 import { createTargetWatcher } from "@mdforge/core/watch";
 import {
   BrowserPool,
@@ -240,7 +241,19 @@ async function main(): Promise<void> {
     return help();
   }
 
-  const files = args._;
+  // One entry per resolved path, so `a.md ./a.md` is one input rendered once.
+  // Only lexical duplicates: inputs that alias through links stay separate,
+  // and their shared output is caught by the claims below.
+  const seen = new Set<string>();
+
+  const files = args._.filter((file) => {
+    const path = resolve(file);
+
+    if (seen.has(path)) return false;
+    seen.add(path);
+
+    return true;
+  });
 
   if (files.length === 0) {
     return help();
@@ -257,15 +270,21 @@ async function main(): Promise<void> {
 
   // The invocation's output choices; neither the config file nor front matter
   // can change them.
-  const convertOptions: ConvertOptions = {
-    format: args["--as-html"] ? "html" : "pdf",
-  };
+  // The CLI writes the output itself (see render), so the conversion is
+  // asked for the content only.
+  const format = args["--as-html"] ? "html" : "pdf";
+  const convertOptions: ConvertOptions = { format, output: { kind: "none" } };
 
   const output = args["--output"];
 
-  if (output) {
-    convertOptions.output = { kind: "file", path: resolve(output) };
-  }
+  /** Where an input is written: `-o`, else beside itself. */
+  const destinationOf = (file: string): string =>
+    output ? resolve(output) : getOutputFilePath(resolve(file), format);
+
+  // Every output this run wrote, watch re-renders included: an input never
+  // replaces a file another input of the run wrote (a.md and a.markdown,
+  // case-only names on a case-insensitive volume, a symlinked output).
+  const claims = new OutputClaims();
 
   // Left unset when the flag is absent, so a document can still ask for forms
   if (args["--fillable"]) {
@@ -363,23 +382,44 @@ async function main(): Promise<void> {
     const results: Map<string, ConvertResult> = new Map();
     const failures: Map<string, Error> = new Map();
 
-    const getListrTask = (file: string): Listr.ListrTask => ({
-      title: `generating ${convertOptions.format === "html" ? "HTML" : "PDF"} from ${basename(file)}`,
-      task: async (): Promise<void> => {
-        let result: ConvertResult;
+    // Inputs convert concurrently but write in input order, so the first
+    // input, not the first to finish, owns a shared output. Each task's
+    // commit slot settles only after its predecessor's has, whether it wrote,
+    // failed or was stopped, so a failed input never lets a later one jump
+    // ahead of an earlier one still converting.
+    let previous: Promise<void> = Promise.resolve();
 
-        try {
-          result = await browser.convertMdToPdf({ path: file }, config, convertOptions);
-        } catch (thrown) {
-          const error = thrown instanceof Error ? thrown : new Error(String(thrown));
-          failures.set(file, error);
-          // Rethrown so Listr shows the task as failed
-          throw error;
-        }
+    const getListrTask = (file: string): Listr.ListrTask => {
+      const prior = previous;
+      const slot = Promise.withResolvers<void>();
+      previous = slot.promise;
 
-        results.set(file, result);
-      },
-    });
+      return {
+        title: `generating ${format === "html" ? "HTML" : "PDF"} from ${basename(file)}`,
+        task: async (): Promise<void> => {
+          try {
+            const result = await browser.convertMdToPdf({ path: file }, config, convertOptions);
+
+            await prior;
+            run.check();
+
+            const destination = destinationOf(file);
+
+            await claims.write(destination, resolve(file), result.content);
+            result.info.output = { path: destination };
+            results.set(file, result);
+          } catch (thrown) {
+            const error = thrown instanceof Error ? thrown : new Error(String(thrown));
+            failures.set(file, error);
+            // Rethrown so Listr shows the task as failed
+            throw error;
+          } finally {
+            await prior;
+            slot.resolve();
+          }
+        },
+      };
+    };
 
     try {
       await new Listr(targets.map(getListrTask), {
@@ -532,7 +572,8 @@ function watchAndRerender(
   const rerender = async (): Promise<void> => {
     if (run.stopped || rendering || queued.size === 0) return;
     rendering = true;
-    const targets = [...queued];
+    // In input order: the first input wins an output neither currently owns
+    const targets = files.filter((file) => queued.has(file));
     queued.clear();
 
     try {
