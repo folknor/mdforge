@@ -5,7 +5,12 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { defaultConfig } from "../src/lib/config.ts";
-import { buildPageHtml, RemoteLoad, writeScratchPage } from "../src/lib/page-load.ts";
+import {
+  buildPageHtml,
+  RemoteLoad,
+  stylesheetLoadWarnings,
+  writeScratchPage,
+} from "../src/lib/page-load.ts";
 import { prepareConversion } from "../src/lib/prepare.ts";
 
 /** A promise that never settles, like a request to a server that never answers. */
@@ -159,10 +164,49 @@ describe("buildPageHtml", () => {
     const html = buildPageHtml(prepared, "MARK");
 
     assert.match(html, /<head><base href="file:\/\/\/doc\/">/);
+    const watch = html.indexOf("<script>(function watchStylesheetLoads(");
     const style = html.indexOf("<style>p{}</style>");
     const link = html.indexOf('<link rel="stylesheet" href="https://x.test/s.css">');
+    assert.ok(watch !== -1 && style > watch, "the load watch comes before every stylesheet");
+    assert.ok(html.includes('})("MARK")</script>'), "the watch is named by the marker");
     assert.ok(style !== -1 && link > style, "stylesheets keep their order");
     assert.match(html, /<!--MARK--><\/body>/);
+  });
+});
+
+describe("stylesheetLoadWarnings", () => {
+  it("is silent when every stylesheet loaded and the watch saw it all", () => {
+    assert.deepEqual(
+      stylesheetLoadWarnings({ complete: true, failedStylesheets: [], watched: true }),
+      [],
+    );
+  });
+
+  it("names each failed stylesheet once, in order", () => {
+    const [warning, ...rest] = stylesheetLoadWarnings({
+      complete: true,
+      failedStylesheets: [
+        "https://x.test/a.css",
+        "<style> element number 2",
+        "https://x.test/a.css",
+      ],
+      watched: true,
+    });
+
+    assert.equal(rest.length, 0);
+    assert.match(warning ?? "", /could not be loaded/);
+    assert.ok(warning?.endsWith(": https://x.test/a.css, <style> element number 2."));
+  });
+
+  it("says when the check could not cover the load, keeping what it saw", () => {
+    const warnings = stylesheetLoadWarnings({
+      complete: true,
+      failedStylesheets: ["https://x.test/a.css"],
+      watched: false,
+    });
+
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[1] ?? "", /could not be checked/);
   });
 });
 

@@ -55,6 +55,14 @@ relative `url(...)` and `@import` references inside it resolve against the
 stylesheet's own location. Relative references in inline CSS resolve against
 the document's directory.
 
+A stylesheet that the page cannot load (a file removed after the conversion
+started, an HTTP error, a refused connection), or one whose `@import` cannot
+be loaded, is named in a warning and the document is printed without the
+styles that did not arrive. This covers the main document's `<link>` and
+`<style>` stylesheets, including any a script adds, whose failure is seen by
+the time loading ends; stylesheets inside iframes or shadow roots are not
+checked.
+
 ### Scripts
 
 `script` adds JavaScript to the page in both renderers (CLI and desktop), in

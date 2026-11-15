@@ -33,6 +33,21 @@ as `<style>${value}</style>` verbatim, so CSS whose text contains `</style`
 (in a string or comment) ends the element early and the rest is parsed as
 document markup, in both renderers and in HTML output.
 
+## Images and other subresources that fail to load are silent
+
+A stylesheet that fails to load is named in a warning (page-load.ts
+`watchStylesheetLoads`), but an image, font file or iframe that fails (a
+missing local file, an HTTP 404) is left out of the print with no warning, in
+both renderers. Observed with Puppeteer: a missing `<img>` fires a captured
+`error` event the same as a stylesheet does (a remote 404 image is a finished
+request with status 404; a missing local one fails with
+net::ERR_FILE_NOT_FOUND), so the stylesheet watch could cover images by
+widening its filter. Fonts loaded through `@font-face` fire no element event
+(`document.fonts` reports them). Whether broken images deserve a warning is a
+product decision: raw HTML in documents can reference optional images.
+
+Stylesheets inside iframes and shadow roots are not watched either.
+
 ## Electron page scripts can read any local file directly
 
 The Electron render window loads its page from `file://`, and Electron's

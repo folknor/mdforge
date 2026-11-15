@@ -15,6 +15,11 @@
  * network. Remote content that missed the deadline or was refused is named in
  * a warning; the document is printed without it.
  *
+ * A stylesheet of the main document that fails to load for any other reason
+ * (a missing file, an HTTP error, a refused connection, a failed `@import`)
+ * is named in a warning too, if its failure was seen by the time loading
+ * ended. Both can name the same stylesheet: each is true.
+ *
  * What this does not promise: requests a worker makes are outside the
  * renderers' reach, and a cancellation the browser does not confirm within a
  * grace period is reported as such rather than assumed.
@@ -43,10 +48,11 @@ function isRemote(url: string): boolean {
 }
 
 /**
- * The page's HTML: the prepared document with its `<base>`, then the
- * stylesheets in cascade order (CSS text as `<style>`, files and URLs as
- * `<link>`, so a file's relative references resolve against its own
- * directory), and `marker` as a comment closing the body.
+ * The page's HTML: the prepared document with its `<base>`, the stylesheet
+ * load watch ({@link watchStylesheetLoads}), then the stylesheets in cascade
+ * order (CSS text as `<style>`, files and URLs as `<link>`, so a file's
+ * relative references resolve against its own directory), and `marker` as a
+ * comment closing the body. `marker` also names the watch.
  */
 export function buildPageHtml(prepared: PreparedConversion, marker: string): string {
   const styles = prepared.stylesheets.map((stylesheet) => {
@@ -60,11 +66,14 @@ export function buildPageHtml(prepared: PreparedConversion, marker: string): str
     }
   });
 
+  // Before every stylesheet, so it sees each one's load fail
+  const watch = `<script>${pageCall(watchStylesheetLoads, marker)}</script>`;
+
   // Callbacks, so `$&` and friends in a directory name or stylesheet stay
   // literal
   const withHead = prepared.html.replace(
     "<head>",
-    () => `<head>${baseElement(prepared.baseUrl)}\n${styles.join("\n")}`,
+    () => `<head>${baseElement(prepared.baseUrl)}\n${watch}\n${styles.join("\n")}`,
   );
 
   const end = withHead.lastIndexOf("</body>");
@@ -329,22 +338,128 @@ export class RemoteLoad<Id> {
   }
 }
 
+/** What {@link watchStylesheetLoads} keeps in the page. */
+interface StylesheetWatch {
+  /** Each failed stylesheet, described when its error fired */
+  failed: string[];
+  /** Whether the watch's listeners are still attached; detaches them */
+  finish(): boolean;
+}
+
+declare global {
+  interface Window {
+    /** The page's stylesheet watches, by the page's end marker */
+    mdforgeStylesheetWatches?: Map<string, StylesheetWatch>;
+  }
+}
+
 /**
- * Browser-side: find the end marker comment, remove it, and report whether it
- * was there. Self-contained, for evaluation in the page via {@link pageCall}.
+ * Browser-side, run as the first script in the page's head: record every
+ * stylesheet of the main document whose load fails - a `<link>` whose file
+ * or URL cannot be loaded (missing file, HTTP error, refused connection), or
+ * a `<link>` or `<style>` with an `@import` that cannot. Chromium fires
+ * `error` on the importing element in both cases, and does not bubble it, so
+ * the listener captures on the document. Only browser-dispatched events
+ * count. The script removes itself as it runs, so no document script, and no
+ * HTML output, sees it. Self-contained, for {@link pageCall}.
+ *
+ * Not seen: stylesheets in child frames or shadow roots.
  */
-export function takeEndMarker(marker: string): boolean {
+export function watchStylesheetLoads(key: string): void {
+  const failed: string[] = [];
+  let alive = false;
+
+  const onError = (event: Event): void => {
+    if (!event.isTrusted) return;
+
+    const { target } = event;
+
+    if (target instanceof HTMLLinkElement && target.relList.contains("stylesheet")) {
+      failed.push(target.href);
+    } else if (target instanceof HTMLStyleElement) {
+      const position = Array.from(document.querySelectorAll("style")).indexOf(target) + 1;
+      failed.push(target.id ? `<style id="${target.id}">` : `<style> element number ${position}`);
+    }
+  };
+
+  // document.open() removes every listener; this one shows whether it did
+  const onProbe = (): void => {
+    alive = true;
+  };
+
+  document.addEventListener("error", onError, true);
+  document.addEventListener(key, onProbe);
+
+  const watch: StylesheetWatch = {
+    failed,
+    finish: () => {
+      document.dispatchEvent(new Event(key));
+      document.removeEventListener("error", onError, true);
+      document.removeEventListener(key, onProbe);
+
+      return alive;
+    },
+  };
+
+  window.mdforgeStylesheetWatches ??= new Map();
+  window.mdforgeStylesheetWatches.set(key, watch);
+  document.currentScript?.remove();
+}
+
+/** What the page reported when loading ended. */
+export interface PageLoadEnd {
+  /** Whether the end marker was there: the HTML was parsed to the end */
+  complete: boolean;
+  /** Failed stylesheets, as {@link watchStylesheetLoads} described them */
+  failedStylesheets: string[];
+  /** Whether the watch saw the whole load (it can be lost to document.open()) */
+  watched: boolean;
+}
+
+/**
+ * Browser-side, once loading has ended: find the end marker comment and
+ * remove it, and stop the stylesheet watch and read it, in one evaluation so
+ * both describe the same moment. Self-contained, for {@link pageCall}.
+ */
+export function endPageLoad(marker: string): PageLoadEnd {
+  let complete = false;
   const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_COMMENT);
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node.nodeValue === marker) {
       node.parentNode?.removeChild(node);
-
-      return true;
+      complete = true;
+      break;
     }
   }
 
-  return false;
+  const watch = window.mdforgeStylesheetWatches?.get(marker);
+  window.mdforgeStylesheetWatches?.delete(marker);
+
+  if (watch === undefined) return { complete, failedStylesheets: [], watched: false };
+
+  const watched = watch.finish();
+
+  return { complete, failedStylesheets: [...watch.failed], watched };
+}
+
+/** The warnings for what {@link endPageLoad} reported about stylesheets. */
+export function stylesheetLoadWarnings(end: PageLoadEnd): string[] {
+  const result: string[] = [];
+
+  if (end.failedStylesheets.length > 0) {
+    result.push(
+      `A stylesheet, or a stylesheet it imports, could not be loaded, so some of its styles may be missing: ${[...new Set(end.failedStylesheets)].join(", ")}.`,
+    );
+  }
+
+  if (!end.watched) {
+    result.push(
+      "Whether every stylesheet loaded could not be checked (the page has no <head>, or replaced its document while loading).",
+    );
+  }
+
+  return result;
 }
 
 /**

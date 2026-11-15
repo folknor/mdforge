@@ -10,7 +10,8 @@
  *    `page_media_type`) and its requests routed to the remote-content load.
  * 2. The page loads core's file:// scratch page; then the configured scripts
  *    are added, then fonts are awaited - all under the remote-content deadline
- *    (`@mdforge/core/page-load`). A parse cut short by that deadline fails.
+ *    (`@mdforge/core/page-load`). A parse cut short by that deadline fails;
+ *    stylesheets that failed to load are named in a warning.
  * 3. HTML output: the page is serialised once and checked (html-output.ts).
  *    PDF output: whole-document prints until page references settle
  *    (`@mdforge/core/page-refs`); a `pageRanges` selection is then printed
@@ -34,10 +35,11 @@ import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import {
   addPageScript,
   buildPageHtml,
+  endPageLoad,
   pageCall,
   pageEndMarker,
   RemoteLoad,
-  takeEndMarker,
+  stylesheetLoadWarnings,
   truncatedPageError,
   writeScratchPage,
 } from "@mdforge/core/page-load";
@@ -210,11 +212,13 @@ async function loadPage(
       () => session.stopLoading(),
     );
 
-    const complete = await session.evaluate(takeEndMarker, marker);
+    const end = await session.evaluate(endPageLoad, marker);
 
-    if (load.timedOut && complete !== true) {
+    if (load.timedOut && !end.complete) {
       throw truncatedPageError(load);
     }
+
+    prepared.info.warnings.push(...stylesheetLoadWarnings(end));
   } finally {
     // The page is loaded (or failed); the scratch HTML is no longer needed.
     // Cleanup failures must not replace the load's own outcome.
