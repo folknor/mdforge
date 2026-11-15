@@ -1,13 +1,5 @@
 import type React from "react";
-
-interface FileItem {
-  path: string;
-  name: string;
-  status: "pending" | "converting" | "done" | "error";
-  progress: number;
-  error?: string;
-  warnings: string[];
-}
+import type { FileItem } from "../state";
 
 interface FileListProps {
   files: FileItem[];
@@ -41,7 +33,7 @@ export default function FileList({
 
           return (
             <li
-              key={file.path}
+              key={file.id}
               className={`flex items-center transition-colors ${
                 isSelected
                   ? "bg-blue-50 border-l-4 border-l-blue-500"

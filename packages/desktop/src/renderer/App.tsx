@@ -1,17 +1,11 @@
-import type { Theme } from "@mdforge/renderer-electron/browser";
 import type React from "react";
 import { useEffect, useReducer, useState } from "react";
-import type {
-  ConversionConfig,
-  ConversionProgress,
-  ConversionResult,
-  PreviewConfig,
-  WatchProblem,
-} from "../types";
+import type { ConversionConfig, ConversionProgress, PreviewConfig, WatchProblem } from "../types";
 import ConfigPanel from "./components/ConfigPanel";
 import DropZone from "./components/DropZone";
 import FileList from "./components/FileList";
 import PdfPreview from "./components/PdfPreview";
+import { type AppAction, initialState, reducer } from "./state";
 
 declare global {
   interface Window {
@@ -19,215 +13,12 @@ declare global {
   }
 }
 
-interface FileItem {
-  path: string;
-  name: string;
-  status: "pending" | "converting" | "done" | "error";
-  progress: number;
-  error?: string;
-  /** From the last finished conversion of this file. */
-  warnings: string[];
-}
-
-/**
- * The last PDF that generated successfully for the selected file. Its warnings
- * belong to it, so they are replaced only with it.
- */
-interface PreviewDocument {
-  data: Uint8Array;
-  generatedAt: Date;
-  warnings: string[];
-}
-
-/** The latest preview attempt that finished, successful or not. */
-interface PreviewOutcome {
-  generation: number;
-  error: string | null;
-}
-
-/**
- * Files, selection, settings and preview live in one reducer so that every
- * change to a preview input is one place that bumps `generation`. The preview
- * effect keys on it, and a result is current only when it carries the current
- * generation, so a superseded or out-of-order IPC response is ignored and
- * "loading" is derived rather than set from inside the effect.
- */
-interface AppState {
-  files: FileItem[];
-  selectedFile: string | null;
-  theme: Theme;
-  fontPairing: string;
-  author: string;
-  /** Never reset, so a later request can never reuse an earlier number. */
-  generation: number;
-  document: PreviewDocument | null;
-  outcome: PreviewOutcome | null;
-}
-
-type AppAction =
-  | { type: "filesAdded"; paths: string[] }
-  | { type: "fileRemoved"; path: string }
-  | { type: "filesCleared" }
-  | { type: "fileSelected"; path: string }
-  | { type: "themeChanged"; theme: Theme }
-  | { type: "fontPairingChanged"; fontPairing: string }
-  | { type: "authorChanged"; author: string }
-  | { type: "sourceChanged" }
-  | { type: "previewSucceeded"; generation: number; data: Uint8Array; warnings: string[] }
-  | { type: "previewFailed"; generation: number; error: string }
-  | { type: "conversionStarted" }
-  | { type: "conversionProgressed"; progress: ConversionProgress }
-  | { type: "conversionFinished"; results: ConversionResult[] };
-
-const initialState: AppState = {
-  files: [],
-  selectedFile: null,
-  theme: "beryl",
-  fontPairing: "beryl",
-  author: "",
-  generation: 0,
-  document: null,
-  outcome: null,
-};
-
-/**
- * Selects a file and starts a new preview generation. The previous file's PDF
- * is dropped rather than kept under the new file's name.
- */
-function select(state: AppState, selectedFile: string | null): AppState {
-  if (selectedFile === state.selectedFile) return state;
-
-  return {
-    ...state,
-    selectedFile,
-    generation: state.generation + 1,
-    document: null,
-    outcome: null,
-  };
-}
-
-/** A settings change regenerates the preview but keeps the current PDF on screen meanwhile. */
-function invalidate(state: AppState): AppState {
-  return { ...state, generation: state.generation + 1 };
-}
-
-function reducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case "filesAdded": {
-      const existing = new Set(state.files.map((f) => f.path));
-
-      const added: FileItem[] = action.paths
-        .filter((path) => !existing.has(path))
-        .map((path) => ({
-          path,
-          name: path.split(/[/\\]/).pop() ?? path,
-          status: "pending",
-          progress: 0,
-          warnings: [],
-        }));
-
-      const next = { ...state, files: [...state.files, ...added] };
-      const first = added[0];
-
-      return state.selectedFile == null && first ? select(next, first.path) : next;
-    }
-
-    case "fileRemoved": {
-      const files = state.files.filter((f) => f.path !== action.path);
-      const next = { ...state, files };
-
-      return action.path === state.selectedFile ? select(next, files[0]?.path ?? null) : next;
-    }
-
-    case "filesCleared":
-      return select({ ...state, files: [] }, null);
-
-    case "fileSelected":
-      return select(state, action.path);
-
-    case "themeChanged":
-      return action.theme === state.theme ? state : invalidate({ ...state, theme: action.theme });
-
-    case "fontPairingChanged":
-      return action.fontPairing === state.fontPairing
-        ? state
-        : invalidate({ ...state, fontPairing: action.fontPairing });
-
-    case "authorChanged":
-      return action.author === state.author
-        ? state
-        : invalidate({ ...state, author: action.author });
-
-    case "sourceChanged":
-      // A notification meant for the previous selection can land just after
-      // the selection moved on; that costs one redundant preview at most.
-      return state.selectedFile == null ? state : invalidate(state);
-
-    case "previewSucceeded":
-      if (action.generation !== state.generation || state.selectedFile == null) return state;
-
-      return {
-        ...state,
-        document: { data: action.data, generatedAt: new Date(), warnings: action.warnings },
-        outcome: { generation: action.generation, error: null },
-      };
-
-    case "previewFailed":
-      if (action.generation !== state.generation || state.selectedFile == null) return state;
-
-      return { ...state, outcome: { generation: action.generation, error: action.error } };
-
-    case "conversionStarted":
-      return {
-        ...state,
-        files: state.files.map((f) => ({
-          ...f,
-          status: "converting",
-          progress: 0,
-          error: undefined,
-          warnings: [],
-        })),
-      };
-
-    case "conversionProgressed": {
-      const { progress } = action;
-
-      // Only conversionFinished marks a file done: that is when its result,
-      // warnings included, is known.
-      return {
-        ...state,
-        files: state.files.map((f) =>
-          f.path === progress.file ? { ...f, progress: progress.progress } : f,
-        ),
-      };
-    }
-
-    case "conversionFinished":
-      return {
-        ...state,
-        files: state.files.map((f) => {
-          const result = action.results.find((r) => r.inputPath === f.path);
-
-          if (!result) return f;
-
-          return {
-            ...f,
-            status: result.success ? "done" : "error",
-            progress: 100,
-            error: result.error,
-            warnings: result.warnings,
-          };
-        }),
-      };
-  }
-}
-
 export default function App(): React.ReactElement {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [outputDir, setOutputDir] = useState<string>("");
-  const [isConverting, setIsConverting] = useState(false);
   const [watchProblems, setWatchProblems] = useState<WatchProblem[]>([]);
-  const { files, selectedFile, theme, fontPairing, author, generation, outcome } = state;
+  const { files, selectedFile, theme, fontPairing, author, generation, outcome, batch } = state;
+  const isConverting = batch != null;
   const previewDocument = state.document;
 
   // Listen for conversion progress
@@ -316,10 +107,13 @@ export default function App(): React.ReactElement {
   };
 
   const handleConvert = async (): Promise<void> => {
-    if (files.length === 0 || !outputDir) return;
+    if (files.length === 0 || !outputDir || isConverting) return;
 
-    setIsConverting(true);
-    dispatch({ type: "conversionStarted" });
+    // Unique across reloads: a batch started before one keeps reporting
+    const token = crypto.randomUUID();
+
+    // The members and the paths sent are the same snapshot
+    dispatch({ type: "conversionStarted", token, members: files });
 
     const config: ConversionConfig = {
       theme,
@@ -328,13 +122,22 @@ export default function App(): React.ReactElement {
       outputDir,
     };
 
-    const results = await window.electron.convertFiles(
-      files.map((f) => f.path),
-      config,
-    );
+    try {
+      const results = await window.electron.convertFiles(
+        token,
+        files.map((f) => f.path),
+        config,
+      );
 
-    dispatch({ type: "conversionFinished", results });
-    setIsConverting(false);
+      dispatch({ type: "conversionFinished", token, results });
+    } catch (error) {
+      // Conversion errors come back as results; this is the invocation failing
+      dispatch({
+        type: "conversionFailed",
+        token,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   };
 
   return (

@@ -28,13 +28,23 @@ export type PreviewResult =
   | { success: false; filePath: string; error: string };
 
 export interface ConversionProgress {
+  /** The token the batch was started with, echoed unchanged. */
+  batch: string;
   file: string;
   progress: number;
 }
 
 export interface ElectronAPI {
   // Conversion
-  convertFiles: (files: string[], config: ConversionConfig) => Promise<ConversionResult[]>;
+  /**
+   * `batch` is an opaque token, unique across renderer lifetimes, echoed in
+   * every progress event of this conversion.
+   */
+  convertFiles: (
+    batch: string,
+    files: string[],
+    config: ConversionConfig,
+  ) => Promise<ConversionResult[]>;
 
   // Preview
   generatePreview: (filePath: string, config: PreviewConfig) => Promise<PreviewResult>;

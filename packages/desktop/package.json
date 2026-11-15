@@ -25,7 +25,8 @@
     "package:linux": "electron-builder --linux AppImage",
     "package:mac": "electron-builder --mac zip",
     "package:win": "electron-builder --win --portable",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test \"test/*.test.ts\""
   },
   "dependencies": {
     "@mdforge/core": "workspace:*",

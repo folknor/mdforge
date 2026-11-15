@@ -9,8 +9,8 @@ import type {
 
 const electronAPI: ElectronAPI = {
   // Conversion
-  convertFiles: (files: string[], config: ConversionConfig) =>
-    ipcRenderer.invoke("convert-files", files, config),
+  convertFiles: (batch: string, files: string[], config: ConversionConfig) =>
+    ipcRenderer.invoke("convert-files", batch, files, config),
 
   // Preview
   generatePreview: (filePath: string, config: PreviewConfig) =>

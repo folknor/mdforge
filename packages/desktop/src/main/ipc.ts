@@ -1,6 +1,6 @@
 import process from "node:process";
-import { BrowserWindow, dialog, ipcMain } from "electron";
-import type { ConversionConfig, PreviewConfig } from "../types";
+import { dialog, ipcMain } from "electron";
+import type { ConversionConfig, ConversionProgress, PreviewConfig } from "../types";
 import { convertFiles, generatePreview } from "./conversion";
 import { beginPreview, stopPreviewWatch } from "./preview-watch";
 
@@ -15,19 +15,27 @@ function log(...args: unknown[]): void {
 
 export function setupIpcHandlers(): void {
   // File conversion
-  ipcMain.handle("convert-files", async (event, files: string[], config: ConversionConfig) => {
-    log("convert-files IPC called, files:", files);
-    const window = BrowserWindow.fromWebContents(event.sender);
+  // The renderer's batch token is echoed in every progress event: a batch
+  // keeps running after a reload, and the reloaded page must be able to tell
+  // its events from a new batch's.
+  ipcMain.handle(
+    "convert-files",
+    async (event, batch: string, files: string[], config: ConversionConfig) => {
+      log("convert-files IPC called, files:", files);
+      const contents = event.sender;
 
-    const results = await convertFiles(files, config, (file, progress) => {
-      log("Progress:", file, progress);
-      window?.webContents.send("conversion-progress", { file, progress });
-    });
+      const results = await convertFiles(files, config, (file, progress) => {
+        log("Progress:", file, progress);
+        const message: ConversionProgress = { batch, file, progress };
 
-    log("Conversion complete, results:", results);
+        if (!contents.isDestroyed()) contents.send("conversion-progress", message);
+      });
 
-    return results;
-  });
+      log("Conversion complete, results:", results);
+
+      return results;
+    },
+  );
 
   // Preview generation. Requesting a preview also watches the file and what
   // its preview depended on, for live preview (see preview-watch.ts).
