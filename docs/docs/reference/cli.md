@@ -45,6 +45,18 @@ The output path and format are chosen only here: neither a config file nor a
 document's front matter can set them. Without `-o`, each input is written
 beside itself with a `.pdf` (or `.html`) extension.
 
+File output (PDF or HTML, including through the JavaScript API and desktop)
+is written to a unique sibling temp file, closed, then renamed over the destination.
+An existing file's permission bits are preserved; new files use the usual process
+umask. The output directory must permit creating and renaming files, even when the
+existing file itself is writable. A failed write or rename leaves the previous
+output intact and removes the temp file. Replacement changes the inode: hard links
+keep the old content. A destination that is a symlink is followed: the link
+stays and its target is replaced (the temp file lives in the target's directory).
+Ownership and ACLs are not copied. On Windows, an open destination or permissions
+may prevent replacement; the conversion fails without deleting the old output.
+This protects against interrupted writes, not power-loss durability (no fsync).
+
 Each input renders independently: one that fails is reported on stderr and the
 others are still written. Without `--watch`, the exit status is 1 if any input
 failed.
@@ -57,8 +69,9 @@ watching, drops pending re-renders, and closes the browser, which fails the
 conversion in progress. Then it waits up to 10 seconds for that render to
 finish cleaning up, and ends by re-raising the same signal. A shell therefore
 sees an interrupted run (status 130, 143 or 129), not a success. A second signal,
-or the 10 seconds running out, exits at once with that same status. Writing an
-output that was already underway may then be cut short.
+or the 10 seconds running out, exits at once with that same status. An interrupted output
+write leaves the previous output intact (or no output if none existed); abrupt
+termination can leave a sibling `.mdforge-output-*.tmp` file behind.
 
 ## Watch mode
 

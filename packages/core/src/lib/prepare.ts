@@ -3,9 +3,10 @@
  * This module contains no browser dependencies.
  */
 
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { admonitionsCss } from "./admonitions.ts";
@@ -99,10 +100,48 @@ export async function writeOutput(
   content: Buffer | Uint8Array | string,
 ): Promise<void> {
   switch (target.kind) {
-    case "file":
-      await fs.writeFile(target.path, content);
+    case "file": {
+      // Follow an existing symlink so the rename replaces its target, not the link.
+      let destination = resolve(target.path);
+
+      try {
+        destination = await fs.realpath(destination);
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+      }
+
+      const temp = join(dirname(destination), `.mdforge-output-${randomUUID()}.tmp`);
+      let mode: number | undefined;
+
+      try {
+        mode = (await fs.stat(destination)).mode & 0o7777;
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+      }
+
+      // Exclusive creation prevents a collision from touching someone else's file.
+      // Keep the handle closed before rename, including on Windows.
+
+      const file = await fs.open(temp, "wx");
+
+      try {
+        try {
+          await file.writeFile(content);
+
+          if (mode !== undefined) await file.chmod(mode);
+        } finally {
+          await file.close();
+        }
+
+        // Never unlink the destination first: a failed replacement must keep it.
+        await fs.rename(temp, destination);
+      } finally {
+        await fs.rm(temp, { force: true });
+      }
 
       return;
+    }
+
     case "stdout":
       process.stdout.write(content);
 
