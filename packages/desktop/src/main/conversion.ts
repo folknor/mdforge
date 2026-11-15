@@ -7,6 +7,7 @@ import {
   isFontPairingPreset,
 } from "@mdforge/renderer-electron";
 import type { ConversionConfig, ConversionResult, PreviewConfig, PreviewResult } from "../types";
+import { OutputClaims, oneAtATime, outputPathFor } from "./output-claims";
 
 // Simple logger - enable with MDFORGE_DEBUG=1
 const DEBUG: boolean = process.env["MDFORGE_DEBUG"] === "1";
@@ -17,13 +18,14 @@ function log(...args: unknown[]): void {
   }
 }
 
-export async function convertFile(
+async function convertFile(
   filePath: string,
   config: ConversionConfig,
+  claims: OutputClaims,
   onProgress?: (progress: number) => void,
 ): Promise<ConversionResult> {
   log("convertFile called:", filePath);
-  const outputPath = config.outputPath ?? "";
+  const outputPath = outputPathFor(filePath, config.outputDir);
 
   try {
     const mergedConfig: Config = { ...defaultConfig };
@@ -46,20 +48,28 @@ export async function convertFile(
 
     log("Calling convertMdToPdf...");
 
-    // No output path means convert without writing, as it always has
+    // The batch writes the bytes itself, so it can refuse to replace a PDF
+    // another file of this batch wrote (see output-claims.ts).
     const result = await convertMdToPdf({ path: filePath }, mergedConfig, {
       format: "pdf",
-      output: config.outputPath ? { kind: "file", path: config.outputPath } : { kind: "none" },
+      output: { kind: "none" },
     });
 
     log("convertMdToPdf returned successfully");
+
+    // Buffer extends Uint8Array; PDF output is never a string.
+    if (!(result.content instanceof Uint8Array)) {
+      throw new Error("Expected PDF bytes from the conversion");
+    }
+
+    await claims.write(outputPath, filePath, result.content);
 
     onProgress?.(100);
 
     return {
       success: true,
       inputPath: filePath,
-      outputPath: result.filename ?? outputPath,
+      outputPath,
       warnings: result.info.warnings,
     };
   } catch (error) {
@@ -81,29 +91,21 @@ export async function convertFiles(
   config: ConversionConfig,
   onProgress?: (file: string, progress: number) => void,
 ): Promise<ConversionResult[]> {
-  const results: ConversionResult[] = [];
+  return oneAtATime(async () => {
+    const claims = new OutputClaims();
+    const results: ConversionResult[] = [];
 
-  for (const file of files) {
-    const result = await convertFile(
-      file,
-      {
-        ...config,
-        outputPath: getOutputPath(file, config.outputDir),
-      },
-      (progress) => onProgress?.(file, progress),
-    );
+    // One result per path: the renderer routes results by input path.
+    for (const file of new Set(files)) {
+      const result = await convertFile(file, config, claims, (progress) =>
+        onProgress?.(file, progress),
+      );
 
-    results.push(result);
-  }
+      results.push(result);
+    }
 
-  return results;
-}
-
-function getOutputPath(inputPath: string, outputDir: string): string {
-  const basename = inputPath.replace(/\.[^.]+$/, "");
-  const filename = basename.split(/[/\\]/).pop() ?? "output";
-
-  return `${outputDir}/${filename}.pdf`;
+    return results;
+  });
 }
 
 export interface PreviewOutcome {

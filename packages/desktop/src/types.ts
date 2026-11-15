@@ -5,7 +5,6 @@ export interface ConversionConfig {
   fontPairing?: string;
   author?: string;
   outputDir: string;
-  outputPath?: string;
 }
 
 export interface PreviewConfig {
