@@ -32,3 +32,25 @@ packages/core/src/lib/page-load.ts `buildPageHtml` writes CSS-text stylesheets
 as `<style>${value}</style>` verbatim, so CSS whose text contains `</style`
 (in a string or comment) ends the element early and the rest is parsed as
 document markup, in both renderers and in HTML output.
+
+## Electron page scripts can read any local file directly
+
+The Electron render window loads its page from `file://`, and Electron's
+`grantFileProtocolExtraPrivileges` fuse (on by default, settable only at
+package time) gives `file://` pages universal access to other `file://`
+resources. Verified on Electron 45.3.2 with a canary outside the document
+directory: a page script read it by `fetch`, synchronous XHR and an iframe's
+`contentDocument`; in the CLI's Chrome all three fail (the iframe still
+displays the file). So a compromised remote script a trusted document loads
+can, in the desktop app only, read further local files of its choosing and
+send them out while loading. It still reads whatever the document itself
+includes, in both renderers; this concerns only the additional direct reads.
+
+Cancelling `file:` requests of webRequest type `xhr` alone does not close it
+(the iframe read remains), so nothing was landed. Candidate fixes, each
+unverified against the full access matrix: flip the fuse in packaged builds
+(affects the desktop main window, which is loaded from `file://`, and leaves
+dev runs unfused), or serve the render page and its local resources from a
+custom protocol with a defined origin mapping and CORS policy. Choosing one is
+a design decision. docs/docs/reference/configuration.md "Trust" states the
+current behaviour.

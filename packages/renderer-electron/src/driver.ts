@@ -25,6 +25,14 @@ const sinks = new Map<number, RequestSink<number>>();
  * Route the render session's requests to the sink of the window that made
  * them. Electron keeps one listener per webRequest event per session, so this
  * one dispatcher serves every render window; it is installed once.
+ *
+ * It enforces the remote-content deadline only; local files are not limited
+ * (documents are trusted, configuration reference "Trust"). Unlike Chrome,
+ * Electron's file:// pages carry the grantFileProtocolExtraPrivileges fuse's
+ * universal file access, so page scripts here can read local files by fetch,
+ * XHR or a file iframe's DOM. Refusing file: requests of type "xhr" would not
+ * restore Chrome's rules (the iframe read remains), so it is not done; real
+ * parity needs the fuse flipped or a custom-protocol page origin.
  */
 let dispatching = false;
 

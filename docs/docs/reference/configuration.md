@@ -98,7 +98,20 @@ finished by then is left out and named in a warning, and the document is
 printed without it; anything the page asks for after loading has ended is left
 out the same way. If a stalled resource kept the browser from reading the rest
 of the document (a script after a stylesheet that never arrives, for example),
-the conversion fails instead of printing a cut-off document.
+the conversion fails instead of printing a cut-off document. This deadline
+bounds how long printing waits; it is not a limit on what the page may
+contact.
+
+### Trust
+
+Rendering, including desktop preview and batch conversion, is not a sandbox.
+A document's includes and configuration (`@include`, `@file`, stylesheet and
+script paths) can put any file the mdforge process can read into the page,
+and raw HTML can reference any local path. In the desktop app, page scripts
+can additionally read local files directly; the CLI's browser blocks those
+direct reads. The page can also contact the network. None of this gives
+document scripts Node.js APIs or command execution. Render only documents,
+and remote scripts and content they load, that you trust.
 
 ## All Options
 

@@ -178,6 +178,12 @@ export class RemoteLoad<Id> {
   /**
    * A request is starting. Returns whether it may proceed: local requests
    * always may, remote ones only until admission closes.
+   *
+   * This is a deadline, not an access-control boundary. Unrestricted local
+   * references are supported: an allowlist here would protect nothing,
+   * because preparation (includes, `@file`, stylesheet and script paths)
+   * already puts any readable file into the page, and documents are trusted
+   * (configuration reference, "Trust").
    */
   admit(id: Id, url: string): boolean {
     if (!isRemote(url)) return true;
