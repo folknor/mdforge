@@ -1,0 +1,33 @@
+{
+  "name": "@mdforge/render",
+  "version": "1.0.0",
+  "description": "Browser-independent rendering engine shared by the mdforge renderers",
+  "license": "MIT",
+  "files": [
+    "/dist"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "tsc --watch",
+    "test": "node --test \"test/*.test.ts\""
+  },
+  "dependencies": {
+    "@mdforge/core": "workspace:*",
+    "@mdforge/pdf": "workspace:*",
+    "parse5": "^8.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "7.0.2"
+  }
+}

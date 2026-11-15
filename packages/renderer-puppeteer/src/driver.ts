@@ -1,0 +1,261 @@
+/**
+ * The Puppeteer driver: browser control for @mdforge/render, and the browser
+ * pools that own launched browsers.
+ */
+
+import type { LaunchSettings, PreparedConversion } from "@mdforge/core";
+import type { ConvertOptions, MarkdownInput } from "@mdforge/core/prepare";
+import {
+  type Config,
+  convert,
+  type ConvertResult,
+  type DriverPage,
+  type PageDriver,
+  type PageEnvironment,
+  type PageValue,
+  type PrintSpec,
+  render,
+  type RenderResult,
+  RenderStepError,
+  type RequestSink,
+} from "@mdforge/render";
+import { type Browser, type HTTPRequest, launch, type Page } from "puppeteer";
+
+const inches = (value: number): string => `${value}in`;
+
+/** One Puppeteer page, held for the engine. */
+class PuppeteerPage implements DriverPage {
+  readonly failure: Promise<never>;
+  readonly #page: Page;
+  readonly #release: () => void;
+  #closing = false;
+
+  constructor(page: Page, browser: Browser) {
+    this.#page = page;
+
+    const { promise, reject: fail } = Promise.withResolvers<never>();
+    this.failure = promise;
+    // Handled from the start; the engine observes it through every call
+    this.failure.catch(() => undefined);
+
+    const crashed = (error: Error): void =>
+      fail(new Error(`The browser page crashed: ${error.message}`));
+
+    const closed = (): void => {
+      if (!this.#closing) fail(new Error("The browser page was closed during the conversion"));
+    };
+
+    const disconnected = (): void => {
+      if (!this.#closing) fail(new Error("The browser went away during the conversion"));
+    };
+
+    page.on("error", crashed);
+    page.once("close", closed);
+    browser.once("disconnected", disconnected);
+
+    this.#release = () => {
+      page.off("error", crashed);
+      page.off("close", closed);
+      browser.off("disconnected", disconnected);
+    };
+  }
+
+  async navigate(url: string): Promise<void> {
+    // The engine's deadline bounds navigation, not Puppeteer's own timeout
+    await this.#page.goto(url, { waitUntil: "load", timeout: 0 });
+  }
+
+  async evaluate(source: string): Promise<PageValue> {
+    const value = await this.#page.evaluate(source);
+
+    // SAFETY: Puppeteer returns an evaluated value by JSON-like
+    // serialisation, so what arrives is data of PageValue's shape.
+    return value as PageValue;
+  }
+
+  stopLoading(): ReadonlyArray<Promise<void>> {
+    const page = this.#page;
+
+    return [
+      (async () => {
+        const cdp = await page.createCDPSession();
+
+        try {
+          await cdp.send("Page.stopLoading");
+        } finally {
+          await cdp.detach();
+        }
+      })(),
+      ...page.frames().map(async (frame) => {
+        await frame.evaluate(() => window.stop());
+      }),
+    ];
+  }
+
+  async printPdf(spec: PrintSpec): Promise<Uint8Array> {
+    return this.#page.pdf({
+      width: inches(spec.paperWidth),
+      height: inches(spec.paperHeight),
+      margin: {
+        top: inches(spec.margin.top),
+        right: inches(spec.margin.right),
+        bottom: inches(spec.margin.bottom),
+        left: inches(spec.margin.left),
+      },
+      landscape: spec.landscape,
+      scale: spec.scale,
+      printBackground: spec.printBackground,
+      displayHeaderFooter: spec.displayHeaderFooter,
+      headerTemplate: spec.headerTemplate,
+      footerTemplate: spec.footerTemplate,
+      pageRanges: spec.pageRanges,
+      preferCSSPageSize: spec.preferCSSPageSize,
+      tagged: true,
+      outline: true,
+      // The engine waits for fonts and bounds the print itself
+      waitForFonts: false,
+      timeout: 0,
+    });
+  }
+
+  async close(): Promise<void> {
+    this.#closing = true;
+    this.#release();
+    await this.#page.close().catch(() => undefined);
+  }
+}
+
+/** A driver opening pages in whatever browser `browser` gives. */
+function driverFor(browser: () => Promise<Browser>): PageDriver<HTTPRequest> {
+  return {
+    async openPage(
+      environment: PageEnvironment,
+      requests: RequestSink<HTTPRequest>,
+    ): Promise<DriverPage> {
+      let launched: Browser;
+
+      try {
+        launched = await browser();
+      } catch (error) {
+        throw new RenderStepError("launch", error);
+      }
+
+      let page: Page;
+
+      try {
+        page = await launched.newPage();
+      } catch (error) {
+        throw new RenderStepError("page", error);
+      }
+
+      try {
+        await page.setViewport(environment.viewport);
+        await page.emulateMediaType(environment.mediaType);
+
+        // Every request, in every frame, passes admission; a refused one is
+        // aborted.
+        page.on("request", (request) => {
+          const resolution = requests.admit(request, request.url())
+            ? request.continue()
+            : request.abort("blockedbyclient");
+
+          // A request whose page or frame has gone cannot be resolved
+          resolution.catch(() => undefined);
+        });
+        page.on("requestfinished", (request) => requests.settle(request));
+        page.on("requestfailed", (request) => requests.settle(request));
+        await page.setRequestInterception(true);
+      } catch (error) {
+        await page.close().catch(() => undefined);
+        throw new RenderStepError("page", error);
+      }
+
+      return new PuppeteerPage(page, launched);
+    },
+  };
+}
+
+/**
+ * Owns one browser, launched with fixed settings when first needed, shared
+ * by every conversion made through it, until `close`. A launch that fails, or
+ * a browser that goes away, is forgotten, so the next conversion launches
+ * afresh.
+ */
+export class BrowserPool {
+  readonly #settings: LaunchSettings;
+  #launching: Promise<Browser> | undefined;
+  #closed = false;
+  #closing: Promise<void> | undefined;
+
+  /** @param settings - Copied: later changes to the object do not apply */
+  constructor(settings: LaunchSettings = {}) {
+    this.#settings = structuredClone(settings);
+  }
+
+  #browser(): Promise<Browser> {
+    if (this.#closed) return Promise.reject(new Error("This browser pool has been closed"));
+
+    if (!this.#launching) {
+      // Clears only its own launch, never a newer one
+      const forget = (): void => {
+        if (this.#launching === launching) this.#launching = undefined;
+      };
+
+      const launching: Promise<Browser> = (async () => {
+        const browser = await launch(this.#settings);
+
+        if (this.#closed) {
+          // Closed while launching: nobody will use or close it
+          await browser.close().catch(() => undefined);
+          throw new Error("This browser pool has been closed");
+        }
+
+        browser.once("disconnected", forget);
+
+        return browser;
+      })();
+
+      launching.catch(forget);
+      this.#launching = launching;
+    }
+
+    return this.#launching;
+  }
+
+  /** A driver for @mdforge/render using this pool's browser. */
+  get driver(): PageDriver<HTTPRequest> {
+    return driverFor(() => this.#browser());
+  }
+
+  /** Convert markdown with this pool's browser (see `convert`). */
+  convertMdToPdf(
+    input: MarkdownInput,
+    config: Config,
+    options?: ConvertOptions,
+  ): Promise<ConvertResult> {
+    return convert(this.driver, input, config, options);
+  }
+
+  /** Render a prepared conversion with this pool's browser. */
+  render(prepared: PreparedConversion): Promise<RenderResult> {
+    return render(this.driver, prepared);
+  }
+
+  /** Close the browser; the pool cannot be used afterwards. */
+  close(): Promise<void> {
+    this.#closed = true;
+
+    this.#closing ??= (async () => {
+      const browser = await this.#launching?.catch(() => undefined);
+      this.#launching = undefined;
+      await browser?.close().catch(() => undefined);
+    })();
+
+    return this.#closing;
+  }
+}
+
+/** A driver for a browser the caller launched and closes itself. */
+export function browserDriver(browser: Browser): PageDriver<HTTPRequest> {
+  return driverFor(async () => browser);
+}

@@ -21,22 +21,30 @@ import {
 
 const utf8 = new TextDecoder();
 
+/** A PDF's page count and where its named destinations are. */
+export interface PdfLayout {
+  pageCount: number;
+  /** Destination name (an element id) to 1-based page */
+  destinations: Map<string, number>;
+}
+
 /**
- * Map every named destination in a PDF to its 1-based page number.
+ * Read a PDF's page count, and map every named destination in it to its
+ * 1-based page number.
  *
  * Reads both the catalog's `/Dests` dictionary (what Chromium writes) and the
  * `/Names` `/Dests` name tree. A destination whose page cannot be found is
  * left out. Returns an empty map for a PDF without destinations.
  */
-export async function readDestinations(
-  pdfBytes: Buffer | Uint8Array,
-): Promise<Map<string, number>> {
+export async function readPdfLayout(pdfBytes: Buffer | Uint8Array): Promise<PdfLayout> {
   const doc = await PDFDocument.load(new Uint8Array(pdfBytes));
 
   // Destinations reference page objects, so we need a ref -> index lookup.
   const pageIndexByRef = new Map<string, number>();
 
-  doc.getPages().forEach((page, i) => {
+  const allPages = doc.getPages();
+
+  allPages.forEach((page, i) => {
     pageIndexByRef.set(page.ref.toString(), i + 1);
   });
 
@@ -66,7 +74,7 @@ export async function readDestinations(
     walkNameTree(tree, add, new Set());
   }
 
-  return pages;
+  return { pageCount: allPages.length, destinations: pages };
 }
 
 /** Visit every leaf of a name tree, following `/Kids`. */

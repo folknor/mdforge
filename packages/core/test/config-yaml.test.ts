@@ -298,10 +298,12 @@ toc_options:
     const fromFile = await parse(yaml, "config-file");
     const fromFrontMatter = await parse(yaml, "front-matter");
 
-    assert.deepEqual(fromFile.config.launch_options, {
+    assert.deepEqual(fromFile.launchOptions, {
       args: ["--no-sandbox"],
     });
+    assert.deepEqual(fromFile.config, {}, "launch settings are not document config");
     assert.deepEqual(fromFrontMatter.config, {});
+    assert.equal(fromFrontMatter.launchOptions, undefined);
     assert.deepEqual(paths(fromFrontMatter.issues), ["launch_options"]);
   });
 

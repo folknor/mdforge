@@ -6,12 +6,12 @@ import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
 import { createTargetWatcher } from "@mdforge/core/watch";
 import {
+  BrowserPool,
   type Config,
   type ConvertOptions,
   type ConvertResult,
-  closeBrowser,
-  convertMdToPdf,
   defaultConfig,
+  type LaunchSettings,
   formatConfigIssues,
   formatConversionInfo,
   parseConfigYaml,
@@ -132,16 +132,20 @@ async function main(args: typeof cliFlags): Promise<void> {
     convertOptions.fillable = true;
   }
 
-  // Launch options of the last load, to notice when they change under watch
-  let launchOptions: string | undefined;
+  // The browser every render shares, and the config file launch settings it
+  // was made for, to notice when they change under watch
+  let pool: BrowserPool | undefined;
+  let poolSettings: string | undefined;
 
   /**
-   * Build the run's config: defaults, then the config file.
-   * Called before every render so watch mode picks up config file edits.
+   * Build the run's config: defaults, then the config file, and the browser
+   * pool for its launch settings. Called before every render so watch mode
+   * picks up config file edits.
    */
-  const loadConfig = async (): Promise<Config> => {
+  const loadConfig = async (): Promise<{ config: Config; browser: BrowserPool }> => {
     const configFileArg = args["--config-file"];
     let config: Config = { ...defaultConfig };
+    let launchSettings: LaunchSettings = {};
 
     configDependencies.length = 0;
 
@@ -157,6 +161,8 @@ async function main(args: typeof cliFlags): Promise<void> {
           baseDir: configDir,
           dependencies: configDependencies,
         });
+
+        launchSettings = configFile.launchOptions ?? {};
 
         if (configFile.issues.length > 0) {
           console.warn(formatConfigIssues(configFile.issues, configFilePath));
@@ -177,16 +183,22 @@ async function main(args: typeof cliFlags): Promise<void> {
     }
 
     // The browser is shared across renders; relaunch it when the config file
-    // changed how it should be launched.
-    const launch = JSON.stringify(config.launch_options);
+    // changed how it should be launched. The settings are plain YAML data, so
+    // their JSON identifies them.
+    const settings = JSON.stringify(launchSettings);
 
-    if (launchOptions !== undefined && launch !== launchOptions) {
-      await closeBrowser();
+    if (pool === undefined || settings !== poolSettings) {
+      await pool?.close();
+      pool = new BrowserPool(launchSettings);
+      poolSettings = settings;
     }
 
-    launchOptions = launch;
+    return { config, browser: pool };
+  };
 
-    return config;
+  const closeBrowser = async (): Promise<void> => {
+    await pool?.close();
+    pool = undefined;
   };
 
   /**
@@ -195,7 +207,7 @@ async function main(args: typeof cliFlags): Promise<void> {
    * are still reported and returned. Only something else going wrong throws.
    */
   const render = async (targets: string[]): Promise<RenderOutcome> => {
-    const config = await loadConfig();
+    const { config, browser } = await loadConfig();
 
     // Store results for info display
     const results: Map<string, ConvertResult> = new Map();
@@ -207,7 +219,7 @@ async function main(args: typeof cliFlags): Promise<void> {
         let result: ConvertResult;
 
         try {
-          result = await convertMdToPdf({ path: file }, config, convertOptions);
+          result = await browser.convertMdToPdf({ path: file }, config, convertOptions);
         } catch (thrown) {
           const error = thrown instanceof Error ? thrown : new Error(String(thrown));
           failures.set(file, error);
@@ -296,6 +308,7 @@ async function main(args: typeof cliFlags): Promise<void> {
     initial.results,
     () => (configFile ? [resolve(configFile), ...configDependencies] : []),
     render,
+    closeBrowser,
   );
 }
 
@@ -319,6 +332,7 @@ function watchAndRerender(
   /** The config file and the files it references, as of the last render. */
   configFiles: () => string[],
   render: (targets: string[]) => Promise<RenderOutcome>,
+  closeBrowser: () => Promise<void>,
 ): void {
   const debounceMs = 150;
 

@@ -2,7 +2,6 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type { MarkedExtension } from "marked";
-import type { launch, PDFOptions } from "puppeteer";
 import type { Constants } from "./constants.ts";
 import type { FontPairingConfig } from "./fonts.ts";
 import type { HeadingNumbersConfig } from "./heading-numbers.ts";
@@ -88,7 +87,6 @@ export const defaultConfig: Config = {
       left: "20mm",
     },
   },
-  launch_options: {},
   marked_extensions: [],
   toc_options: {
     skip_first_h1: false,
@@ -98,12 +96,65 @@ export const defaultConfig: Config = {
   },
 };
 
+/** A paper size name. */
+export type PaperFormat =
+  | "letter"
+  | "legal"
+  | "tabloid"
+  | "ledger"
+  | "a0"
+  | "a1"
+  | "a2"
+  | "a3"
+  | "a4"
+  | "a5"
+  | "a6";
+
 /**
- * Puppeteer's PDF options without `path`. mdforge writes the output itself, to
- * the target its caller chose (see ConvertOptions); a `path` here would make
- * Puppeteer write a second, unpostprocessed copy wherever it pointed.
+ * A length: a number is CSS pixels (96 per inch); a string is a number with
+ * an optional unit (`px`, `in`, `cm`, `mm`, `pt`, `pc`; none means `px`).
  */
-export type PdfOptions = Omit<PDFOptions, "path">;
+export type PdfLength = string | number;
+
+export interface PdfMargin {
+  top?: PdfLength;
+  right?: PdfLength;
+  bottom?: PdfLength;
+  left?: PdfLength;
+}
+
+/**
+ * How the PDF is printed. Every field is honoured by both renderers: they are
+ * turned into one print specification by @mdforge/render (print-spec.ts), so
+ * the meaning of each, and its default, is defined there once. There is no
+ * output path (mdforge writes the output to the target its caller chose, see
+ * ConvertOptions), and PDFs are always tagged and carry an outline.
+ */
+export interface PdfOptions {
+  /** Paper size; overrides `width` and `height`. Default: Letter. */
+  format?: PaperFormat;
+  width?: PdfLength;
+  height?: PdfLength;
+  landscape?: boolean;
+  /** Default: no margins. */
+  margin?: PdfMargin;
+  /** 0.1 to 2. Default: 1. */
+  scale?: number;
+  /** Default: false. */
+  printBackground?: boolean;
+  displayHeaderFooter?: boolean;
+  headerTemplate?: string;
+  footerTemplate?: string;
+  /** Pages to print, e.g. `"1-5, 8, 11-"`. Default: all. */
+  pageRanges?: string;
+  /** Let a CSS `@page { size }` decide the paper size. */
+  preferCSSPageSize?: boolean;
+  /**
+   * Milliseconds one print may take (waiting for fonts, then printing);
+   * 0 means no limit. Default: 30000.
+   */
+  timeout?: number;
+}
 
 /**
  * How a document is rendered. Where the result goes and whether it is PDF or
@@ -147,7 +198,7 @@ export interface Config {
   body_class: string[];
 
   /**
-   * Media type to emulate the page with.
+   * Media type the page is loaded and printed with, in both renderers.
    */
   page_media_type: "screen" | "print";
 
@@ -158,19 +209,8 @@ export interface Config {
    */
   code_block_style: string;
 
-  /**
-   * PDF options for Puppeteer.
-   *
-   * @see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagepdfoptions
-   */
+  /** How the PDF is printed. */
   pdf_options: PdfOptions;
-
-  /**
-   * Launch options for Puppeteer.
-   *
-   * @see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions
-   */
-  launch_options: PuppeteerLaunchOptions;
 
   /**
    * Custom extensions to be passed to marked.
@@ -282,4 +322,33 @@ export interface Config {
   iconify_api?: string;
 }
 
-export type PuppeteerLaunchOptions = Parameters<typeof launch>[0];
+/**
+ * How the Puppeteer renderer launches its browser: the launch options a YAML
+ * config file can express. This is not part of Config - it describes a
+ * browser, not a document - and the Electron renderer, which launches
+ * nothing, has no use for it. renderer-puppeteer passes it to Puppeteer's
+ * `launch`, which type-checks it against Puppeteer's own options.
+ */
+export interface LaunchSettings {
+  acceptInsecureCerts?: boolean;
+  args?: string[];
+  browser?: "chrome" | "firefox";
+  channel?: "chrome" | "chrome-beta" | "chrome-canary" | "chrome-dev";
+  debuggingPort?: number;
+  devtools?: boolean;
+  dumpio?: boolean;
+  enableExtensions?: boolean | string[];
+  env?: Record<string, string>;
+  executablePath?: string;
+  handleSIGHUP?: boolean;
+  handleSIGINT?: boolean;
+  handleSIGTERM?: boolean;
+  headless?: boolean | "shell";
+  ignoreDefaultArgs?: boolean | string[];
+  pipe?: boolean;
+  protocolTimeout?: number;
+  slowMo?: number;
+  timeout?: number;
+  userDataDir?: string;
+  waitForInitialPage?: boolean;
+}

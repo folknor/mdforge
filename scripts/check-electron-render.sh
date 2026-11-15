@@ -2,7 +2,8 @@
 # Runs check-electron-render.cjs with debug logging, killing it after 60s so a
 # hang shows up as a timeout instead of blocking forever.
 #
-# Usage: ./scripts/check-electron-render.sh [--display] [out.pdf [in.md]]
+# Usage: ./scripts/check-electron-render.sh [--display] [out.pdf|out.html [in.md]]
+#   out.html   renders HTML output instead of a PDF.
 #   --display  use the real display and GPU, like `pnpm desktop` does,
 #              instead of headless ozone with the GPU disabled.
 #   in.md      the document to render; defaults to an example document.

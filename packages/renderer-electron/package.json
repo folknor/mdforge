@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@mdforge/core": "workspace:*",
-    "@mdforge/pdf": "workspace:*"
+    "@mdforge/render": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

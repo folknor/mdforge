@@ -39,13 +39,6 @@
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
 import type { PdfMetadata } from "@mdforge/pdf";
-import type {
-  ChromeReleaseChannel,
-  LaunchOptions,
-  LowerCasePaperFormat,
-  PDFMargin,
-  SupportedBrowser,
-} from "puppeteer";
 import {
   isAlias,
   isMap,
@@ -58,8 +51,11 @@ import {
 import {
   type Config,
   type HeaderFooterColumn,
+  type LaunchSettings,
   type PageNumberFormat,
   type PageNumbersConfig,
+  type PaperFormat,
+  type PdfMargin,
   type PdfOptions,
   type ScriptEntry,
   type StylesheetEntry,
@@ -101,37 +97,20 @@ export interface ConfigYamlOptions {
 
 export interface ParsedConfig {
   config: Partial<Config>;
+  /**
+   * The config file's `launch_options`, for the Puppeteer renderer's browser
+   * (not document configuration, so not in `config`). Never set from front
+   * matter.
+   */
+  launchOptions?: LaunchSettings;
   issues: ConfigIssue[];
 }
 
-/** The part of Config a YAML document can express (functions cannot be). */
-type YamlConfig = Omit<Config, "marked_extensions">;
-
-/** The serialisable launch options a config file may set. */
-type YamlLaunchOptions = Pick<
-  LaunchOptions,
-  | "acceptInsecureCerts"
-  | "args"
-  | "browser"
-  | "channel"
-  | "debuggingPort"
-  | "devtools"
-  | "dumpio"
-  | "enableExtensions"
-  | "env"
-  | "executablePath"
-  | "handleSIGHUP"
-  | "handleSIGINT"
-  | "handleSIGTERM"
-  | "headless"
-  | "ignoreDefaultArgs"
-  | "pipe"
-  | "protocolTimeout"
-  | "slowMo"
-  | "timeout"
-  | "userDataDir"
-  | "waitForInitialPage"
->;
+/**
+ * What a YAML document can express: Config without functions, plus the
+ * config file's browser launch settings.
+ */
+type YamlConfig = Omit<Config, "marked_extensions"> & { launch_options: LaunchSettings };
 
 // --
 // YAML values
@@ -599,9 +578,9 @@ const script: Decoder<ScriptEntry> = async (ctx, path, value) => {
 const MARGIN_SIDES = ["top", "right", "bottom", "left"] as const;
 
 /** CSS shorthand: 1 to 4 lengths, expanded the way `margin` does. */
-const margin: Decoder<PDFMargin> = async (ctx, path, value) => {
+const margin: Decoder<PdfMargin> = async (ctx, path, value) => {
   if (!isString(value)) {
-    return record<PDFMargin>({
+    return record<PdfMargin>({
       top: length,
       right: length,
       bottom: length,
@@ -635,7 +614,7 @@ const PAPER_FORMATS = [
   "a4",
   "a5",
   "a6",
-] as const satisfies readonly LowerCasePaperFormat[];
+] as const satisfies readonly PaperFormat[];
 
 const pdfOptions = record<PdfOptions>({
   scale: number({ min: 0.1, max: 2 }),
@@ -650,26 +629,22 @@ const pdfOptions = record<PdfOptions>({
   height: length,
   preferCSSPageSize: boolean,
   margin,
-  omitBackground: boolean,
-  tagged: boolean,
-  outline: boolean,
   timeout: number({ min: 0 }),
-  waitForFonts: boolean,
 });
 
 const switchOrList: Decoder<boolean | string[]> = async (ctx, path, value) =>
   isBoolean(value) ? value : list(literal, true)(ctx, path, value);
 
-const BROWSERS = ["chrome", "firefox"] as const satisfies readonly SupportedBrowser[];
+const BROWSERS = ["chrome", "firefox"] as const satisfies readonly LaunchSettings["browser"][];
 
 const CHANNELS = [
   "chrome",
   "chrome-beta",
   "chrome-canary",
   "chrome-dev",
-] as const satisfies readonly ChromeReleaseChannel[];
+] as const satisfies readonly LaunchSettings["channel"][];
 
-const launchOptionFields = record<YamlLaunchOptions>({
+const launchOptionFields = record<LaunchSettings>({
   acceptInsecureCerts: boolean,
   args: list(literal, true),
   browser: oneOf(BROWSERS),
@@ -696,7 +671,7 @@ const launchOptionFields = record<YamlLaunchOptions>({
   waitForInitialPage: boolean,
 });
 
-const launchOptions: Decoder<Partial<YamlLaunchOptions>> = async (ctx, path, value) =>
+const launchOptions: Decoder<LaunchSettings> = async (ctx, path, value) =>
   ctx.source === "config-file"
     ? launchOptionFields(ctx, path, value)
     : report(
@@ -924,9 +899,11 @@ export async function parseConfigYaml(
     return { config: {}, issues: ctx.issues };
   }
 
-  const config = await configFields(ctx, "", tree);
+  const { launch_options: launch, ...config } = (await configFields(ctx, "", tree)) ?? {};
 
-  return { config: config ?? {}, issues: ctx.issues };
+  return launch === undefined
+    ? { config, issues: ctx.issues }
+    : { config, launchOptions: launch, issues: ctx.issues };
 }
 
 /** Render issues as one warning block for CLI output. */

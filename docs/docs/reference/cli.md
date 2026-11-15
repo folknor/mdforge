@@ -85,8 +85,20 @@ const html = await convertMdToPdf(
   { format: "html", output: { kind: "none" } },
 );
 
-// result.content is a Buffer (PDF) or string (HTML)
+// result.content is a Uint8Array (PDF) or string (HTML)
 // result.filename is the file written, if the output was a file
+```
+
+`convertMdToPdf` shares one browser between calls until `closeBrowser()`. To
+launch with particular settings (the config file's `launch_options`), use a
+pool of your own:
+
+```typescript
+import { BrowserPool, defaultConfig } from "@mdforge/renderer-puppeteer";
+
+const pool = new BrowserPool({ executablePath: "/usr/bin/chromium" });
+await pool.convertMdToPdf({ path: "document.md" }, defaultConfig);
+await pool.close();
 ```
 
 The third argument holds the invocation's choices, which front matter cannot
@@ -97,5 +109,5 @@ override:
   Default: a file beside a path input, stdout for content input.
 - `fillable`: overrides the document's `fillable` when set.
 
-`pdf_options` takes Puppeteer's PDF options except `path`; mdforge writes the
-output itself. The API also supports `marked_extensions` for custom [Marked extensions](https://marked.js.org/using_pro#extensions).
+`pdf_options` takes the options listed in the configuration reference (there
+is no `path`; mdforge writes the output itself). The API also supports `marked_extensions` for custom [Marked extensions](https://marked.js.org/using_pro#extensions).

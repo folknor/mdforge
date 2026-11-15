@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@mdforge/core": "workspace:*",
-    "@mdforge/pdf": "workspace:*",
+    "@mdforge/render": "workspace:*",
     "puppeteer": "^25.11.0"
   },
   "devDependencies": {

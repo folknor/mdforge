@@ -1,58 +1,47 @@
-// Puppeteer-based renderer for mdforge
+// Puppeteer-based renderer for mdforge: @mdforge/render driven by Puppeteer.
 
-// Re-export everything from @mdforge/core for convenience
-export {
-  type Config,
-  defaultConfig,
-  type PdfOptions,
-  type StylesheetEntry,
-  type Theme,
-  themes,
-} from "@mdforge/core";
+import type { Config } from "@mdforge/core";
+import type { ConvertOptions, MarkdownInput, PreparedConversion } from "@mdforge/core/prepare";
+import {
+  convert,
+  type ConvertResult,
+  render as renderWith,
+  type RenderResult,
+} from "@mdforge/render";
+import type { Browser } from "puppeteer";
+import { BrowserPool, browserDriver } from "./driver.js";
 
-export { type ConversionInfo, formatConversionInfo } from "@mdforge/core/conversion-info";
+export * from "@mdforge/render";
 
-export {
-  ConfigError,
-  FileNotFoundError,
-  GenerationError,
-  IncludeError,
-  MdforgeError,
-} from "@mdforge/core/errors";
+export { BrowserPool, browserDriver } from "./driver.js";
 
-export {
-  type FontConfig,
-  type FontPairingConfig,
-  type FontPairingPreset,
-  fontPairings,
-  isFontPairingPreset,
-} from "@mdforge/core/fonts";
+/** The pool `convertMdToPdf` and `render` use unless given a browser. */
+let defaultPool = new BrowserPool();
 
-export type { TemplatesConfig } from "@mdforge/core/includes";
+/**
+ * Convert markdown to PDF or HTML.
+ *
+ * @param input - Markdown file path or content
+ * @param config - Configuration
+ * @param options - Output format and target, fillable override, and a
+ *   browser to use (and leave open) instead of the shared default one
+ */
+export function convertMdToPdf(
+  input: MarkdownInput,
+  config: Config,
+  { browser, ...options }: ConvertOptions & { browser?: Browser } = {},
+): Promise<ConvertResult> {
+  return convert(browser ? browserDriver(browser) : defaultPool.driver, input, config, options);
+}
 
-// Export prepare types
-export {
-  type ConvertOptions,
-  type MarkdownInput,
-  type OutputFormat,
-  type OutputTarget,
-  type PreparedConversion,
-  prepareConversion,
-} from "@mdforge/core/prepare";
+/** Render a prepared conversion, in `browser` or the shared default one. */
+export function render(prepared: PreparedConversion, browser?: Browser): Promise<RenderResult> {
+  return renderWith(browser ? browserDriver(browser) : defaultPool.driver, prepared);
+}
 
-export {
-  type ConfigIssue,
-  type ConfigSource,
-  type ConfigYamlOptions,
-  formatConfigIssues,
-  type ParsedConfig,
-  parseConfigYaml,
-} from "@mdforge/core/config-yaml";
-
-export type { PdfMetadata } from "@mdforge/pdf";
-
-// Export backward-compatible convertMdToPdf
-export { type ConvertResult, convertMdToPdf } from "./convert.js";
-
-// Export the page loader
-export { closeBrowser, open, type RenderResult } from "./render.js";
+/** Close the shared default browser; the next conversion launches a new one. */
+export async function closeBrowser(): Promise<void> {
+  const pool = defaultPool;
+  defaultPool = new BrowserPool();
+  await pool.close();
+}

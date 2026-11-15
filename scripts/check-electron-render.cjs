@@ -1,4 +1,5 @@
-// Renders an example document (or the one named by --in=) to PDF through @mdforge/renderer-electron, to
+// Renders an example document (or the one named by --in=) to PDF (or to HTML,
+// when --out= ends in .html) through @mdforge/renderer-electron, to
 // verify the Electron rendering path across Electron upgrades. The desktop app
 // is otherwise hard to exercise non-interactively.
 //
@@ -55,7 +56,10 @@ app.on("ready", async () => {
 
     const { defaultConfig } = await import(join(repoRoot, "packages/core/dist/index.js"));
 
+    const format = output.endsWith(".html") ? "html" : "pdf";
+
     const result = await convertMdToPdf({ path: input }, defaultConfig, {
+      format,
       output: { kind: "file", path: output },
     });
 
@@ -63,6 +67,7 @@ app.on("ready", async () => {
     await fs.writeFile(output, content);
 
     const header = content.subarray(0, 5).toString("latin1");
+    const expected = format === "html" ? "<!DOC" : "%PDF-";
 
     const pages = (content.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length;
 
@@ -74,7 +79,7 @@ app.on("ready", async () => {
       out(`warning: ${warning}`);
     }
 
-    app.exit(header === "%PDF-" ? 0 : 1);
+    app.exit(header === expected ? 0 : 1);
   } catch (err) {
     out(`render failed: ${err && err.stack ? err.stack : err}`);
     app.exit(1);

@@ -88,8 +88,8 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "google-font-metadata": "^6.0.8",
-    "puppeteer": "^25.17.0",
     "typescript": "7.0.2"
   }
 }

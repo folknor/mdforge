@@ -3,7 +3,8 @@
  *
  * This package handles markdown processing, configuration, themes, and fonts.
  * It does NOT include browser rendering - use @mdforge/renderer-puppeteer or
- * @mdforge/renderer-electron for PDF generation.
+ * @mdforge/renderer-electron (both built on @mdforge/render) for PDF
+ * generation.
  */
 
 // PDF types (re-exported from @mdforge/pdf)
@@ -13,6 +14,10 @@ export type { PdfMetadata } from "@mdforge/pdf";
 export {
   type Config,
   defaultConfig,
+  type LaunchSettings,
+  type PaperFormat,
+  type PdfLength,
+  type PdfMargin,
   type PdfOptions,
   type ScriptEntry,
   type StylesheetEntry,

@@ -2,18 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defaultConfig } from "../src/lib/config.ts";
 import {
-  type DestinationReader,
-  type LoadedPage,
-  renderResolvingPageRefs,
+  type LayoutReader,
+  type PrintablePage,
+  printResolvingPageRefs,
 } from "../src/lib/page-refs.ts";
-import { type PreparedConversion, prepareConversion } from "../src/lib/prepare.ts";
+import { prepareConversion } from "../src/lib/prepare.ts";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-async function prepare(content: string, format: "pdf" | "html" = "pdf") {
+async function prepare(content: string) {
   return prepareConversion({ content }, structuredClone(defaultConfig), {
-    format,
+    format: "pdf",
     output: { kind: "none" },
   });
 }
@@ -22,42 +22,31 @@ async function prepare(content: string, format: "pdf" | "html" = "pdf") {
 const SPAN = /(data-mdforge-pageref="([^"]*)"><a [^>]*><\/a>)([^<]*)</g;
 
 /**
- * A renderer whose page is the prepared HTML and whose "PDF" is that page's
- * current HTML, recording every load and print.
+ * A page that is the prepared HTML and whose "PDF" is that page's current
+ * HTML, recording every print.
  */
-function fakeRenderer() {
+function fakePage(source: string) {
   const rendered: string[] = [];
-  let opened = 0;
-  let closed = 0;
+  let html = source;
 
-  const open = async (prepared: PreparedConversion) => {
-    opened++;
-    let html = prepared.html;
+  const page: PrintablePage = {
+    print: async () => {
+      rendered.push(html);
 
-    const page: LoadedPage<{ content: Uint8Array; extra: number }> = {
-      print: async () => {
-        rendered.push(html);
+      return encoder.encode(html);
+    },
+    readPageRefs: async () =>
+      [...html.matchAll(SPAN)].map((m) => ({ slug: m[2] ?? "", text: m[3] ?? "" })),
+    writePageRefs: async (texts) => {
+      html = html.replace(SPAN, (match, opening: string, slug: string) => {
+        const text = texts.get(slug);
 
-        return { content: encoder.encode(html), extra: rendered.length };
-      },
-      readPageRefs: async () =>
-        [...html.matchAll(SPAN)].map((m) => ({ slug: m[2] ?? "", text: m[3] ?? "" })),
-      writePageRefs: async (texts) => {
-        html = html.replace(SPAN, (match, opening: string, slug: string) => {
-          const text = texts.get(slug);
-
-          return text === undefined ? match : `${opening}${text}<`;
-        });
-      },
-      close: async () => {
-        closed++;
-      },
-    };
-
-    return page;
+        return text === undefined ? match : `${opening}${text}<`;
+      });
+    },
   };
 
-  return { open, rendered, opened: () => opened, closed: () => closed };
+  return { page, rendered };
 }
 
 /** Page each rendered number shows for the heading, by render. */
@@ -72,115 +61,97 @@ function shownPage(html: string): string | undefined {
 function scriptedDestinations(pages: (number | undefined)[]) {
   let call = 0;
 
-  const read: DestinationReader = async () => {
+  const read: LayoutReader = async () => {
     const page = pages[Math.min(call, pages.length - 1)];
     call++;
 
-    return new Map(page === undefined ? [] : [["alpha", page]]);
+    return { pageCount: 5, destinations: new Map(page === undefined ? [] : [["alpha", page]]) };
   };
 
   return { read, calls: () => call };
 }
 
-describe("renderResolvingPageRefs", () => {
-  it("renders once with no destinations read when there are no page references", async () => {
+describe("printResolvingPageRefs", () => {
+  it("prints once with no layout read when there are no page references", async () => {
     const prepared = await prepare("# Alpha\n\nNo references.\n");
-    const { open, rendered } = fakeRenderer();
+    const { page, rendered } = fakePage(prepared.html);
     const dests = scriptedDestinations([1]);
 
-    await renderResolvingPageRefs(prepared, open, dests.read);
+    const result = await printResolvingPageRefs(prepared, page, dests.read);
 
     assert.equal(rendered.length, 1);
     assert.equal(dests.calls(), 0);
+    assert.equal(result.layout, undefined);
   });
 
-  it("renders HTML once with no destinations read", async () => {
-    const prepared = await prepare("# Alpha\n\nSee @pageof(Alpha).\n", "html");
-    const { open, rendered } = fakeRenderer();
-    const dests = scriptedDestinations([1]);
-
-    await renderResolvingPageRefs(prepared, open, dests.read);
-
-    assert.equal(rendered.length, 1);
-    assert.equal(dests.calls(), 0);
-  });
-
-  it("re-renders with the number and checks that render too", async () => {
+  it("re-prints with the number and checks that print too", async () => {
     const prepared = await prepare("# Alpha\n\nSee @pageof(Alpha).\n");
     const original = prepared.html;
-    const fake = fakeRenderer();
-    const { rendered } = fake;
+    const { page, rendered } = fakePage(prepared.html);
     const dests = scriptedDestinations([3]);
 
-    const result = await renderResolvingPageRefs(prepared, fake.open, dests.read);
+    const result = await printResolvingPageRefs(prepared, page, dests.read);
 
-    assert.equal(fake.opened(), 1, "every pass prints the one loaded page");
-    assert.equal(fake.closed(), 1);
     assert.equal(rendered.length, 2);
     assert.equal(dests.calls(), 2);
-    assert.equal(shownPage(decoder.decode(result.content)), "3");
-    assert.equal(result.extra, 2, "returns the complete last render result");
+    assert.equal(shownPage(decoder.decode(result.pdf)), "3");
+    assert.equal(result.layout?.destinations.get("alpha"), 3, "returns the last print's layout");
     assert.equal(prepared.html, original, "the caller's html is not reassigned");
     assert.deepEqual(prepared.info.warnings, []);
   });
 
-  it("returns the last render with a warning when numbers never settle", async () => {
+  it("returns the last print with a warning when numbers never settle", async () => {
     const prepared = await prepare("# Alpha\n\nSee @pageof(Alpha).\n");
-    const { open, rendered } = fakeRenderer();
+    const { page, rendered } = fakePage(prepared.html);
     const dests = scriptedDestinations([1, 2, 3]);
 
-    const result = await renderResolvingPageRefs(prepared, open, dests.read);
+    const result = await printResolvingPageRefs(prepared, page, dests.read);
 
     assert.equal(rendered.length, 3);
     assert.equal(dests.calls(), 3);
-    assert.equal(shownPage(decoder.decode(result.content)), "2");
+    assert.equal(shownPage(decoder.decode(result.pdf)), "2");
     assert.equal(prepared.info.warnings.length, 1);
     assert.match(prepared.info.warnings[0] ?? "", /did not settle/);
   });
 
   it("warns about references the final destinations cannot answer", async () => {
     const prepared = await prepare("# Alpha\n\nSee @pageof(Alpha).\n");
-    const { open, rendered } = fakeRenderer();
+    const { page, rendered } = fakePage(prepared.html);
     const dests = scriptedDestinations([undefined]);
 
-    const result = await renderResolvingPageRefs(prepared, open, dests.read);
+    const result = await printResolvingPageRefs(prepared, page, dests.read);
 
     assert.equal(rendered.length, 1);
-    assert.equal(shownPage(decoder.decode(result.content)), "??");
+    assert.equal(shownPage(decoder.decode(result.pdf)), "??");
     assert.deepEqual(prepared.info.warnings, ["Could not resolve page references for: alpha."]);
   });
 
   it("drops a number whose heading lost its destination, and warns only about the final pass", async () => {
     const prepared = await prepare("# Alpha\n\nSee @pageof(Alpha).\n");
-    const { open, rendered } = fakeRenderer();
+    const { page, rendered } = fakePage(prepared.html);
     const dests = scriptedDestinations([4, undefined]);
 
-    const result = await renderResolvingPageRefs(prepared, open, dests.read);
+    const result = await printResolvingPageRefs(prepared, page, dests.read);
 
     assert.equal(rendered.length, 3);
-    assert.equal(shownPage(decoder.decode(result.content)), "??");
+    assert.equal(shownPage(decoder.decode(result.pdf)), "??");
     assert.deepEqual(prepared.info.warnings, ["Could not resolve page references for: alpha."]);
   });
 
-  it("closes the page when printing fails", async () => {
+  it("passes a print failure through", async () => {
     const prepared = await prepare("# Alpha\n\nSee @pageof(Alpha).\n");
-    const fake = fakeRenderer();
+    const { page } = fakePage(prepared.html);
 
-    const failing = async (conversion: PreparedConversion) => {
-      const page = await fake.open(conversion);
-
-      return {
-        ...page,
-        print: async () => {
-          throw new Error("print failed");
-        },
-      };
+    const failing: PrintablePage = {
+      ...page,
+      print: async () => {
+        throw new Error("print failed");
+      },
     };
 
     await assert.rejects(
-      renderResolvingPageRefs(prepared, failing, scriptedDestinations([1]).read),
+      printResolvingPageRefs(prepared, failing, scriptedDestinations([1]).read),
       /print failed/,
     );
-    assert.equal(fake.closed(), 1);
   });
 });

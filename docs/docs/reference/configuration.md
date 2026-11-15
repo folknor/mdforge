@@ -80,7 +80,14 @@ waited on, and an error thrown by the code itself does not stop the
 conversion. A script's remote loads count against the remote content deadline
 below. Scripts run once per conversion, before the first print. HTML output is
 the page as printed, so it still contains the added `<script>` elements and
-whatever they changed.
+whatever they changed. A script whose text would not read back the same when
+the HTML file is opened (most often because it contains `</script`, which ends
+a script in HTML) fails an HTML conversion rather than producing a file that
+does not reopen as rendered; write such text differently, for example
+`"<\/script>"` in a string. Scripts, and anything else in the document, should
+not change form fields, page references or layout in reaction to printing
+(`beforeprint`/`afterprint`): mdforge reads them from the page as printed and
+prints the page more than once.
 
 ### Remote content
 
@@ -169,7 +176,8 @@ heading_numbers: false
 | `document_title` | `string` | auto | PDF title |
 | `code_block_style` | `string` | `"github"` | highlight.js theme |
 | `print_urls` | `boolean` | `false` | Append URLs after links |
-| `pdf_options` | `object` | see above | Puppeteer PDF options |
+| `page_media_type` | `string` | `"screen"` | CSS media the page is loaded and printed with: `screen` or `print` |
+| `pdf_options` | `object` | see above | How the PDF is printed (see below) |
 | `toc_options` | `object` | see above | Table of contents options |
 | `header` | `string \| object` | - | Header config |
 | `footer` | `string \| object` | - | Footer config |
@@ -186,11 +194,15 @@ heading_numbers: false
 
 ## PDF Options
 
-Pass-through to [Puppeteer's page.pdf()](https://pptr.dev/api/puppeteer.pdfoptions):
+Both renderers (CLI and desktop) print with the same options, with the
+meanings of [Puppeteer's page.pdf()](https://pptr.dev/api/puppeteer.pdfoptions)
+for the ones listed here:
 
 ```yaml
 pdf_options:
-  format: A4              # or: Letter, Legal, Tabloid, A3, A5
+  format: A4              # or: Letter, Legal, Tabloid, Ledger, A0-A6
+  # width: 210mm          # used only without format
+  # height: 297mm
   landscape: false
   printBackground: true
   scale: 1                # 0.1 to 2
@@ -199,8 +211,28 @@ pdf_options:
     right: 20mm
     bottom: 20mm
     left: 20mm
-  pageRanges: "1-5"       # print specific pages
+  pageRanges: "1-5"       # print specific pages, e.g. "1-5, 8, 11-"
+  preferCSSPageSize: false
+  displayHeaderFooter: false
+  headerTemplate: ""
+  footerTemplate: ""
+  timeout: 30000          # ms one print may take; 0 = no limit
 ```
+
+Lengths are a number of CSS pixels or a string with a unit (`px`, `in`, `cm`,
+`mm`, `pt`, `pc`). A `format` overrides `width` and `height`. Without these
+settings a PDF is Letter-sized with no margins and no backgrounds (the defaults
+above are mdforge's own). PDFs are always tagged and carry an outline
+(bookmarks).
+
+Page references (`@pageof`, TOC page numbers) count pages of the whole
+document, also when `pageRanges` selects some of them: the numbers are worked
+out on the whole document, then the selection is printed and checked against
+it, with a warning if it moved.
+
+`timeout` bounds each print, waiting for fonts included; mdforge may print a
+document more than once to resolve page references. It does not cover loading
+remote content, which has its own limit (see Remote content).
 
 ### Margin Shortcuts
 
@@ -217,7 +249,9 @@ pdf_options:
 ## Browser Launch Options
 
 `launch_options` is read from the config file only (one browser serves every
-document in a run, so front matter cannot change it). The supported keys are
+document in a run, so front matter cannot change it), and only by the CLI: it
+says how the CLI launches its browser, while the desktop app renders with its
+own built-in Chromium and launches nothing. The supported keys are
 Puppeteer launch options that YAML can express: `executablePath`, `browser`,
 `channel`, `headless`, `args`, `ignoreDefaultArgs`, `enableExtensions`,
 `userDataDir`, `env`, `timeout`, `protocolTimeout`, `slowMo`, `dumpio`, `pipe`,

@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2024", "DOM"],
+    "types": ["node"],
     "outDir": "dist",
     "rootDir": "src",
     // Tests run the sources directly under Node's type stripping (no build

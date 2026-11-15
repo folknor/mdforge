@@ -1,7 +1,7 @@
 /**
  * AcroForm field generation for fillable PDFs.
  *
- * This module post-processes Puppeteer-generated PDFs to add real
+ * This module post-processes the PDFs Chromium prints (in either renderer) to add real
  * AcroForm fields, making them fillable in PDF readers.
  *
  * The approach uses marker-based positioning:
