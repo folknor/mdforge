@@ -1,6 +1,13 @@
 appId: com.mdforge.desktop
 productName: mdforge
-# Let electron-builder use the installed Electron version so packaging matches dev.
+# electronVersion is left unset: electron-builder uses the installed Electron,
+# so packaging matches dev.
+
+# Without this fuse's extra file:// privileges, render pages (file://) follow
+# Chrome's rules and their scripts cannot read other local files. The app page
+# is served on its own scheme because of it (src/main/app-protocol.ts).
+electronFuses:
+  grantFileProtocolExtraPrivileges: false
 
 directories:
   output: release

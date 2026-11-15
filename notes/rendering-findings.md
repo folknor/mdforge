@@ -55,24 +55,20 @@ product decision: raw HTML in documents can reference optional images.
 
 Stylesheets inside iframes and shadow roots are not watched either.
 
-## Electron page scripts can read any local file directly
+## Electron hosts with file privileges enabled allow direct local-file reads
 
-The Electron render window loads its page from `file://`, and Electron's
-`grantFileProtocolExtraPrivileges` fuse (on by default, settable only at
-package time) gives `file://` pages universal access to other `file://`
-resources. Verified on Electron 45.3.2 with a canary outside the document
-directory: a page script read it by `fetch`, synchronous XHR and an iframe's
-`contentDocument`; in the CLI's Chrome all three fail (the iframe still
-displays the file). So a compromised remote script a trusted document loads
-can, in the desktop app only, read further local files of its choosing and
-send them out while loading. It still reads whatever the document itself
-includes, in both renderers; this concerns only the additional direct reads.
+Packaged desktop builds turn Electron's `grantFileProtocolExtraPrivileges`
+fuse off (electron-builder.yml), so their `file://` render page matches the
+CLI's Chrome: page scripts cannot read other local files by `fetch`, XHR or
+an iframe's `contentDocument`. Any Electron binary with the fuse on (its
+default) still grants those reads: `pnpm desktop`, the
+scripts/check-electron-render checks, and every other app hosting
+`@mdforge/renderer-electron`. The driver needs a ready app and cannot change
+its host's fuses.
 
-Cancelling `file:` requests of webRequest type `xhr` alone does not close it
-(the iframe read remains), so nothing was landed. Candidate fixes, each
-unverified against the full access matrix: flip the fuse in packaged builds
-(affects the desktop main window, which is loaded from `file://`, and leaves
-dev runs unfused), or serve the render page and its local resources from a
-custom protocol with a defined origin mapping and CORS policy. Choosing one is
-a design decision. docs/docs/reference/configuration.md "Trust" states the
-current behaviour.
+Open options: run development and the check scripts on a private fuse-off
+copy of the Electron binary, or make a fuse-off host a requirement the
+library checks and refuses otherwise. Not verified: the fuse flip and asar
+serving in an actually packaged artifact (electron-builder was not run; the
+flip was tested on a copied binary with @electron/fuses, the library
+electron-builder uses).

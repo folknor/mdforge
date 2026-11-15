@@ -1,4 +1,44 @@
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { IpcMainInvokeEvent, WebContents } from "electron";
+
+/** The scheme the packaged app page is served on (app-protocol.ts). */
+export const appScheme = "app";
+
+const appHost = "mdforge";
+
+/** The packaged app page's URL. */
+export const appPageUrl = `${appScheme}://${appHost}/index.html`;
+
+/**
+ * The file under `root` an app-scheme URL names, or undefined if it names
+ * none. What this serves is what IPC trusts, since trust follows the app
+ * page's URL. Containment is lexical: the root is Vite's build output, which
+ * holds no symlinks.
+ */
+export function appFile(root: string, url: string): string | undefined {
+  if (!URL.canParse(url)) return undefined;
+
+  const parsed = new URL(url);
+
+  if (parsed.protocol !== `${appScheme}:` || parsed.host !== appHost) return undefined;
+
+  let path: string;
+
+  try {
+    path = decodeURIComponent(parsed.pathname);
+  } catch {
+    return undefined;
+  }
+
+  const file = resolve(root, `.${sep}${path}`);
+  const inside = relative(root, file);
+
+  if (inside === "" || inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) {
+    return undefined;
+  }
+
+  return file;
+}
 
 /**
  * Which windows hold the app's own page, and so may use the app's IPC.

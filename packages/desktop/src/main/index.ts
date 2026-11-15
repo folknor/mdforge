@@ -1,10 +1,13 @@
 import { join } from "node:path";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, shell } from "electron";
-import { registerAppPage } from "./app-page";
+import { appPageUrl, registerAppPage } from "./app-page";
+import { registerAppScheme, serveAppScheme } from "./app-protocol";
 import { setupIpcHandlers } from "./ipc";
+
+// Scheme privileges can only be registered before the app is ready.
+registerAppScheme();
 
 // The main process is bundled as ESM, where __dirname does not exist. Use
 // import.meta.dirname rather than relying on a bundler-injected shim, which
@@ -58,13 +61,13 @@ function createWindow(): void {
   });
 
   // The renderer's URL. vite-plugin-electron exposes the dev server URL as
-  // VITE_DEV_SERVER_URL; in a packaged build it is unset and we load the file.
-  // It is fixed here, not read back from the window, and loaded as given, so
-  // the navigation guard and the IPC check compare against the URL we chose.
+  // VITE_DEV_SERVER_URL; in a packaged build it is unset and the built page is
+  // served on the app scheme (app-protocol.ts). It is fixed here, not read
+  // back from the window, and loaded as given, so the navigation guard and the
+  // IPC check compare against the URL we chose.
   const devUrl = process.env["VITE_DEV_SERVER_URL"];
 
-  const appUrl =
-    is.dev && devUrl ? devUrl : pathToFileURL(join(currentDir, "../renderer/index.html")).href;
+  const appUrl = is.dev && devUrl ? devUrl : appPageUrl;
 
   // The top frame never leaves the app's page, by navigation or redirect; a
   // reload of it (Vite's full reload in dev calls location.reload()) passes.
@@ -82,6 +85,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
+  serveAppScheme(join(currentDir, "../renderer"));
   setupIpcHandlers();
   createWindow();
 

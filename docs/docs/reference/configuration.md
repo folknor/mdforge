@@ -138,8 +138,12 @@ contact.
 Rendering, including desktop preview and batch conversion, is not a sandbox.
 A document's includes and configuration (`@include`, `@file`, stylesheet and
 script paths) can put any file the mdforge process can read into the page,
-and raw HTML can reference any local path. In the desktop app, page scripts
-can additionally read local files directly; the CLI's browser blocks those
+and raw HTML can reference any local path. Page scripts cannot additionally
+read arbitrary local files themselves through `fetch`, XHR or an iframe's
+document in the CLI's browser or in the packaged desktop app. Electron runs
+that keep Electron's `grantFileProtocolExtraPrivileges` fuse on, as a
+development run of the desktop app or another Electron app using
+`@mdforge/renderer-electron` does by default, let page scripts make those
 direct reads. The page can also contact the network. None of this gives
 document scripts Node.js APIs or command execution. Render only documents,
 and remote scripts and content they load, that you trust.

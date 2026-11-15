@@ -1,8 +1,22 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AppPage, sameDocument } from "../src/main/app-page.ts";
+import { AppPage, appFile, appPageUrl, sameDocument } from "../src/main/app-page.ts";
 
 const appUrl = "file:///opt/My%20App/resources/renderer/index.html";
+
+test("the app scheme serves only files under its root", () => {
+  const root = "/opt/app/renderer";
+
+  assert.equal(appFile(root, appPageUrl), "/opt/app/renderer/index.html");
+  assert.equal(appFile(root, "app://mdforge/assets/a%20b.js"), "/opt/app/renderer/assets/a b.js");
+  // The URL parser resolves dot segments before the root is applied
+  assert.equal(appFile(root, "app://mdforge/%2e%2e/secret"), "/opt/app/renderer/secret");
+  assert.equal(appFile(root, "app://mdforge/assets/..%2f..%2fsecret"), undefined);
+  assert.equal(appFile(root, "app://mdforge/%E0%A4%A"), undefined);
+  assert.equal(appFile(root, "app://mdforge/"), undefined);
+  assert.equal(appFile(root, "app://other/index.html"), undefined);
+  assert.equal(appFile(root, "file:///opt/app/renderer/index.html"), undefined);
+});
 
 test("sameDocument ignores the hash and nothing else", () => {
   assert.equal(sameDocument(`${appUrl}#x`, appUrl), true);

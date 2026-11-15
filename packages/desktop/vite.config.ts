@@ -72,8 +72,8 @@ const contentSecurityPolicy: Plugin = {
 export default defineConfig({
   root: resolve(dir, "src/renderer"),
   // base is left unset: vite-plugin-electron already applies base: "./" to the
-  // production build, which a packaged renderer needs because it is loaded
-  // with loadFile().
+  // production build, so the page's assets resolve relative to wherever it is
+  // served from (the app scheme, src/main/app-protocol.ts).
   build: {
     outDir: resolve(dir, "out/renderer"),
     emptyOutDir: true,

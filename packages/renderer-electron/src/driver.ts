@@ -27,12 +27,18 @@ const sinks = new Map<number, RequestSink<number>>();
  * one dispatcher serves every render window; it is installed once.
  *
  * It enforces the remote-content deadline only; local files are not limited
- * (documents are trusted, configuration reference "Trust"). Unlike Chrome,
- * Electron's file:// pages carry the grantFileProtocolExtraPrivileges fuse's
- * universal file access, so page scripts here can read local files by fetch,
- * XHR or a file iframe's DOM. Refusing file: requests of type "xhr" would not
- * restore Chrome's rules (the iframe read remains), so it is not done; real
- * parity needs the fuse flipped or a custom-protocol page origin.
+ * (documents are trusted, configuration reference "Trust"). Whether page
+ * scripts can read other local files by fetch, XHR or a file iframe's DOM is
+ * the host binary's grantFileProtocolExtraPrivileges fuse: off (as in the
+ * packaged desktop app), the file:// render page follows Chrome's rules,
+ * tested to match on those reads and on cross-directory image, stylesheet and
+ * iframe display; on (Electron's default, dev runs), it has universal file
+ * access. Refusing file: requests of type "xhr" would not restore Chrome's
+ * rules (the iframe read remains), so it is not done. Serving the render page
+ * from a custom scheme instead is not done either: file:// subresources do not
+ * load from a non-file origin, so every local URL would need remapping, which
+ * changes document.baseURI and the links written into PDFs and HTML output,
+ * and files served on one origin could read each other.
  */
 let dispatching = false;
 
