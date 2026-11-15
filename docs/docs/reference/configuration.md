@@ -97,6 +97,11 @@ not change form fields, page references or layout in reaction to printing
 (`beforeprint`/`afterprint`): mdforge reads them from the page as printed and
 prints the page more than once.
 
+The page is loaded from a temporary file in a private directory of its own,
+not from the document's directory; a `<base>` element points relative URLs at
+the document's directory. Scripts that build URLs should resolve them against
+`document.baseURI`, not `location`, which names the temporary file.
+
 ### Remote content
 
 Anything the page itself fetches from `http://` or `https://` (a stylesheet
@@ -284,6 +289,12 @@ launch_options:
   executablePath: /usr/bin/chromium
   args: ["--no-sandbox"]
 ```
+
+The browser loads each page from a temporary file mdforge writes under its
+own temporary directory (`TMPDIR`, else the system default), so it must see
+that directory at the same path. A browser confined to a private `/tmp`, such
+as a Snap-packaged Chromium, cannot; set mdforge's `TMPDIR` (not
+`launch_options.env`) to a directory both can read.
 
 ## Icon Server
 

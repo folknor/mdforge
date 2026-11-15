@@ -194,7 +194,7 @@ async function loadPage(
   load: RemoteLoad<unknown>,
 ): Promise<void> {
   const marker = pageEndMarker();
-  const scratch = await writeScratchPage(prepared.baseUrl, buildPageHtml(prepared, marker));
+  const scratch = await writeScratchPage(buildPageHtml(prepared, marker));
   log("loading", scratch.url);
 
   try {

@@ -211,30 +211,48 @@ describe("stylesheetLoadWarnings", () => {
 });
 
 describe("writeScratchPage", () => {
-  it("writes beside the document and removes the file on dispose", async () => {
-    const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-test-"));
+  it("writes into a private directory of its own and removes it on dispose", async () => {
+    const page = await writeScratchPage("<p>x</p>");
+    const path = fileURLToPath(page.url);
+    const dir = join(path, "..");
 
     try {
-      const page = await writeScratchPage(pathToFileURL(`${dir}/`).href, "<p>x</p>");
-      const path = fileURLToPath(page.url);
-
-      assert.equal(join(path, ".."), dir);
+      assert.ok(dir.startsWith(tmpdir()));
       assert.equal(await fs.readFile(path, "utf-8"), "<p>x</p>");
-
-      await page.dispose();
-      await assert.rejects(fs.stat(path));
+      assert.deepEqual(await fs.readdir(dir), ["page.html"]);
+      assert.equal((await fs.stat(dir)).mode & 0o777, 0o700);
     } finally {
-      await fs.rm(dir, { recursive: true, force: true });
+      await page.dispose();
     }
+
+    await assert.rejects(fs.stat(dir));
   });
 
-  it("falls back to a temporary directory when the document's is not writable", async () => {
-    const page = await writeScratchPage(pathToFileURL("/nonexistent-mdforge-dir/").href, "x");
+  it("never writes into the document's directory", async () => {
+    const docDir = await fs.mkdtemp(join(tmpdir(), "mdforge-test-"));
 
     try {
-      assert.ok(fileURLToPath(page.url).startsWith(tmpdir()));
+      const prepared = await prepareConversion(
+        { content: "# x\n", baseDir: docDir },
+        structuredClone(defaultConfig),
+        { output: { kind: "none" } },
+      );
+
+      const page = await writeScratchPage(buildPageHtml(prepared, "end"));
+
+      try {
+        assert.deepEqual(await fs.readdir(docDir), []);
+        assert.ok(!fileURLToPath(page.url).startsWith(`${docDir}/`));
+        assert.ok(
+          (await fs.readFile(fileURLToPath(page.url), "utf-8")).includes(
+            `<base href="${pathToFileURL(`${docDir}/`).href}">`,
+          ),
+        );
+      } finally {
+        await page.dispose();
+      }
     } finally {
-      await page.dispose();
+      await fs.rm(docDir, { recursive: true, force: true });
     }
   });
 });

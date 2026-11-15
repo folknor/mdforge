@@ -1,8 +1,8 @@
 /**
  * How a renderer loads the page it prints, shared by every renderer.
  *
- * The page is a file:// scratch copy of the prepared HTML, so it may load the
- * document's local files and has no size cap (a data: URL is capped at 2 MB by
+ * The page is a file:// scratch copy of the prepared HTML in a private
+ * temporary directory, so it may load the document's local files and has no size cap (a data: URL is capped at 2 MB by
  * Chromium, which embedded fonts alone can exceed).
  *
  * Remote content the browser fetches itself - URL stylesheets, remote images,
@@ -29,7 +29,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import {
   baseElement,
   type PageScript,
@@ -53,6 +53,11 @@ function isRemote(url: string): boolean {
  * order (CSS text as `<style>`, files and URLs as `<link>`, so a file's
  * relative references resolve against its own directory), and `marker` as a
  * comment closing the body. `marker` also names the watch.
+ *
+ * Expects `prepared.html` to be the wrapper `getHtml()` builds, whose literal
+ * `<head>` is where all of this goes. The `<base>` is what makes the page's
+ * relative URLs resolve against the document; the scratch file's own location
+ * ({@link writeScratchPage}) does not.
  */
 export function buildPageHtml(prepared: PreparedConversion, marker: string): string {
   const styles = prepared.stylesheets.map((stylesheet) => {
@@ -97,36 +102,31 @@ export interface ScratchPage {
 }
 
 /**
- * Write the page's HTML to a scratch file under a fresh unique name. The
- * document's own directory is tried first; if it is not writable, a fresh
- * temporary directory. Either way the page has a file:// origin, and its
- * `<base>` still points at the document.
+ * Write the page's HTML to a scratch file in a fresh private (0700) temporary
+ * directory, which `dispose` removes. The file exists only so the page has a
+ * file:// origin: its location means nothing, because the page's `<base>`
+ * resolves every relative URL against the document's directory. It is never
+ * written beside the document, so a render leaves nothing in the user's
+ * directories (nothing for watchers, sync tools or `git status` to see, and
+ * nothing left there if the process dies mid-load), and a content input's
+ * `baseDir` is only read from, never written to.
+ *
+ * The browser must see the temporary directory at the same path as this
+ * process; a separately confined browser (Snap Chromium's private /tmp) needs
+ * `TMPDIR` pointed somewhere both share.
  */
-export async function writeScratchPage(baseUrl: string, html: string): Promise<ScratchPage> {
-  const name = `.mdforge-${randomUUID()}.html`;
-  const inDocumentDir = join(fileURLToPath(baseUrl), name);
+export async function writeScratchPage(html: string): Promise<ScratchPage> {
+  const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-"));
+  const remove = () => fs.rm(dir, { force: true, recursive: true });
 
   try {
-    // wx: never overwrite anything, even a file that appeared meanwhile
-    await fs.writeFile(inDocumentDir, html, { encoding: "utf-8", flag: "wx" });
+    const file = join(dir, "page.html");
+    await fs.writeFile(file, html, { encoding: "utf-8", flag: "wx" });
 
-    return {
-      url: pathToFileURL(inDocumentDir).href,
-      dispose: () => fs.rm(inDocumentDir, { force: true }),
-    };
-  } catch {
-    const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-"));
-    const remove = () => fs.rm(dir, { force: true, recursive: true });
-
-    try {
-      const inTempDir = join(dir, name);
-      await fs.writeFile(inTempDir, html, { encoding: "utf-8", flag: "wx" });
-
-      return { url: pathToFileURL(inTempDir).href, dispose: remove };
-    } catch (error) {
-      await remove().catch(() => undefined);
-      throw error;
-    }
+    return { url: pathToFileURL(file).href, dispose: remove };
+  } catch (error) {
+    await remove().catch(() => undefined);
+    throw error;
   }
 }
 
