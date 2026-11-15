@@ -62,6 +62,8 @@ export {
   type RequestSink,
 } from "./driver.ts";
 
+export { type CdpChannel, type CdpParams, FrameEnvironment } from "./frame-environment.ts";
+
 export { convert, type ConvertResult, render, type RenderResult, VIEWPORT } from "./engine.ts";
 
 export { type PrintMargins, type PrintSpec, printSpec } from "./print-spec.ts";

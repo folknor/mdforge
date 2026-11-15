@@ -338,9 +338,7 @@ export async function render<Id>(
 ): Promise<RenderResult> {
   log("rendering", prepared.format, "fillable:", prepared.config.fillable);
 
-  // Applied to the page's own frames. A cross-origin iframe (an out-of-process
-  // frame) prints with print media whatever page_media_type says - in both
-  // renderers alike, as observed on Chrome 156/157.
+  // Applied to every frame, out-of-process iframes included (FrameEnvironment)
   const environment: PageEnvironment = {
     viewport: VIEWPORT,
     mediaType: prepared.config.page_media_type,

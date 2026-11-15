@@ -6,7 +6,10 @@
 import type { LaunchSettings, PreparedConversion } from "@mdforge/core";
 import type { ConvertOptions, MarkdownInput } from "@mdforge/core/prepare";
 import {
+  type CdpChannel,
+  type CdpParams,
   type Config,
+  FrameEnvironment,
   convert,
   type ConvertResult,
   type DriverPage,
@@ -19,7 +22,14 @@ import {
   RenderStepError,
   type RequestSink,
 } from "@mdforge/render";
-import { type Browser, type HTTPRequest, launch, type Page } from "puppeteer";
+import {
+  type Browser,
+  type CDPSession,
+  CDPSessionEvent,
+  type HTTPRequest,
+  launch,
+  type Page,
+} from "puppeteer";
 
 const inches = (value: number): string => `${value}in`;
 
@@ -30,13 +40,35 @@ class PuppeteerPage implements DriverPage {
   readonly #release: () => void;
   #closing = false;
 
-  constructor(page: Page, browser: Browser) {
+  readonly #cdp: CDPSession;
+  readonly #frames: FrameEnvironment;
+
+  constructor(page: Page, browser: Browser, cdp: CDPSession, frames: FrameEnvironment) {
     this.#page = page;
+    this.#cdp = cdp;
+    this.#frames = frames;
 
     const { promise, reject: fail } = Promise.withResolvers<never>();
     this.failure = promise;
     // Handled from the start; the engine observes it through every call
     this.failure.catch(() => undefined);
+
+    // FrameEnvironment rejects only with an Error
+    frames.failure.catch((error: Error) => {
+      if (!this.#closing) fail(error);
+    });
+
+    // The session holds the page environment; Chromium clears it when the
+    // session ends, so losing it would silently print with the wrong media.
+    const connection = cdp.connection();
+
+    const sessionDetached = (session: CDPSession): void => {
+      if (session === cdp && !this.#closing) {
+        fail(new Error("The browser page lost its page settings (debugger session detached)"));
+      }
+    };
+
+    connection?.on(CDPSessionEvent.SessionDetached, sessionDetached);
 
     const crashed = (error: Error): void =>
       fail(new Error(`The browser page crashed: ${error.message}`));
@@ -57,6 +89,7 @@ class PuppeteerPage implements DriverPage {
       page.off("error", crashed);
       page.off("close", closed);
       browser.off("disconnected", disconnected);
+      connection?.off(CDPSessionEvent.SessionDetached, sessionDetached);
     };
   }
 
@@ -77,15 +110,9 @@ class PuppeteerPage implements DriverPage {
     const page = this.#page;
 
     return [
-      (async () => {
-        const cdp = await page.createCDPSession();
-
-        try {
-          await cdp.send("Page.stopLoading");
-        } finally {
-          await cdp.detach();
-        }
-      })(),
+      // Through the page's own session: attaching another one would reset
+      // the page environment (frame-environment.ts in @mdforge/render).
+      this.#cdp.send("Page.stopLoading").then(() => undefined),
       ...page.frames().map(async (frame) => {
         await frame.evaluate(() => window.stop());
       }),
@@ -93,6 +120,8 @@ class PuppeteerPage implements DriverPage {
   }
 
   async printPdf(spec: PrintSpec): Promise<Uint8Array> {
+    await this.#frames.settled();
+
     return this.#page.pdf({
       width: inches(spec.paperWidth),
       height: inches(spec.paperHeight),
@@ -121,6 +150,7 @@ class PuppeteerPage implements DriverPage {
   async close(): Promise<void> {
     this.#closing = true;
     this.#release();
+    await this.#cdp.detach().catch(() => undefined);
     await this.#page.close().catch(() => undefined);
   }
 }
@@ -148,9 +178,28 @@ function driverFor(browser: () => Promise<Browser>): PageDriver<HTTPRequest> {
         throw new RenderStepError("page", error);
       }
 
+      let cdp: CDPSession;
+      let frames: FrameEnvironment;
+
       try {
+        // Puppeteer's own record of the environment agrees with what the
+        // page session below sets, so neither undoes the other.
         await page.setViewport(environment.viewport);
         await page.emulateMediaType(environment.mediaType);
+
+        cdp = await page.createCDPSession();
+        frames = new FrameEnvironment(sessionChannel(cdp), environment);
+
+        // Child sessions announce on the session that auto-attached them
+        const watch = (session: CDPSession): void => {
+          session.on(CDPSessionEvent.SessionAttached, (child) => {
+            watch(child);
+            frames.attached(child.id());
+          });
+        };
+
+        watch(cdp);
+        await frames.apply();
 
         // Every request, in every frame, passes admission; a refused one is
         // aborted.
@@ -170,7 +219,34 @@ function driverFor(browser: () => Promise<Browser>): PageDriver<HTTPRequest> {
         throw new RenderStepError("page", error);
       }
 
-      return new PuppeteerPage(page, launched);
+      return new PuppeteerPage(page, launched, cdp, frames);
+    },
+  };
+}
+
+/** A page's own session, and the child sessions attached through it, as a CdpChannel. */
+function sessionChannel(root: CDPSession): CdpChannel {
+  const connection = root.connection();
+
+  const session = (sessionId: string | undefined): CDPSession | null =>
+    sessionId === undefined ? root : (connection?.session(sessionId) ?? null);
+
+  return {
+    async send(method, params, sessionId) {
+      const target = session(sessionId);
+
+      if (!target) throw new Error("The frame's debugger session has gone");
+
+      // SAFETY: CDPSession.send is typed per protocol method; the methods
+      // FrameEnvironment sends are protocol commands taking these params.
+      const send = target.send.bind(target) as (m: string, p: CdpParams) => Promise<void>;
+
+      await send(method, params);
+    },
+    isAttached(sessionId) {
+      const target = session(sessionId);
+
+      return target !== null && !target.detached;
     },
   };
 }

@@ -40,15 +40,6 @@ output would mean rewriting each page's content stream to wrap the unmarked
 drawing in `/Artifact BMC ... EMC`. Seen by reading the content streams of
 real renders (no PDF/UA checker such as veraPDF was available).
 
-## `page_media_type` does not reach cross-origin iframes
-
-Both renderers apply the media type to the page's own frames only; a
-cross-origin (out-of-process) iframe prints with print media even when
-`page_media_type` is `screen`. Observed identically in both renderers
-(Puppeteer's Chrome 157, Electron's Chrome 156) with a local http iframe.
-Fixing it means applying the emulation to each out-of-process frame target as
-it attaches, in both drivers.
-
 ## Images and other subresources that fail to load are silent
 
 A stylesheet that fails to load is named in a warning (page-load.ts

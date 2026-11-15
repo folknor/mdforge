@@ -12,7 +12,7 @@ import type {
   PrintSpec,
   RequestSink,
 } from "@mdforge/render";
-import { RenderStepError } from "@mdforge/render";
+import { FrameEnvironment, RenderStepError } from "@mdforge/render";
 import { BrowserWindow, session } from "electron";
 
 /** The session every render window uses, kept apart from the app's own. */
@@ -87,6 +87,48 @@ class WindowPage implements DriverPage {
         fail(new Error(`The render window lost its page settings (debugger detached: ${reason})`));
       }
     });
+    this.#fail = fail;
+  }
+
+  readonly #fail: (error: Error) => void;
+  #environment: FrameEnvironment | undefined;
+
+  /** The page environment over this window's debugger session, created once. */
+  frames(environment: PageEnvironment): FrameEnvironment {
+    if (this.#environment) return this.#environment;
+
+    const { debugger: cdp } = this.#win.webContents;
+    const children = new Set<string>();
+
+    const frames = new FrameEnvironment(
+      {
+        send: async (method, params, sessionId) => {
+          await cdp.sendCommand(method, params, sessionId);
+        },
+        isAttached: (sessionId) => children.has(sessionId),
+      },
+      environment,
+    );
+
+    cdp.on("message", (_event, method, params: { sessionId?: string }) => {
+      if (params.sessionId === undefined) return;
+
+      if (method === "Target.attachedToTarget") {
+        children.add(params.sessionId);
+        frames.attached(params.sessionId);
+      } else if (method === "Target.detachedFromTarget") {
+        children.delete(params.sessionId);
+      }
+    });
+
+    // FrameEnvironment rejects only with an Error
+    frames.failure.catch((error: Error) => {
+      if (!this.#closing) this.#fail(error);
+    });
+
+    this.#environment = frames;
+
+    return frames;
   }
 
   async navigate(url: string): Promise<void> {
@@ -110,6 +152,8 @@ class WindowPage implements DriverPage {
   }
 
   async printPdf(spec: PrintSpec): Promise<Uint8Array> {
+    await this.#environment?.settled();
+
     return this.#win.webContents.printToPDF({
       pageSize: { width: spec.paperWidth, height: spec.paperHeight },
       margins: spec.margin,
@@ -176,15 +220,7 @@ export const electronDriver: PageDriver<number> = {
       // later navigation.
       await win.loadURL("about:blank");
       webContents.debugger.attach("1.3");
-      await webContents.debugger.sendCommand("Emulation.setDeviceMetricsOverride", {
-        width: environment.viewport.width,
-        height: environment.viewport.height,
-        deviceScaleFactor: environment.viewport.deviceScaleFactor,
-        mobile: false,
-      });
-      await webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
-        media: environment.mediaType,
-      });
+      await page.frames(environment).apply();
     } catch (error) {
       await page.close();
       throw new RenderStepError("page", error);

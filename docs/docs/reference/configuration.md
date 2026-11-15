@@ -220,7 +220,7 @@ heading_numbers: false
 | `document_title` | `string` | auto | PDF title |
 | `code_block_style` | `string` | `"github"` | highlight.js theme |
 | `print_urls` | `boolean` | `false` | Append URLs after links |
-| `page_media_type` | `string` | `"screen"` | CSS media the page is loaded and printed with: `screen` or `print` |
+| `page_media_type` | `string` | `"screen"` | CSS media the page is loaded and printed with: `screen` or `print`; applies to iframes too, cross-origin ones included |
 | `pdf_options` | `object` | see above | How the PDF is printed (see below) |
 | `toc_options` | `object` | see above | Table of contents options |
 | `header` | `string \| object` | - | Header config |
