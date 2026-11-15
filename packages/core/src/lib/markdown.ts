@@ -8,6 +8,7 @@ import { admonitions } from "./admonitions.ts";
 import type { Config } from "./config.ts";
 import { formFields } from "./form-fields.ts";
 import { outlineExtensions } from "./outline.ts";
+import { escapeHtml } from "./util.ts";
 
 /**
  * A Marked instance with mdforge's extensions around `outline`, the heading
@@ -75,7 +76,7 @@ const renderBody = (md: string, config: Config): string => {
  */
 export const getHtml = (md: string, config: Config): string => `<!DOCTYPE html>
 <html>
-	<head><title>${config.document_title}</title><meta charset="utf-8"></head>
+	<head><title>${escapeHtml(config.document_title)}</title><meta charset="utf-8"></head>
 	<body class="${config.body_class.join(" ")}">
 		${renderBody(md, config)}
 	</body>

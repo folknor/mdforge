@@ -36,14 +36,6 @@ image and its text vanish, and in a background template the image is a thin
 line with the following text pushed far down the page. Both renderings share
 the image resolver, so one fix covers both.
 
-## `document_title` goes into `<title>` unescaped
-
-packages/core/src/lib/markdown.ts writes `config.document_title` (front
-matter, or the first `#`/`##` heading's raw text) into `<title>` as is.
-`<title>` decodes character references and ends at `</title`, so a title with
-`&amp;` shows `&` and one containing `</title>` ends the element early. Not
-rendered; reasoned from the HTML parsing rules.
-
 ## Images and other subresources that fail to load are silent
 
 A stylesheet that fails to load is named in a warning (page-load.ts
