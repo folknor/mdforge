@@ -1,6 +1,7 @@
 import process from "node:process";
-import { dialog, ipcMain } from "electron";
+import { dialog, type IpcMainInvokeEvent, ipcMain } from "electron";
 import type { ConversionConfig, ConversionProgress, PreviewConfig } from "../types";
+import { fromAppPage } from "./app-page";
 import { convertFiles, generatePreview } from "./conversion";
 import { beginPreview, stopPreviewWatch } from "./preview-watch";
 
@@ -13,12 +14,28 @@ function log(...args: unknown[]): void {
   }
 }
 
+// Every channel answers only the app's own page (see app-page.ts), checked
+// before the handler does anything: the sender frame is only reliable
+// synchronously, as it may navigate away during an await.
+function handle<Args extends unknown[], Result>(
+  channel: string,
+  listener: (event: IpcMainInvokeEvent, ...args: Args) => Result,
+): void {
+  ipcMain.handle(channel, (event, ...args: Args) => {
+    if (!fromAppPage(event)) {
+      throw new Error(`Refused ${channel}: the request did not come from the app's page`);
+    }
+
+    return listener(event, ...args);
+  });
+}
+
 export function setupIpcHandlers(): void {
   // File conversion
   // The renderer's batch token is echoed in every progress event: a batch
   // keeps running after a reload, and the reloaded page must be able to tell
   // its events from a new batch's.
-  ipcMain.handle(
+  handle(
     "convert-files",
     async (event, batch: string, files: string[], config: ConversionConfig) => {
       log("convert-files IPC called, files:", files);
@@ -39,7 +56,7 @@ export function setupIpcHandlers(): void {
 
   // Preview generation. Requesting a preview also watches the file and what
   // its preview depended on, for live preview (see preview-watch.ts).
-  ipcMain.handle("generate-preview", async (event, filePath: string, config: PreviewConfig) => {
+  handle("generate-preview", async (event, filePath: string, config: PreviewConfig) => {
     log("generate-preview IPC called:", filePath);
 
     // Synchronously, before conversion, so edits during it are seen
@@ -51,12 +68,12 @@ export function setupIpcHandlers(): void {
     return result;
   });
 
-  ipcMain.handle("stop-preview-watch", (event) => {
+  handle("stop-preview-watch", (event) => {
     stopPreviewWatch(event.sender);
   });
 
   // File dialogs
-  ipcMain.handle("select-files", async () => {
+  handle("select-files", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openFile", "multiSelections"],
       filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
@@ -65,7 +82,7 @@ export function setupIpcHandlers(): void {
     return result.canceled ? [] : result.filePaths;
   });
 
-  ipcMain.handle("select-output-dir", async () => {
+  handle("select-output-dir", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"],
     });

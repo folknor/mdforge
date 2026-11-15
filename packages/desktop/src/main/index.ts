@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import { app, BrowserWindow, shell } from "electron";
+import { registerAppPage } from "./app-page";
 import { setupIpcHandlers } from "./ipc";
 
 // The main process is bundled as ESM, where __dirname does not exist. Use
@@ -55,27 +57,20 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  // The top frame never leaves the app's page. A reload of that page (Vite's
-  // full reload in dev calls location.reload(), which arrives here) is let
-  // through. This guards the top frame only; navigation inside the PDF
-  // preview's iframe is the viewer's own.
-  const contents = mainWindow.webContents;
-
-  contents.on("will-navigate", (event) => {
-    if (event.url !== contents.getURL()) {
-      event.preventDefault();
-    }
-  });
-
-  // Load the renderer. vite-plugin-electron exposes the dev server URL as
+  // The renderer's URL. vite-plugin-electron exposes the dev server URL as
   // VITE_DEV_SERVER_URL; in a packaged build it is unset and we load the file.
-  const rendererUrl = process.env["VITE_DEV_SERVER_URL"];
+  // It is fixed here, not read back from the window, and loaded as given, so
+  // the navigation guard and the IPC check compare against the URL we chose.
+  const devUrl = process.env["VITE_DEV_SERVER_URL"];
 
-  if (is.dev && rendererUrl) {
-    mainWindow.loadURL(rendererUrl);
-  } else {
-    mainWindow.loadFile(join(currentDir, "../renderer/index.html"));
-  }
+  const appUrl =
+    is.dev && devUrl ? devUrl : pathToFileURL(join(currentDir, "../renderer/index.html")).href;
+
+  // The top frame never leaves the app's page, by navigation or redirect; a
+  // reload of it (Vite's full reload in dev calls location.reload()) passes.
+  // Navigation inside the PDF preview's iframe is the viewer's own.
+  registerAppPage(mainWindow.webContents, appUrl);
+  mainWindow.loadURL(appUrl);
 }
 
 app.whenReady().then(() => {
