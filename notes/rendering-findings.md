@@ -18,17 +18,6 @@ with the fork fixed, core only has Google's unicode-range subsets (one per
 script), so a field would need the subset covering what users type, or a
 whole font fetched for fillable output. Filed in bz against pdf-lib.
 
-## Fillable field styles are read in the screen-width layout
-
-Field fonts, sizes and content-box insets are read from the live page after
-printing, which is laid out at the 800px viewport, not the printed page width
-(the media type is the
-same). CSS that depends on the layout width (width media queries, `vw`/`%`
-font sizes, container queries) can style a field differently in print than
-what the fields are built from. Text size itself is scaled by a fixed-size
-page-scale marker measured in the print, so `pdf_options.scale` and page
-fitting are covered.
-
 ## Fillable content-box insets ignore CSS transforms
 
 `readPageFields` (render form-styles.ts) takes a text control's content box as

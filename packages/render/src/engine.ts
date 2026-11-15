@@ -319,8 +319,10 @@ async function pdfOutput(session: Session, prepared: PreparedConversion): Promis
 
 /**
  * What the AcroForm fields are built from, read in one evaluation from the
- * live page after printing (form-styles.ts). Scripts that change form fields
- * around printing are not supported.
+ * live page after printing (form-styles.ts), in its viewport layout, not the
+ * print layout; resizing the viewport to the printed page first is rejected
+ * (form-styles.ts header says why). Scripts that change form fields around
+ * printing are not supported.
  */
 async function readForms(session: Session) {
   return formConfig(await session.evaluate(readPageFields, undefined));

@@ -1,9 +1,24 @@
 /**
  * What fillable PDF fields are built from: each select's options, and each
  * text, textarea and select field's content box, font size and font files that can
- * reproduce its font. They are read from the live page after printing, so
- * styles that depend on the print layout (rather than the media type, which
- * is the same) are not supported.
+ * reproduce its font. They are read from the live page after printing, with
+ * the page's media type but in its 800px viewport layout: emulating a media
+ * type does not activate Chromium's paginated print layout, and no public
+ * Puppeteer, CDP or Electron API reads computed styles from that layout. So
+ * styles whose values depend on the print layout's dimensions (width media
+ * queries, vw/vh, container queries, page-width percentages) are not
+ * supported.
+ *
+ * Re-emulating the viewport at a size measured from the PDF before reading
+ * was tried and rejected: Blink evaluates print media queries and viewport
+ * units against different bases. With preferCSSPageSize and
+ * `@page { size: 500px 800px; margin: 0 }`, a fixed 100vw link printed 500px
+ * wide while `@media (max-width: 600px)` did not match, so no single
+ * viewport reproduces both. Even where the bases agree (the default A4 with
+ * mdforge's CSS margins: both 642px), a continuous relayout does not
+ * reproduce fragmentation, mixed page sizes, scrollbar reservation or
+ * containing-block geometry, and a probe cannot tell those cases apart, so a
+ * relayout would be silently wrong instead of plainly unsupported.
  *
  * A field's font is resolved the way the browser resolves its font-family
  * stack: family by family, in order, taking the system's file for each

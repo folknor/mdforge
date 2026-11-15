@@ -106,8 +106,12 @@ not change form fields, page references or layout in reaction to printing
 (`beforeprint`/`afterprint`): mdforge reads them from the live page around
 printing and prints the page more than once. In fillable PDFs each field's
 font, text size and content-box insets are read from the page after printing,
-where it is laid out at the screen width, so field styles that depend on the layout width
-(width media queries, `vw` units) are not carried over; a field gets the
+where it is laid out in the 800px-wide browser window with `page_media_type`,
+not in the paginated print layout. Rules for the media type (`@media print`
+with `page_media_type: print`) carry over; field styles whose values depend
+on the print layout's dimensions (width or height media queries, `vw`/`vh`
+units, container queries, percentages of the page width) are not supported
+and may differ in the PDF field from the printed control; a field gets the
 first font in its font-family stack installed on the system (web fonts are
 not used), else Helvetica.
 
