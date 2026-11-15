@@ -37,6 +37,18 @@ what the fields are built from. Text size itself is scaled by a fixed-size
 page-scale marker measured in the print, so `pdf_options.scale` and page
 fitting are covered.
 
+## Tagged PDFs leave graphics neither tagged nor marked as artifacts
+
+Chromium (both renderers) writes only text as marked content in its tagged
+PDFs: backgrounds, borders, table rules and form-control boxes are drawn as
+plain operators outside any marked-content sequence, so they are neither in
+the structure tree nor `/Artifact`. PDF/UA requires every piece of page
+content to be one or the other. mdforge marks what it draws itself (the
+fillable dropdown arrow, acroform.ts) as an artifact, but fixing Chromium's
+output would mean rewriting each page's content stream to wrap the unmarked
+drawing in `/Artifact BMC ... EMC`. Seen by reading the content streams of
+real renders (no PDF/UA checker such as veraPDF was available).
+
 ## `page_media_type` does not reach cross-origin iframes
 
 Both renderers apply the media type to the page's own frames only; a

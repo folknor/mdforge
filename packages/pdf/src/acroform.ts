@@ -8,20 +8,29 @@
  * 1. Form fields include invisible link markers in HTML
  * 2. These links become PDF link annotations with exact page + coordinates
  * 3. We read the annotations, add AcroForm fields at those positions
- * 4. Remove the marker annotations
+ * 4. Remove the marker annotations, handing each one's place in the tagged
+ *    structure to its widget (structure.ts)
  */
 
 import { createHash } from "node:crypto";
 import {
+  beginMarkedContent,
+  endMarkedContent,
   PDFDict,
   PDFDocument,
+  type PDFField,
   type PDFFont,
+  type PDFForm,
+  PDFHexString,
   type PDFLinkAnnotation,
   PDFName,
+  type PDFPage,
+  type PDFRef,
   rgb,
   StandardFonts,
 } from "@folknor/pdf-lib";
 import fontkit, { type Font as FontkitFont } from "@pdf-lib/fontkit";
+import { TaggedStructure } from "./structure.js";
 
 /**
  * Marker URL prefix used to identify form field markers in PDF link annotations.
@@ -52,6 +61,12 @@ export interface FieldPosition {
   options?: string[];
   /** For checkbox/radio fields: the value attribute */
   value?: string;
+  /** The field's label (a group's legend for checkbox/radio options), if it has one. */
+  label?: string;
+  /** For checkbox/radio fields: the option's visible text. */
+  option?: string;
+  /** The marker annotation the position was read from. */
+  marker: PDFRef;
 }
 
 /**
@@ -107,10 +122,13 @@ interface MarkerSize {
   height: number;
 }
 
-/** What the markers of a printed PDF said, once removed. */
+/** What the markers of a printed PDF said, once removed from their pages. */
 interface PageMarkers {
   fields: FieldPosition[];
   scaleRects: MarkerSize[];
+  /** Every marker annotation removed, with its page. */
+  markers: Array<{ ref: PDFRef; page: PDFPage }>;
+  warnings: string[];
 }
 
 /** A parsed candidate font file. */
@@ -308,7 +326,9 @@ function fieldFontSize(
  * Parse a marker URL to extract field information.
  * URL format: https://mdforge.marker/{name}?type={type}&value={value}
  */
-function parseMarkerUrl(url: string): { name: string; type: string; value?: string } | null {
+function parseMarkerUrl(
+  url: string,
+): { name: string; type: string; value?: string; label?: string; option?: string } | null {
   if (!url.startsWith(MARKER_URL_PREFIX)) return null;
 
   try {
@@ -316,10 +336,12 @@ function parseMarkerUrl(url: string): { name: string; type: string; value?: stri
     const name = decodeURIComponent(urlObj.pathname.slice(1)); // Remove leading /
     const type = urlObj.searchParams.get("type");
     const value = urlObj.searchParams.get("value") || undefined;
+    const label = urlObj.searchParams.get("label") || undefined;
+    const option = urlObj.searchParams.get("option") || undefined;
 
     if (!(name && type)) return null;
 
-    return { name, type, value };
+    return { name, type, value, label, option };
   } catch {
     return null;
   }
@@ -340,12 +362,16 @@ function parseFieldType(type: string): FieldPosition["type"] | null {
 }
 
 /**
- * Extract marker annotations from a PDF and convert to field positions.
- * Also removes the marker annotations from the PDF.
+ * Take every marker annotation (any link under MARKER_URL_PREFIX, readable
+ * or not) off its page, and read field positions and page-scale sizes from
+ * them. The annotation objects stay until the structure pass in
+ * addAcroFormFields has handed their structure over or detached it.
  */
 function extractAndRemoveMarkers(pdfDoc: PDFDocument): PageMarkers {
   const fields: FieldPosition[] = [];
   const scaleRects: MarkerSize[] = [];
+  const markers: PageMarkers["markers"] = [];
+  const warnings: string[] = [];
   const pages = pdfDoc.getPages();
 
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
@@ -353,61 +379,133 @@ function extractAndRemoveMarkers(pdfDoc: PDFDocument): PageMarkers {
 
     if (!page) continue;
 
-    // Find all link annotations that are markers
-    const markers: PDFLinkAnnotation[] = [];
+    const found: PDFLinkAnnotation[] = [];
 
     for (const link of page.getLinkAnnotations()) {
-      const url = link.getUrl();
-
-      if (url?.startsWith(MARKER_URL_PREFIX)) {
-        markers.push(link);
-      }
+      if (link.getUrl()?.startsWith(MARKER_URL_PREFIX)) found.push(link);
     }
 
-    // Extract field positions and remove markers
-    for (const link of markers) {
-      const url = link.getUrl();
-
-      if (!url) continue;
-
-      const markerInfo = parseMarkerUrl(url);
-
-      if (!markerInfo) continue;
-
-      const rect = link.getRectangle();
-      const type = parseFieldType(markerInfo.type);
-
-      // A marker with an unknown type gets no field, but is still removed.
-      if (markerInfo.type === "scale") {
-        scaleRects.push(rect);
-      } else if (type) {
-        fields.push({
-          name: markerInfo.name,
-          type,
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-          pageIndex,
-          value: markerInfo.value,
-        });
-      }
+    for (const link of found) {
+      const ref = pdfDoc.context.getObjectRef(link.dict);
 
       page.removeAnnotation(link);
+
+      if (ref) markers.push({ ref, page });
+
+      const markerInfo = parseMarkerUrl(link.getUrl() ?? "");
+
+      if (markerInfo?.type === "scale") {
+        scaleRects.push(link.getRectangle());
+        continue;
+      }
+
+      const type = markerInfo && parseFieldType(markerInfo.type);
+
+      if (!(markerInfo && type && ref)) {
+        warnings.push(`A form field marker that could not be read was ignored: ${link.getUrl()}`);
+        continue;
+      }
+
+      const rect = link.getRectangle();
+
+      fields.push({
+        name: markerInfo.name,
+        type,
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        pageIndex,
+        value: markerInfo.value,
+        label: markerInfo.label,
+        option: markerInfo.option,
+        marker: ref,
+      });
     }
   }
 
-  return { fields, scaleRects };
+  return { fields, scaleRects, markers, warnings };
+}
+
+/** A widget made for one marker, and what describes it in the structure. */
+interface MarkerWidget {
+  widget: PDFRef;
+  name: string;
+  /** For a radio option: its text, as the /Alt of its /Form element. */
+  alt?: string;
+}
+
+/**
+ * The widget the last addToPage/addOptionToPage gave a field. Those calls
+ * append it to the field's widgets and the page's /Annots synchronously, so
+ * it is the field's last widget, and it must be on the page.
+ */
+function lastWidget(pdfDoc: PDFDocument, field: PDFField, page: PDFPage): PDFRef {
+  const widget = field.acroField.getWidgets().at(-1);
+  const ref = widget && pdfDoc.context.getObjectRef(widget.dict);
+  const annots = page.node.Annots()?.asArray() ?? [];
+
+  if (!(ref && annots.includes(ref))) {
+    throw new Error(`The widget for field "${field.getName()}" is not on its page.`);
+  }
+
+  return ref;
+}
+
+/** A field's /TU, the name assistive technology reads for it. */
+function setDescription(field: PDFField, text: string): void {
+  field.acroField.dict.set(PDFName.of("TU"), PDFHexString.fromText(text));
+}
+
+/**
+ * Create one field, all or nothing: if building it throws, a field it
+ * created is removed again (with its widgets, from its pages), so no widget
+ * of a failed field survives. Widgets are published only on success. A field
+ * that already existed (a repeated name) is never touched: creating it again
+ * throws before changing anything.
+ */
+async function createField(
+  form: PDFForm,
+  name: string,
+  built: Map<PDFRef, MarkerWidget>,
+  warnings: string[],
+  build: (made: Map<PDFRef, MarkerWidget>) => Promise<void> | void,
+): Promise<boolean> {
+  const existed = form.getFieldMaybe(name) !== undefined;
+  const made = new Map<PDFRef, MarkerWidget>();
+
+  try {
+    await build(made);
+  } catch {
+    const partial = existed ? undefined : form.getFieldMaybe(name);
+
+    // A failing rollback escapes: the PDF could no longer be trusted.
+    if (partial) form.removeField(partial);
+
+    warnings.push(
+      existed
+        ? `The fillable field name "${name}" is used more than once; only its first field is fillable.`
+        : `The fillable field "${name}" could not be created, so the PDF has no field for it.`,
+    );
+
+    return false;
+  }
+
+  for (const [marker, widget] of made) built.set(marker, widget);
+
+  return true;
 }
 
 /**
  * Add AcroForm fields to a PDF using marker-based positioning.
  *
  * This function:
- * 1. Reads marker link annotations from the PDF
+ * 1. Reads marker link annotations from the PDF and removes them
  * 2. Extracts field positions from the annotation rectangles
  * 3. Adds AcroForm fields at those exact positions
- * 4. Removes the marker annotations
+ * 4. Gives each widget its marker's place in the tagged structure
+ *    (structure.ts), detaches markers that got no widget, and deletes the
+ *    marker annotations
  *
  * @param pdfBuffer - The PDF buffer to modify
  * @param config - Optional configuration (e.g., select options)
@@ -419,19 +517,56 @@ export async function addAcroFormFields(
 ): Promise<AcroFormResult> {
   const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBuffer));
   const pages = pdfDoc.getPages();
-  const warnings: string[] = [];
 
   if (pages.length === 0) {
-    return { pdf: await pdfDoc.save(), warnings };
+    return { pdf: await pdfDoc.save(), warnings: [] };
   }
 
-  // Extract marker annotations and get field positions
-  const { fields, scaleRects } = extractAndRemoveMarkers(pdfDoc);
+  const { fields, scaleRects, markers, warnings } = extractAndRemoveMarkers(pdfDoc);
+  const built = new Map<PDFRef, MarkerWidget>();
 
-  if (fields.length === 0) {
-    return { pdf: await pdfDoc.save(), warnings };
+  if (fields.length > 0) {
+    await buildFields(pdfDoc, fields, scaleRects, config, built, warnings);
   }
 
+  const structure = TaggedStructure.of(pdfDoc);
+
+  for (const { ref, page } of markers) {
+    const made = built.get(ref);
+
+    if (structure) {
+      const slot = made && structure.slotFor(ref);
+
+      if (made && slot) {
+        structure.give(slot, ref, made.widget, page.ref, made.alt);
+      } else {
+        structure.detach(ref);
+
+        if (made) {
+          warnings.push(
+            `The fillable field "${made.name}" was added, but not to the PDF's tagged structure.`,
+          );
+        }
+      }
+    }
+
+    pdfDoc.context.delete(ref);
+  }
+
+  // Every field's appearance was built with its own font; letting save
+  // rebuild them would use one default font for all.
+  return { pdf: await pdfDoc.save({ updateFieldAppearances: false }), warnings };
+}
+
+async function buildFields(
+  pdfDoc: PDFDocument,
+  fields: FieldPosition[],
+  scaleRects: MarkerSize[],
+  config: AcroFormConfig,
+  built: Map<PDFRef, MarkerWidget>,
+  warnings: string[],
+): Promise<void> {
+  const pages = pdfDoc.getPages();
   const ptPerPx = pointsPerPx(scaleRects);
 
   if (ptPerPx === undefined && config.fieldStyles && config.fieldStyles.size > 0) {
@@ -469,13 +604,15 @@ export async function addAcroFormFields(
 
     if (!page) continue;
 
-    try {
-      // Each field gets the font and size it was printed with. Markers are
-      // matched to the page's fields by name; a repeated name only ever gets
-      // its first field (creating the second fails below).
-      const style = config.fieldStyles?.get(field.name);
-      const fontSize = fieldFontSize(style, ptPerPx);
+    // Each field gets the font and size it was printed with. Markers are
+    // matched to the page's fields by name; a repeated name only ever gets
+    // its first field (creating the second fails, with a warning).
+    const style = config.fieldStyles?.get(field.name);
+    const fontSize = fieldFontSize(style, ptPerPx);
+    const box = { x: field.x, y: field.y, width: field.width, height: field.height };
+    let arrowSize: number | undefined;
 
+    const created = await createField(form, field.name, built, warnings, async (made) => {
       if (field.type === "text" || field.type === "textarea") {
         const font = await fonts.pick(style?.fonts ?? [], []);
         const textField = form.createTextField(field.name);
@@ -485,20 +622,19 @@ export async function addAcroFormFields(
         }
 
         textField.addToPage(page, {
-          x: field.x,
-          y: field.y,
-          width: field.width,
-          height: field.height,
+          ...box,
           borderWidth: 0,
           backgroundColor: undefined, // Transparent - show HTML styling through
           font,
         });
+        made.set(field.marker, { widget: lastWidget(pdfDoc, textField, page), name: field.name });
 
         if (field.type === "textarea") {
           textField.enableMultiline();
           textField.enableScrolling();
         }
 
+        setDescription(textField, field.label ?? field.name);
         textField.updateAppearances(font);
       } else if (field.type === "select") {
         const options = config.selectOptions?.get(field.name);
@@ -514,33 +650,15 @@ export async function addAcroFormFields(
         }
 
         dropdown.addToPage(page, {
-          x: field.x,
-          y: field.y,
-          width: field.width,
-          height: field.height,
+          ...box,
           borderWidth: 0,
           backgroundColor: undefined, // Transparent
           font,
         });
+        made.set(field.marker, { widget: lastWidget(pdfDoc, dropdown, page), name: field.name });
+        setDescription(dropdown, field.label ?? field.name);
         dropdown.updateAppearances(font);
-
-        // Draw a down arrow indicator on the right side
-        const arrowFontSize = fontSize ?? 12;
-        const arrowWidth = Math.min(arrowFontSize * 0.6, field.height * 0.3);
-        const arrowHeight = arrowWidth * 0.6;
-        const arrowPadding = 4;
-        const arrowX = field.x + field.width - arrowPadding - arrowWidth;
-        // Arrow extends downward from y, so place top at center + half height
-        const arrowY = field.y + (field.height + arrowHeight) / 2;
-        // SVG path for downward triangle (SVG coords: Y increases downward):
-        // Top-left -> Top-right -> Bottom-center
-        const arrowPath = `M 0 0 L ${arrowWidth} 0 L ${arrowWidth / 2} ${arrowHeight} Z`;
-        page.drawSvgPath(arrowPath, {
-          x: arrowX,
-          y: arrowY,
-          color: rgb(0, 0, 0),
-          borderWidth: 0,
-        });
+        arrowSize = fontSize ?? 12;
       } else if (field.type === "checkbox") {
         const size = Math.min(field.width, field.height);
         const checkbox = form.createCheckBox(field.name);
@@ -552,15 +670,21 @@ export async function addAcroFormFields(
           borderWidth: 0,
           backgroundColor: undefined, // Transparent
         });
+        made.set(field.marker, { widget: lastWidget(pdfDoc, checkbox, page), name: field.name });
+        setDescription(checkbox, field.label ?? field.option ?? field.name);
       }
-    } catch {
-      // Field creation may fail if name already exists - skip silently
-    }
+    });
+
+    // Drawn only once the dropdown exists: a rolled-back field cannot take
+    // page content back.
+    if (created && arrowSize !== undefined) drawDropdownArrow(page, field, arrowSize);
   }
 
-  // Add radio button groups
+  // Add radio button groups, each all or nothing
   for (const [name, options] of radioGroups) {
-    try {
+    const label = options.find((opt) => opt.label)?.label;
+
+    await createField(form, name, built, warnings, (made) => {
       const radioGroup = form.createRadioGroup(name);
 
       for (const opt of options) {
@@ -577,10 +701,15 @@ export async function addAcroFormFields(
           borderWidth: 0,
           backgroundColor: undefined, // Transparent
         });
+        made.set(opt.marker, {
+          widget: lastWidget(pdfDoc, radioGroup, page),
+          name,
+          alt: opt.option ?? opt.value,
+        });
       }
-    } catch {
-      // Radio group creation may fail - skip silently
-    }
+
+      setDescription(radioGroup, label ?? name);
+    });
   }
 
   // Add checkbox groups (each checkbox needs unique name)
@@ -590,9 +719,12 @@ export async function addAcroFormFields(
 
       if (!page) continue;
 
-      try {
+      const fieldName = `${name}_${opt.value}`;
+      const option = opt.option ?? opt.value ?? "";
+
+      await createField(form, fieldName, built, warnings, (made) => {
         const size = Math.min(opt.width, opt.height);
-        const checkbox = form.createCheckBox(`${name}_${opt.value}`);
+        const checkbox = form.createCheckBox(fieldName);
         checkbox.addToPage(page, {
           x: opt.x,
           y: opt.y,
@@ -601,9 +733,9 @@ export async function addAcroFormFields(
           borderWidth: 0,
           backgroundColor: undefined, // Transparent
         });
-      } catch {
-        // Checkbox creation may fail - skip silently
-      }
+        made.set(opt.marker, { widget: lastWidget(pdfDoc, checkbox, page), name: fieldName });
+        setDescription(checkbox, opt.label ? `${opt.label}: ${option}` : option);
+      });
     }
   }
 
@@ -620,8 +752,29 @@ export async function addAcroFormFields(
       }
     }
   }
+}
 
-  // Every field's appearance was built with its own font above; letting save
-  // rebuild them would use one default font for all.
-  return { pdf: await pdfDoc.save({ updateFieldAppearances: false }), warnings };
+/**
+ * A down arrow on the right of a dropdown. It is page content in a tagged
+ * PDF, and decoration, so it is marked as an artifact.
+ */
+function drawDropdownArrow(page: PDFPage, field: FieldPosition, fontSize: number): void {
+  const arrowWidth = Math.min(fontSize * 0.6, field.height * 0.3);
+  const arrowHeight = arrowWidth * 0.6;
+  const arrowPadding = 4;
+  const arrowX = field.x + field.width - arrowPadding - arrowWidth;
+  // Arrow extends downward from y, so place top at center + half height
+  const arrowY = field.y + (field.height + arrowHeight) / 2;
+  // SVG path for downward triangle (SVG coords: Y increases downward):
+  // Top-left -> Top-right -> Bottom-center
+  const arrowPath = `M 0 0 L ${arrowWidth} 0 L ${arrowWidth / 2} ${arrowHeight} Z`;
+
+  page.pushOperators(beginMarkedContent("Artifact"));
+  page.drawSvgPath(arrowPath, {
+    x: arrowX,
+    y: arrowY,
+    color: rgb(0, 0, 0),
+    borderWidth: 0,
+  });
+  page.pushOperators(endMarkedContent());
 }

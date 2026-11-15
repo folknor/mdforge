@@ -265,6 +265,17 @@ settings a PDF is Letter-sized with no margins and no backgrounds (the defaults
 above are mdforge's own). PDFs are always tagged and carry an outline
 (bookmarks).
 
+In a fillable PDF each field is in the tagged structure where its control
+was, as a form element, and the printed control is left out of it, so a
+field is not read twice. A field is described by its label (a checkbox in a
+list by the list's label and its option text, a radio button by its option
+text within the group's label), or by its name when it has no label. To keep
+the printed controls out, mdforge marks them `aria-hidden` while printing;
+document CSS that styles `[aria-hidden]` is not supported. A field that
+cannot be created (for example a name used twice) is left out with a
+warning. The tagged structure is otherwise Chromium's; mdforge makes no
+PDF/UA claim.
+
 Page references (`@pageof`, TOC page numbers) count pages of the whole
 document, also when `pageRanges` selects some of them: the numbers are worked
 out on the whole document, then the selection is printed and checked against

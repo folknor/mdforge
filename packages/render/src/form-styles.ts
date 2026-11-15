@@ -69,6 +69,24 @@ export function addScaleMarker(marker: { url: string; px: number }): void {
   document.body.append(link);
 }
 
+/**
+ * Browser-side: hide each form control from the printed PDF's tagged
+ * structure. In a fillable PDF the AcroForm widget laid over a control is the
+ * control; Chromium would otherwise tag the printed control too (text inputs
+ * as a non-interactive PrintField /Form), giving every field a second, dead
+ * control. Only the control is hidden: its label and its marker stay in the
+ * structure, and the marker's element becomes the widget's (acroform.ts).
+ * aria-hidden changes nothing about layout, unless document CSS styles on it,
+ * which is not supported. HTML output is never printed, so keeps its controls.
+ */
+export function hidePrintedControls(): void {
+  for (const control of document.querySelectorAll(
+    "[data-form-field] input, [data-form-field] textarea, [data-form-field] select",
+  )) {
+    control.setAttribute("aria-hidden", "true");
+  }
+}
+
 /** The page's form data that fillable fields are built from. */
 export interface PageFields {
   selects: Array<{ name: string; options: string[] }>;

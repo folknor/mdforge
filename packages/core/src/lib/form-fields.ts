@@ -187,7 +187,7 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
 
               const dataAttrs = `data-form-field data-field-name="${escapeHtml(name)}" data-field-type="select"`;
               const selectHtml = `<select name="${escapeHtml(name)}">\n${optionsHtml}\n</select>`;
-              const wrappedSelect = wrapWithMarker(selectHtml, name, "select");
+              const wrappedSelect = wrapWithMarker(selectHtml, name, "select", { label });
 
               return `<label class="form-field form-select" ${dataAttrs}>
 ${label ? `<span class="form-label">${escapeHtml(label)}</span>` : ""}
@@ -225,7 +225,11 @@ ${itemsHtml}
                 const inputHtml = `<input type="${escapeHtml(inputType)}" name="${escapeHtml(name)}" value="${escapeHtml(o.value)}">`;
 
                 const wrappedInput = fillable
-                  ? wrapWithMarker(inputHtml, name, inputType, o.value)
+                  ? wrapWithMarker(inputHtml, name, inputType, {
+                      value: o.value,
+                      label,
+                      option: o.text,
+                    })
                   : inputHtml;
 
                 return `<label class="form-option" ${optionDataAttrs}>
@@ -299,7 +303,7 @@ ${itemsHtml}
             const textareaHtml = `<textarea name="${escapeHtml(name)}" ${heightStyle}></textarea>`;
 
             const wrappedTextarea = fillable
-              ? wrapWithMarker(textareaHtml, name, "textarea")
+              ? wrapWithMarker(textareaHtml, name, "textarea", { label })
               : textareaHtml;
 
             return `<label class="form-field form-textarea" ${dataAttrs}>
@@ -311,7 +315,9 @@ ${wrappedTextarea}
           // Text input
           const inputHtml = `<input type="text" name="${escapeHtml(name)}">`;
 
-          const wrappedInput = fillable ? wrapWithMarker(inputHtml, name, "text") : inputHtml;
+          const wrappedInput = fillable
+            ? wrapWithMarker(inputHtml, name, "text", { label })
+            : inputHtml;
 
           return `<label class="form-field form-text" ${dataAttrs}>
 ${label ? `<span class="form-label">${escapeHtml(label)}</span>` : ""}
@@ -332,12 +338,23 @@ export const MARKER_URL_PREFIX = "https://mdforge.marker/";
 /**
  * Generate a marker wrapper for fillable mode.
  * The marker link overlays the input element to capture its full dimensions
- * as a PDF link annotation rectangle.
+ * as a PDF link annotation rectangle. The URL also carries what describes the
+ * field to assistive technology in the PDF: its label (a group's legend for
+ * an option) and an option's visible text.
  */
-function wrapWithMarker(inputHtml: string, name: string, type: string, value?: string): string {
+function wrapWithMarker(
+  inputHtml: string,
+  name: string,
+  type: string,
+  describe: { value?: string; label?: string; option?: string } = {},
+): string {
   const params = new URLSearchParams({ type });
 
-  if (value) params.set("value", value);
+  if (describe.value) params.set("value", describe.value);
+
+  if (describe.label) params.set("label", describe.label);
+
+  if (describe.option) params.set("option", describe.option);
   const markerUrl = `${MARKER_URL_PREFIX}${encodeURIComponent(name)}?${params}`;
 
   return `<span class="form-input-wrapper">

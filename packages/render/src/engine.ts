@@ -66,7 +66,7 @@ import {
   type PageEnvironment,
   RenderStepError,
 } from "./driver.ts";
-import { addScaleMarker, formConfig, readPageFields } from "./form-styles.ts";
+import { addScaleMarker, formConfig, hidePrintedControls, readPageFields } from "./form-styles.ts";
 import { checkedHtml, snapshotHtml } from "./html-output.ts";
 import { rangedPrintMatches, selectedPages } from "./page-ranges.ts";
 import {
@@ -269,6 +269,7 @@ async function pdfOutput(session: Session, prepared: PreparedConversion): Promis
 
   if (config.fillable) {
     await session.evaluate(addScaleMarker, { url: SCALE_MARKER_URL, px: SCALE_MARKER_PX });
+    await session.evaluate(hidePrintedControls, undefined);
   }
 
   if (hasPageRefs(prepared.html)) {

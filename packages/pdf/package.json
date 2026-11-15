@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "node --test \"test/*.test.ts\""
   },
   "dependencies": {
     "@folknor/pdf-lib": "github:folknor/pdf-lib#e017036e70d833ed446a5760b264d763ba03a6d0",
