@@ -1,4 +1,5 @@
 import type { MarkedExtension, Tokens } from "marked";
+import { escapeHtml } from "./util.ts";
 
 /**
  * Form field types
@@ -181,15 +182,15 @@ export function formFields(options: FormFieldsOptions = {}): MarkedExtension {
             if (fillable) {
               // Fillable mode: render as actual select (AcroForm dropdown will work)
               const optionsHtml = fieldOptions
-                .map((o) => `<option value="${o.value}">${o.text}</option>`)
+                .map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.text)}</option>`)
                 .join("\n");
 
-              const dataAttrs = `data-form-field data-field-name="${name}" data-field-type="select"`;
-              const selectHtml = `<select name="${name}">\n${optionsHtml}\n</select>`;
+              const dataAttrs = `data-form-field data-field-name="${escapeHtml(name)}" data-field-type="select"`;
+              const selectHtml = `<select name="${escapeHtml(name)}">\n${optionsHtml}\n</select>`;
               const wrappedSelect = wrapWithMarker(selectHtml, name, "select");
 
               return `<label class="form-field form-select" ${dataAttrs}>
-${label ? `<span class="form-label">${label}</span>` : ""}
+${label ? `<span class="form-label">${escapeHtml(label)}</span>` : ""}
 ${wrappedSelect}
 </label>\n`;
             }
@@ -198,14 +199,14 @@ ${wrappedSelect}
             const itemsHtml = fieldOptions
               .map(
                 (o) => `<label class="form-option">
-<input type="radio" name="${name}" value="${o.value}">
-<span>${o.text}</span>
+<input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(o.value)}">
+<span>${escapeHtml(o.text)}</span>
 </label>`,
               )
               .join("\n");
 
             return `<fieldset class="form-field form-radiolist form-select-as-radio">
-${label ? `<legend class="form-label">${label}</legend>` : ""}
+${label ? `<legend class="form-label">${escapeHtml(label)}</legend>` : ""}
 <div class="form-options">
 ${itemsHtml}
 </div>
@@ -218,10 +219,10 @@ ${itemsHtml}
             const itemsHtml = fieldOptions
               .map((o) => {
                 const optionDataAttrs = fillable
-                  ? `data-form-field data-field-name="${name}" data-field-type="${inputType}" data-field-value="${o.value}"`
+                  ? `data-form-field data-field-name="${escapeHtml(name)}" data-field-type="${escapeHtml(inputType)}" data-field-value="${escapeHtml(o.value)}"`
                   : "";
 
-                const inputHtml = `<input type="${inputType}" name="${name}" value="${o.value}">`;
+                const inputHtml = `<input type="${escapeHtml(inputType)}" name="${escapeHtml(name)}" value="${escapeHtml(o.value)}">`;
 
                 const wrappedInput = fillable
                   ? wrapWithMarker(inputHtml, name, inputType, o.value)
@@ -229,13 +230,13 @@ ${itemsHtml}
 
                 return `<label class="form-option" ${optionDataAttrs}>
 ${wrappedInput}
-<span>${o.text}</span>
+<span>${escapeHtml(o.text)}</span>
 </label>`;
               })
               .join("\n");
 
-            return `<fieldset class="form-field form-${fieldType}">
-${label ? `<legend class="form-label">${label}</legend>` : ""}
+            return `<fieldset class="form-field form-${escapeHtml(fieldType)}">
+${label ? `<legend class="form-label">${escapeHtml(label)}</legend>` : ""}
 <div class="form-options">
 ${itemsHtml}
 </div>
@@ -287,33 +288,33 @@ ${itemsHtml}
           const { fieldType, name, label, lineCount } = token as FormFieldInlineToken;
 
           const dataAttrs = fillable
-            ? `data-form-field data-field-name="${name}" data-field-type="${fieldType}"`
+            ? `data-form-field data-field-name="${escapeHtml(name)}" data-field-type="${escapeHtml(fieldType)}"`
             : "";
 
           if (fieldType === "textarea") {
             // Calculate height: default 4 lines, or use lineCount if specified
             // Each line is approximately 1.5em (line-height) + padding
             const lines = lineCount ?? 4;
-            const heightStyle = `style="height: ${lines * 1.5}em"`;
-            const textareaHtml = `<textarea name="${name}" ${heightStyle}></textarea>`;
+            const heightStyle = `style="${escapeHtml(`height: ${lines * 1.5}em`)}"`;
+            const textareaHtml = `<textarea name="${escapeHtml(name)}" ${heightStyle}></textarea>`;
 
             const wrappedTextarea = fillable
               ? wrapWithMarker(textareaHtml, name, "textarea")
               : textareaHtml;
 
             return `<label class="form-field form-textarea" ${dataAttrs}>
-${label ? `<span class="form-label">${label}</span>` : ""}
+${label ? `<span class="form-label">${escapeHtml(label)}</span>` : ""}
 ${wrappedTextarea}
 </label>`;
           }
 
           // Text input
-          const inputHtml = `<input type="text" name="${name}">`;
+          const inputHtml = `<input type="text" name="${escapeHtml(name)}">`;
 
           const wrappedInput = fillable ? wrapWithMarker(inputHtml, name, "text") : inputHtml;
 
           return `<label class="form-field form-text" ${dataAttrs}>
-${label ? `<span class="form-label">${label}</span>` : ""}
+${label ? `<span class="form-label">${escapeHtml(label)}</span>` : ""}
 ${wrappedInput}
 </label>`;
         },
@@ -340,7 +341,7 @@ function wrapWithMarker(inputHtml: string, name: string, type: string, value?: s
   const markerUrl = `${MARKER_URL_PREFIX}${encodeURIComponent(name)}?${params}`;
 
   return `<span class="form-input-wrapper">
-<a href="${markerUrl}" class="form-marker"></a>
+<a href="${escapeHtml(markerUrl)}" class="form-marker"></a>
 ${inputHtml}
 </span>`;
 }

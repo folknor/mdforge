@@ -1,3 +1,4 @@
+import { escapeHtml } from "./util.ts";
 import { referenceSlug } from "./slugger.ts";
 
 /**
@@ -49,9 +50,9 @@ const PAGEREF_PLACEHOLDER = "??";
  * annotation, no tagged `Link` element and no visible text.
  */
 export function pageRefSpan(slug: string): string {
-  const target = `<a href="#${slug}" style="display:none" aria-hidden="true"></a>`;
+  const target = `<a href="#${escapeHtml(slug)}" style="display:none" aria-hidden="true"></a>`;
 
-  return `<span class="mdforge-pageref" ${PAGEREF_ATTR}="${slug}">${target}${PAGEREF_PLACEHOLDER}</span>`;
+  return `<span class="mdforge-pageref" ${PAGEREF_ATTR}="${escapeHtml(slug)}">${target}${PAGEREF_PLACEHOLDER}</span>`;
 }
 
 /**
@@ -65,7 +66,7 @@ export function processXref(content: string): string {
     const trimmed = anchorName.trim();
     const slug = referenceSlug(trimmed);
 
-    return `<a id="${slug}"></a>`;
+    return `<a id="${escapeHtml(slug)}"></a>`;
   });
 
   // Process @see references

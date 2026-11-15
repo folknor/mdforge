@@ -77,7 +77,7 @@ const renderBody = (md: string, config: Config): string => {
 export const getHtml = (md: string, config: Config): string => `<!DOCTYPE html>
 <html>
 	<head><title>${escapeHtml(config.document_title)}</title><meta charset="utf-8"></head>
-	<body class="${config.body_class.join(" ")}">
+	<body class="${escapeHtml(config.body_class.join(" "))}">
 		${renderBody(md, config)}
 	</body>
 </html>

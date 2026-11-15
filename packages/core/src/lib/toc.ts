@@ -92,7 +92,7 @@ function pageRef(entry: TocEntry, options: TOCOptions): string {
 }
 
 function entryLink(entry: TocEntry): string {
-  return `<a href="#${entry.id}">${entry.label}</a>`;
+  return `<a href="#${escapeHtml(entry.id)}">${entry.label}</a>`;
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { MarkedExtension, Token, Tokens } from "marked";
+import { escapeHtml } from "./util.ts";
 
 /**
  * Supported admonition types
@@ -134,11 +135,11 @@ export function admonitions(): MarkedExtension {
           // them, always as an AdmonitionToken.
           const { admonitionType, title, tokens } = token as AdmonitionToken;
 
-          const titleHtml = title ? `<p class="admonition-title">${title}</p>\n` : "";
+          const titleHtml = title ? `<p class="admonition-title">${escapeHtml(title)}</p>\n` : "";
 
           const contentHtml = this.parser.parse(tokens);
 
-          return `<div class="admonition ${admonitionType}">\n${titleHtml}${contentHtml}</div>\n`;
+          return `<div class="admonition ${escapeHtml(admonitionType)}">\n${titleHtml}${contentHtml}</div>\n`;
         },
       },
     ],

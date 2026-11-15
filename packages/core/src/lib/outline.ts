@@ -389,13 +389,13 @@ export function outlineExtensions(
           depth: token.depth,
           id,
           number: prefix === undefined ? undefined : trimTrailingSeparator(prefix, separator),
-          label: prefix === undefined ? label : `${prefix} ${label}`,
+          label: prefix === undefined ? label : `${escapeHtml(prefix)} ${label}`,
           topLevel: outline.topLevelHeadings.has(token),
         });
 
-        const visible = prefix === undefined ? text : `${prefix} ${text}`;
+        const visible = prefix === undefined ? text : `${escapeHtml(prefix)} ${text}`;
 
-        return `<h${token.depth} id="${id}">${visible}</h${token.depth}>\n`;
+        return `<h${token.depth} id="${escapeHtml(id)}">${visible}</h${token.depth}>\n`;
       },
       html(token: Tokens.HTML | Tokens.Tag): string | false {
         if (outline.tocPlaced && token.text.trim() === outline.tocSentinel) {
