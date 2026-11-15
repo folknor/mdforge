@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { generatePagedCss, hasBackground, hasContent } from "../src/lib/paged-css.ts";
+import { cssString, generatePagedCss, hasBackground, hasContent } from "../src/lib/paged-css.ts";
 
 describe("generatePagedCss", () => {
   it("gives every margin box the common styles, emphasised ones included", async () => {
@@ -19,6 +19,36 @@ describe("generatePagedCss", () => {
     }
 
     assert.match(boxes[0] ?? "", /font-weight: bold/);
+  });
+
+  it("builds content from strings, counters and the title variable", async () => {
+    const css = await generatePagedCss(
+      { footer: { center: "Page {page} of {pages}", left: "{title}" } },
+      process.cwd(),
+    );
+
+    assert.match(css, /content: "Page " counter\(page\) " of " counter\(pages\);/);
+    assert.match(css, /content: var\(--doc-title\);/);
+  });
+
+  it("keeps any header text and title inside its CSS string", async () => {
+    const css = await generatePagedCss(
+      {
+        header: { left: 'Say "hi" \\ </style><p>\nnext' },
+        title: "A </style> title",
+      },
+      process.cwd(),
+    );
+
+    assert.doesNotMatch(css, /<\/style/i);
+    assert.match(css, /content: "Say \\"hi\\" \\\\ \\3c \/style>\\3c p>\\a next";/);
+    assert.match(css, /--doc-title: "A \\3c \/style> title";/);
+  });
+});
+
+describe("cssString", () => {
+  it("serialises as CSSOM does, with < escaped", () => {
+    assert.equal(cssString(`a"\\<\u0000\u007f\tb`), `"a\\"\\\\\\3c \uFFFD\\7f \\9 b"`);
   });
 });
 

@@ -55,6 +55,12 @@ relative `url(...)` and `@import` references inside it resolve against the
 stylesheet's own location. Relative references in inline CSS resolve against
 the document's directory.
 
+Inline CSS goes into the page as a `<style>` element, where `</style`
+(followed by a space, `/` or `>`, in any case) ends the element even inside a
+CSS string or comment. Inline CSS containing it fails the conversion; write it
+as `"<\/style>"` in a CSS string, or put the CSS in a file and use `"@path"`
+(files are linked, not inlined, so they may contain anything).
+
 A stylesheet that the page cannot load (a file removed after the conversion
 started, an HTTP error, a refused connection), or one whose `@import` cannot
 be loaded, is named in a warning and the document is printed without the
@@ -92,7 +98,10 @@ whatever they changed. A script whose text would not read back the same when
 the HTML file is opened (most often because it contains `</script`, which ends
 a script in HTML) fails an HTML conversion rather than producing a file that
 does not reopen as rendered; write such text differently, for example
-`"<\/script>"` in a string. Scripts, and anything else in the document, should
+`"<\/script>"` in a string. The same goes for the text of a `<style>` (or
+other raw-text element) a script creates, for example one containing
+`</style`; rules added through the CSSOM (`insertRule`) are not in the HTML
+file at all. Scripts, and anything else in the document, should
 not change form fields, page references or layout in reaction to printing
 (`beforeprint`/`afterprint`): mdforge reads them from the page as printed and
 prints the page more than once.

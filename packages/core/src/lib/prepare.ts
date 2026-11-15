@@ -94,6 +94,27 @@ export function stylesheetLink(href: string): string {
   return `<link rel="stylesheet" href="${escapeHtml(href)}">`;
 }
 
+/**
+ * Whether CSS text would end the `<style>` element holding it: `</style`
+ * followed by whitespace, `/` or `>`, in any case, ends that element wherever
+ * it appears (a CSS string or comment included), and the rest would be read as
+ * markup. Such text is refused, never rewritten. In a CSS string it can be
+ * written `"<\/style>"`; a stylesheet file is linked, not inlined, so it may
+ * contain anything.
+ */
+export function styleTextEndsElement(css: string): boolean {
+  return /<\/style[\t\n\f\r />]/i.test(css);
+}
+
+/** The error for CSS text that {@link styleTextEndsElement}. */
+export function styleTextError(css: string): ConfigError {
+  const start = css.trim().slice(0, 40).replace(/\s+/g, " ");
+
+  return new ConfigError(
+    `Inline CSS starting "${start}" contains "</style", which would end its <style> element in the page. Write it as "<\\/style" inside a CSS string, or put the CSS in a file and use "@path".`,
+  );
+}
+
 /** Write a converted document to its target. */
 export async function writeOutput(
   target: OutputTarget,
@@ -589,6 +610,10 @@ export async function prepareConversion(
     if (stylesheet.type === "url") {
       validatedStylesheets.push(stylesheet);
     } else if (stylesheet.type === "content") {
+      // Refused here, before any browser starts; buildPageHtml checks again
+      // for prepared conversions changed after this
+      if (styleTextEndsElement(stylesheet.value)) throw styleTextError(stylesheet.value);
+
       const result = validateCss(stylesheet.value);
 
       if (!result.valid) {

@@ -78,63 +78,85 @@ function scaleSvg(svgContent: string, scalePercent: number): string {
 }
 
 /**
- * Process image references and convert to data URI
- * Supports: "logo.svg" or "logo.svg 80%"
+ * A CSS string holding `text` exactly, serialised as CSSOM does (`"` and `\`
+ * escaped, control characters as hex escapes, NUL as U+FFFD), with `<` also
+ * escaped so the string can never contain `</style` (the generated sheet sits
+ * in a `<style>` element).
  */
-async function processImages(text: string, baseDir: string): Promise<string> {
-  // Match: filename.ext optionally followed by NN%
-  // Also support markdown syntax: ![alt](src) NN%
-  const patterns = [
-    /!\[([^\]]*)\]\(([^)]+)\)(?:\s*(\d+)%)?/g, // ![alt](src) 80%
-    /([a-zA-Z0-9_\-./]+\.(?:svg|png|jpg|jpeg|gif|webp))(?:\s+(\d+)%)?/gi, // file.svg 80%
-  ];
+export function cssString(text: string): string {
+  let out = '"';
 
-  let result = text;
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
 
-  for (const regex of patterns) {
-    for (let match = regex.exec(text); match !== null; match = regex.exec(text)) {
-      // Extract src and size based on pattern
-      let src: string | undefined;
-      let sizePercent: string | undefined;
-
-      if (match[0].startsWith("![")) {
-        // Markdown syntax: ![alt](src) NN%
-        src = match[2];
-        sizePercent = match[3];
-      } else {
-        // Simple syntax: file.svg NN%
-        src = match[1];
-        sizePercent = match[2];
-      }
-
-      if (!src || src.startsWith("data:") || src.startsWith("http")) continue;
-
-      const fullPath = resolve(baseDir, src);
-      const ext = extname(fullPath).toLowerCase();
-      const mimeType = MIME_TYPES.get(ext);
-
-      if (!mimeType) continue;
-
-      try {
-        let imageData = await fs.readFile(fullPath);
-
-        // For SVG with size specified, scale it
-        if (ext === ".svg" && sizePercent) {
-          let svgContent = imageData.toString("utf-8");
-          svgContent = scaleSvg(svgContent, Number.parseInt(sizePercent, 10));
-          imageData = Buffer.from(svgContent, "utf-8");
-        }
-
-        const base64 = imageData.toString("base64");
-        const dataUri = `data:${mimeType};base64,${base64}`;
-        result = result.replace(match[0], `url("${dataUri}")`);
-      } catch {
-        // File not found, skip
-      }
-    }
+    if (code === 0) out += String.fromCodePoint(0xfffd);
+    else if (code < 0x20 || code === 0x7f) out += `\\${code.toString(16)} `;
+    else if (char === '"' || char === "\\") out += `\\${char}`;
+    else if (char === "<") out += "\\3c ";
+    else out += char;
   }
 
-  return result;
+  return `${out}"`;
+}
+
+/** Header/footer text split into text and embedded images. */
+type ContentPart = { kind: "text"; text: string } | { kind: "image"; uri: string };
+
+/** `![alt](src) 80%` or `file.svg 80%` */
+const IMAGE_REFERENCE =
+  /!\[[^\]]*\]\(([^)]+)\)(?:\s*(\d+)%)?|([a-zA-Z0-9_\-./]+\.(?:svg|png|jpg|jpeg|gif|webp))(?:\s+(\d+)%)?/gi;
+
+/** An image reference's data URI, or undefined when it cannot be read. */
+async function imageReferenceUri(
+  src: string,
+  sizePercent: string | undefined,
+  baseDir: string,
+): Promise<string | undefined> {
+  if (src.startsWith("data:") || src.startsWith("http")) return undefined;
+
+  const fullPath = resolve(baseDir, src);
+  const ext = extname(fullPath).toLowerCase();
+  const mimeType = MIME_TYPES.get(ext);
+
+  if (!mimeType) return undefined;
+
+  try {
+    let imageData = await fs.readFile(fullPath);
+
+    // For SVG with size specified, scale it
+    if (ext === ".svg" && sizePercent) {
+      const svgContent = scaleSvg(imageData.toString("utf-8"), Number.parseInt(sizePercent, 10));
+      imageData = Buffer.from(svgContent, "utf-8");
+    }
+
+    return `data:${mimeType};base64,${imageData.toString("base64")}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Split text at its image references ("logo.svg", "logo.svg 80%",
+ * "![alt](src) 80%"). Only a reference whose file was read becomes an image;
+ * anything else, `url(...)` written by hand included, stays text.
+ */
+async function imageParts(text: string, baseDir: string): Promise<ContentPart[]> {
+  const parts: ContentPart[] = [];
+  let at = 0;
+
+  for (const match of text.matchAll(IMAGE_REFERENCE)) {
+    const src = match[1] ?? match[3] ?? "";
+    const uri = await imageReferenceUri(src, match[2] ?? match[4], baseDir);
+
+    if (uri === undefined) continue;
+
+    parts.push({ kind: "text", text: text.slice(at, match.index) }, { kind: "image", uri });
+    at = match.index + match[0].length;
+  }
+
+  parts.push({ kind: "text", text: text.slice(at) });
+
+  return parts;
 }
 
 /**
@@ -156,70 +178,73 @@ function formatToCssCounterStyle(format?: PageNumberFormat): string {
 }
 
 /**
- * Convert our variable syntax to CSS content syntax
+ * CSS `content` values for text with our variables: `{page}` and `{pages}`
+ * become counters, `{title}` the `--doc-title` variable, `{date}` and
+ * `{date:locale}` today's date as text; all other text becomes CSS strings.
  */
-function variablesToCss(text: string, pageFormat?: PageNumberFormat): string {
+function variableValues(text: string, pageFormat?: PageNumberFormat): string[] {
   const counterStyle = formatToCssCounterStyle(pageFormat);
 
-  const pageCounter =
-    counterStyle === "decimal" ? "counter(page)" : `counter(page, ${counterStyle})`;
+  const counter = (name: string) =>
+    counterStyle === "decimal" ? `counter(${name})` : `counter(${name}, ${counterStyle})`;
 
-  const pagesCounter =
-    counterStyle === "decimal" ? "counter(pages)" : `counter(pages, ${counterStyle})`;
+  const values: string[] = [];
+  let pending = "";
+  let at = 0;
 
-  return (
-    text
-      // Date with locale: {date:nb-NO} -> pre-formatted string
-      .replace(/\{date:([^}]+)\}/g, (_, locale) => `"${formatDate(locale)}"`)
-      // Standard date -> pre-formatted with default locale
-      .replace(/\{date\}/g, `"${formatDate()}"`)
-      // Page counters with format
-      .replace(/\{page\}/g, `" ${pageCounter} "`)
-      .replace(/\{pages\}/g, `" ${pagesCounter} "`)
-      // Title uses CSS variable (injected at build time from first h1)
-      .replace(/\{title\}/g, '" var(--doc-title) "')
-  );
+  for (const match of text.matchAll(/\{(page|pages|title|date)(?::([^}]+))?\}/g)) {
+    const [whole, name, locale] = match;
+    pending += text.slice(at, match.index);
+    at = match.index + whole.length;
+
+    if (name === "date") {
+      pending += formatDate(locale);
+      continue;
+    }
+
+    // `{page:x}` is not a variable
+    if (locale !== undefined) {
+      pending += whole;
+      continue;
+    }
+
+    if (pending) values.push(cssString(pending));
+    pending = "";
+    values.push(name === "title" ? "var(--doc-title)" : counter(name ?? "page"));
+  }
+
+  pending += text.slice(at);
+
+  if (pending) values.push(cssString(pending));
+
+  return values;
 }
 
-/** Text with its inline markdown removed, plus the CSS that replaces it. */
+/** Text with whole-text emphasis removed, plus the CSS that replaces it. */
 interface MarkdownResult {
   text: string;
   styles: string[];
 }
 
-/**
- * Process inline markdown (bold, italic) to CSS-safe text
- * Returns the text and any detected styles
- */
-function processMarkdown(text: string): MarkdownResult {
-  const styles: string[] = [];
-  const processed = text;
+/** Bold or italic covering the whole text becomes a style. */
+function wholeEmphasis(text: string): MarkdownResult {
+  const bold = text.match(/^\*\*([^*]+)\*\*$/)?.[1];
 
-  // Check if entire content is bold: **text**
-  const boldMatch = processed.match(/^\*\*([^*]+)\*\*$/);
+  if (bold) return { text: bold, styles: ["font-weight: bold"] };
 
-  if (boldMatch?.[1]) {
-    styles.push("font-weight: bold");
+  const italic = text.match(/^\*([^*]+)\*$/)?.[1];
 
-    return { text: boldMatch[1], styles };
-  }
+  if (italic) return { text: italic, styles: ["font-style: italic"] };
 
-  // Check if entire content is italic: *text*
-  const italicMatch = processed.match(/^\*([^*]+)\*$/);
+  return { text, styles: [] };
+}
 
-  if (italicMatch?.[1]) {
-    styles.push("font-style: italic");
-
-    return { text: italicMatch[1], styles };
-  }
-
-  // Mixed or no markdown - strip it
-  const stripped = processed
+/** Mixed inline markdown is stripped: margin boxes hold plain text. */
+function stripMarkdown(text: string): string {
+  return text
     .replace(/\*\*([^*]+)\*\*/g, "$1") // **bold** -> bold
     .replace(/\*([^*]+)\*/g, "$1") // *italic* -> italic
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // [text](url) -> text
-
-  return { text: stripped, styles };
 }
 
 interface ContentResult {
@@ -228,40 +253,25 @@ interface ContentResult {
 }
 
 /**
- * Build CSS content value from text
+ * The CSS `content` value for a header/footer column. It is built from parts
+ * (strings, images, counters, the title variable), each serialised on its
+ * own, so no text of the column can end the string it sits in or the
+ * `<style>` element the sheet goes in.
  */
 async function buildContentValue(
   text: string,
   baseDir: string,
   pageFormat?: PageNumberFormat,
 ): Promise<ContentResult> {
-  // Process images first (converts ![](path) to url("data:..."))
-  let processed = await processImages(text, baseDir);
+  const { text: inner, styles } = wholeEmphasis(text);
 
-  // Process markdown and extract styles
-  const { text: mdProcessed, styles } = processMarkdown(processed);
-  processed = mdProcessed;
+  const values = (await imageParts(inner, baseDir)).flatMap((part) =>
+    part.kind === "image"
+      ? [`url(${cssString(part.uri)})`]
+      : variableValues(stripMarkdown(part.text), pageFormat),
+  );
 
-  // Convert variables to CSS syntax
-  processed = variablesToCss(processed, pageFormat);
-
-  // If it contains url() from image processing, handle specially
-  if (processed.includes('url("data:')) {
-    // Content with image: url("data:...") " text"
-    return { content: processed, styles };
-  }
-
-  // If the entire string is already a single quoted value (from date), return as-is
-  // Date values look like "December 30, 2025" - no leading/trailing spaces inside quotes
-  // Variable replacements look like " counter(page) " - with leading/trailing spaces
-  if (/^"[^ ][^"]*[^ ]"$/.test(processed) || /^"[^"]{1}"$/.test(processed)) {
-    return { content: processed, styles };
-  }
-
-  // Wrap in quotes for CSS content, clean up empty quotes
-  const content = `"${processed}"`.replace(/"" /g, "").replace(/ ""/g, "").replace(/^""$/, '""');
-
-  return { content, styles };
+  return { content: values.length > 0 ? values.join(" ") : '""', styles };
 }
 
 /**
@@ -435,14 +445,11 @@ export async function generatePagedCss(config: PagedCssConfig, baseDir: string):
   const counterReset =
     pageStart !== undefined && pageStart !== 1 ? `\n  counter-reset: page ${pageStart - 1};` : "";
 
-  // Escape title for CSS string
-  const escapedTitle = config.title ? config.title.replace(/\\/g, "\\\\").replace(/"/g, '\\"') : "";
-
   // Build the CSS
   const css = `
 /* Document variables for header/footer content */
 :root {
-  --doc-title: "${escapedTitle}";
+  --doc-title: ${cssString(config.title ?? "")};
 }
 
 /* Page setup */

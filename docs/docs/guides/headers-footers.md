@@ -31,6 +31,8 @@ footer:
 | `{date}` | Current date (default locale) | December 30, 2024 |
 | `{date:locale}` | Date with specific locale | 30. desember 2024 |
 
+Any other text, quotes and backslashes included, is shown as written.
+
 ### Localized Dates
 
 ```yaml

@@ -26,12 +26,13 @@ cross-origin (out-of-process) iframe prints with print media even when
 Fixing it means applying the emulation to each out-of-process frame target as
 it attaches, in both drivers.
 
-## A `content` stylesheet containing `</style` breaks the page
+## Header/footer text in background templates is not HTML-escaped
 
-packages/core/src/lib/page-load.ts `buildPageHtml` writes CSS-text stylesheets
-as `<style>${value}</style>` verbatim, so CSS whose text contains `</style`
-(in a string or comment) ends the element early and the rest is parsed as
-document markup, in both renderers and in HTML output.
+When a header or footer has a background image, packages/core/src/lib/paged-css.ts
+`buildPuppeteerTemplate` puts column text into the template HTML through
+`processTextForHtml`, which substitutes variables and markdown but escapes
+nothing, so `<`, `&` or markup in the text is read as HTML. The text-only
+path builds CSS strings and shows text as written; the two paths disagree.
 
 ## Images and other subresources that fail to load are silent
 

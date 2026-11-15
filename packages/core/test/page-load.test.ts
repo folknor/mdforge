@@ -172,6 +172,44 @@ describe("buildPageHtml", () => {
     assert.ok(style !== -1 && link > style, "stylesheets keep their order");
     assert.match(html, /<!--MARK--><\/body>/);
   });
+
+  it("refuses CSS text that would end its <style> element, in preparation and at the sink", async () => {
+    const options = { output: { kind: "none" } } as const;
+    const css = 'p::before { content: "</STYLE ><p>"; }';
+
+    await assert.rejects(
+      prepareConversion(
+        { content: "# Hi\n" },
+        { ...structuredClone(defaultConfig), stylesheet: [{ type: "content", value: css }] },
+        options,
+      ),
+      /contains "<\/style"/,
+    );
+
+    const prepared = await prepareConversion(
+      { content: "# Hi\n" },
+      structuredClone(defaultConfig),
+      options,
+    );
+
+    prepared.stylesheets.push({ type: "content", value: css });
+    assert.throws(() => buildPageHtml(prepared, "MARK"), /contains "<\/style"/);
+  });
+
+  it("accepts text that does not end a <style> element", async () => {
+    const prepared = await prepareConversion(
+      { content: "# Hi\n" },
+      {
+        ...structuredClone(defaultConfig),
+        stylesheet: [
+          { type: "content", value: 'a::after { content: "<\\/style> </styles> </style"; }' },
+        ],
+      },
+      { output: { kind: "none" } },
+    );
+
+    assert.doesNotThrow(() => buildPageHtml(prepared, "MARK"));
+  });
 });
 
 describe("stylesheetLoadWarnings", () => {

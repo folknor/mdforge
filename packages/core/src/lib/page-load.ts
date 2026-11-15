@@ -35,6 +35,8 @@ import {
   type PageScript,
   type PreparedConversion,
   stylesheetLink,
+  styleTextEndsElement,
+  styleTextError,
 } from "./prepare.ts";
 
 /** How long remote content the page loads may take, for the whole conversion. */
@@ -58,11 +60,16 @@ function isRemote(url: string): boolean {
  * `<head>` is where all of this goes. The `<base>` is what makes the page's
  * relative URLs resolve against the document; the scratch file's own location
  * ({@link writeScratchPage}) does not.
+ *
+ * Throws for CSS text that would end its `<style>` element early
+ * ({@link styleTextEndsElement}).
  */
 export function buildPageHtml(prepared: PreparedConversion, marker: string): string {
   const styles = prepared.stylesheets.map((stylesheet) => {
     switch (stylesheet.type) {
       case "content":
+        if (styleTextEndsElement(stylesheet.value)) throw styleTextError(stylesheet.value);
+
         return `<style>${stylesheet.value}</style>`;
       case "path":
         return stylesheetLink(pathToFileURL(stylesheet.value).href);
