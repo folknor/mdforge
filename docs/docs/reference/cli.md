@@ -49,6 +49,9 @@ Each input renders independently: one that fails is reported on stderr and the
 others are still written. Without `--watch`, the exit status is 1 if any input
 failed.
 
+Unknown options and options missing a required value are reported on stderr
+with a `--help` hint and exit status 1.
+
 ## Watch mode
 
 `--watch` renders once, then re-renders whenever an input changes. Alongside the

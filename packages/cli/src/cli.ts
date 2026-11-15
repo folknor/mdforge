@@ -73,20 +73,25 @@ const cliSpec = {
   "-w": "--watch",
 } as const;
 
-export const cliFlags: arg.Result<typeof cliSpec> = arg(cliSpec);
-
 // --
 // Run
 
-main(cliFlags).catch((error) => {
-  console.error(error);
+main().catch((error) => {
+  if (error instanceof arg.ArgError) {
+    console.error(`Error: ${error.message}. See --help for usage.`);
+  } else {
+    console.error(error);
+  }
+
   process.exit(1);
 });
 
 // --
 // Define Main Function
 
-async function main(args: typeof cliFlags): Promise<void> {
+async function main(): Promise<void> {
+  const args = arg(cliSpec);
+
   process.title = "mdforge";
 
   if (args["--version"]) {
