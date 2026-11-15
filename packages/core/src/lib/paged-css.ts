@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import { extname, resolve } from "node:path";
 import type { HeaderFooterColumn, PageNumberFormat, PageNumbersConfig } from "./config.ts";
+import { escapeHtml } from "./util.ts";
 
 /**
  * MIME types for image embedding
@@ -99,8 +100,20 @@ export function cssString(text: string): string {
   return `${out}"`;
 }
 
-/** Header/footer text split into text and embedded images. */
-type ContentPart = { kind: "text"; text: string } | { kind: "image"; uri: string };
+/**
+ * One piece of a header/footer column. Both renderings (CSS margin boxes and
+ * Chromium header/footer templates) are built from these, so a column means
+ * the same thing in either; text is always shown as written.
+ */
+type ColumnPart =
+  | { kind: "text"; text: string }
+  | { kind: "image"; uri: string }
+  | { kind: "page" }
+  | { kind: "pages" }
+  | { kind: "title" };
+
+/** Text split at its embedded images, before variables are recognised. */
+type ImagePart = { kind: "text"; text: string } | { kind: "image"; uri: string };
 
 /** `![alt](src) 80%` or `file.svg 80%` */
 const IMAGE_REFERENCE =
@@ -140,8 +153,8 @@ async function imageReferenceUri(
  * "![alt](src) 80%"). Only a reference whose file was read becomes an image;
  * anything else, `url(...)` written by hand included, stays text.
  */
-async function imageParts(text: string, baseDir: string): Promise<ContentPart[]> {
-  const parts: ContentPart[] = [];
+async function imageParts(text: string, baseDir: string): Promise<ImagePart[]> {
+  const parts: ImagePart[] = [];
   let at = 0;
 
   for (const match of text.matchAll(IMAGE_REFERENCE)) {
@@ -178,17 +191,13 @@ function formatToCssCounterStyle(format?: PageNumberFormat): string {
 }
 
 /**
- * CSS `content` values for text with our variables: `{page}` and `{pages}`
- * become counters, `{title}` the `--doc-title` variable, `{date}` and
- * `{date:locale}` today's date as text; all other text becomes CSS strings.
+ * Text split at our variables: `{page}`, `{pages}` and `{title}` become their
+ * parts, `{date}` and `{date:locale}` today's date as text. Anything else,
+ * `{page:x}` and `{url}` included, stays text. Inserted values are never
+ * scanned again.
  */
-function variableValues(text: string, pageFormat?: PageNumberFormat): string[] {
-  const counterStyle = formatToCssCounterStyle(pageFormat);
-
-  const counter = (name: string) =>
-    counterStyle === "decimal" ? `counter(${name})` : `counter(${name}, ${counterStyle})`;
-
-  const values: string[] = [];
+function variableParts(text: string): ColumnPart[] {
+  const parts: ColumnPart[] = [];
   let pending = "";
   let at = 0;
 
@@ -208,16 +217,16 @@ function variableValues(text: string, pageFormat?: PageNumberFormat): string[] {
       continue;
     }
 
-    if (pending) values.push(cssString(pending));
+    if (pending) parts.push({ kind: "text", text: pending });
     pending = "";
-    values.push(name === "title" ? "var(--doc-title)" : counter(name ?? "page"));
+    parts.push({ kind: name === "title" ? "title" : name === "pages" ? "pages" : "page" });
   }
 
   pending += text.slice(at);
 
-  if (pending) values.push(cssString(pending));
+  if (pending) parts.push({ kind: "text", text: pending });
 
-  return values;
+  return parts;
 }
 
 /** Text with whole-text emphasis removed, plus the CSS that replaces it. */
@@ -247,15 +256,36 @@ function stripMarkdown(text: string): string {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // [text](url) -> text
 }
 
+/** A column's parts plus the CSS declarations its whole-text emphasis became. */
+interface ColumnContent {
+  parts: ColumnPart[];
+  styles: string[];
+}
+
+/**
+ * Parse a header/footer column, the one place its text is interpreted:
+ * whole-text emphasis becomes a style, then image references whose file is
+ * read become images, then the remaining text has mixed markdown stripped and
+ * its variables recognised.
+ */
+async function columnContent(text: string, baseDir: string): Promise<ColumnContent> {
+  const { text: inner, styles } = wholeEmphasis(text);
+
+  const parts = (await imageParts(inner, baseDir)).flatMap((part) =>
+    part.kind === "image" ? [part] : variableParts(stripMarkdown(part.text)),
+  );
+
+  return { parts, styles };
+}
+
 interface ContentResult {
   content: string;
   styles: string[];
 }
 
 /**
- * The CSS `content` value for a header/footer column. It is built from parts
- * (strings, images, counters, the title variable), each serialised on its
- * own, so no text of the column can end the string it sits in or the
+ * The CSS `content` value for a header/footer column. Each part is serialised
+ * on its own, so no text of the column can end the string it sits in or the
  * `<style>` element the sheet goes in.
  */
 async function buildContentValue(
@@ -263,15 +293,53 @@ async function buildContentValue(
   baseDir: string,
   pageFormat?: PageNumberFormat,
 ): Promise<ContentResult> {
-  const { text: inner, styles } = wholeEmphasis(text);
+  const { parts, styles } = await columnContent(text, baseDir);
+  const counterStyle = formatToCssCounterStyle(pageFormat);
 
-  const values = (await imageParts(inner, baseDir)).flatMap((part) =>
-    part.kind === "image"
-      ? [`url(${cssString(part.uri)})`]
-      : variableValues(stripMarkdown(part.text), pageFormat),
-  );
+  const counter = (name: string) =>
+    counterStyle === "decimal" ? `counter(${name})` : `counter(${name}, ${counterStyle})`;
+
+  const values = parts.map((part) => {
+    switch (part.kind) {
+      case "text":
+        return cssString(part.text);
+      case "image":
+        return `url(${cssString(part.uri)})`;
+      case "title":
+        return "var(--doc-title)";
+      default:
+        return counter(part.kind);
+    }
+  });
 
   return { content: values.length > 0 ? values.join(" ") : '""', styles };
+}
+
+/**
+ * The HTML for a header/footer column in a Chromium template. Text and the
+ * document title are escaped, so they are shown as written.
+ */
+async function buildColumnHtml(text: string, baseDir: string, title: string): Promise<string> {
+  const { parts, styles } = await columnContent(text, baseDir);
+
+  const html = parts
+    .map((part) => {
+      switch (part.kind) {
+        case "text":
+          return escapeHtml(part.text);
+        case "image":
+          return `<img src="${escapeHtml(part.uri)}">`;
+        case "title":
+          return escapeHtml(title);
+        case "page":
+          return '<span class="pageNumber"></span>';
+        default:
+          return '<span class="totalPages"></span>';
+      }
+    })
+    .join("");
+
+  return styles.length > 0 ? `<span style="${escapeHtml(styles.join("; "))}">${html}</span>` : html;
 }
 
 /**
@@ -304,17 +372,22 @@ export function hasBackground(config: PagedCssConfig): boolean {
 }
 
 /**
- * Build a Puppeteer header/footer template HTML
+ * Build a Chromium header/footer template (used when a header or footer has a
+ * background image, which `@page` cannot paint). Columns are parsed exactly
+ * as for margin boxes; `title` is the text `{title}` stands for.
  */
 export async function buildPuppeteerTemplate(
   columns: HeaderFooterColumn,
   type: "header" | "footer",
   baseDir: string,
+  title: string,
 ): Promise<string> {
-  // Build content for each column
-  const left = columns.left ? processTextForHtml(columns.left) : "";
-  const center = columns.center ? processTextForHtml(columns.center) : "";
-  const right = columns.right ? processTextForHtml(columns.right) : "";
+  const column = (text: string | undefined) =>
+    text ? buildColumnHtml(text, baseDir, title) : Promise.resolve("");
+
+  const left = await column(columns.left);
+  const center = await column(columns.center);
+  const right = await column(columns.right);
 
   // Build background CSS if specified
   let backgroundCss = "";
@@ -326,7 +399,7 @@ export async function buildPuppeteerTemplate(
       // Header backgrounds anchor to bottom, footer to top
       const position = type === "header" ? "bottom" : "top";
       backgroundCss = `
-				background-image: url('${dataUri}');
+				background-image: url(${cssString(dataUri)});
 				background-size: cover;
 				background-repeat: no-repeat;
 				background-position: ${position};
@@ -372,27 +445,6 @@ export async function buildPuppeteerTemplate(
 	</div>
 </body>
 </html>`;
-}
-
-/**
- * Process text for HTML template (variables and markdown)
- */
-function processTextForHtml(text: string): string {
-  return (
-    text
-      // Page variables → Puppeteer special classes
-      .replace(/\{page\}/g, '<span class="pageNumber"></span>')
-      .replace(/\{pages\}/g, '<span class="totalPages"></span>')
-      // Date → current date string
-      .replace(/\{date:([^}]+)\}/g, (_, locale) => formatDate(locale))
-      .replace(/\{date\}/g, formatDate())
-      // Title/URL → Puppeteer special classes
-      .replace(/\{title\}/g, '<span class="title"></span>')
-      .replace(/\{url\}/g, '<span class="url"></span>')
-      // Simple markdown
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-  );
 }
 
 /**

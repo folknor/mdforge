@@ -463,11 +463,21 @@ export async function prepareConversion(
     if (hasBackground(headerFooterConfig)) {
       // Use Puppeteer's native header/footer templates for backgrounds
       if (header) {
-        config.pdf_options.headerTemplate = await buildPuppeteerTemplate(header, "header", baseDir);
+        config.pdf_options.headerTemplate = await buildPuppeteerTemplate(
+          header,
+          "header",
+          baseDir,
+          docTitle,
+        );
       }
 
       if (footer) {
-        config.pdf_options.footerTemplate = await buildPuppeteerTemplate(footer, "footer", baseDir);
+        config.pdf_options.footerTemplate = await buildPuppeteerTemplate(
+          footer,
+          "footer",
+          baseDir,
+          docTitle,
+        );
       }
 
       config.pdf_options.displayHeaderFooter = true;

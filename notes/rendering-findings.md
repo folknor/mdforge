@@ -26,13 +26,23 @@ cross-origin (out-of-process) iframe prints with print media even when
 Fixing it means applying the emulation to each out-of-process frame target as
 it attaches, in both drivers.
 
-## Header/footer text in background templates is not HTML-escaped
+## Scaled header/footer SVGs keep their own height
 
-When a header or footer has a background image, packages/core/src/lib/paged-css.ts
-`buildPuppeteerTemplate` puts column text into the template HTML through
-`processTextForHtml`, which substitutes variables and markdown but escapes
-nothing, so `<`, `&` or markup in the text is read as HTML. The text-only
-path builds CSS strings and shows text as written; the two paths disagree.
+packages/core/src/lib/paged-css.ts `scaleSvg` (`logo.svg 60%` in a column)
+sets the root `width` but leaves an existing `height` attribute, so an SVG
+that declares both is stretched to its full declared height. Rendered with
+example 07's header-bg.svg (declares 120mm): in a margin box the column's
+image and its text vanish, and in a background template the image is a thin
+line with the following text pushed far down the page. Both renderings share
+the image resolver, so one fix covers both.
+
+## `document_title` goes into `<title>` unescaped
+
+packages/core/src/lib/markdown.ts writes `config.document_title` (front
+matter, or the first `#`/`##` heading's raw text) into `<title>` as is.
+`<title>` decodes character references and ends at `</title`, so a title with
+`&amp;` shows `&` and one containing `</title>` ends the element early. Not
+rendered; reasoned from the HTML parsing rules.
 
 ## Images and other subresources that fail to load are silent
 

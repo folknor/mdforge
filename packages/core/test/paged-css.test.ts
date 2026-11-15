@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { cssString, generatePagedCss, hasBackground, hasContent } from "../src/lib/paged-css.ts";
+import {
+  buildPuppeteerTemplate,
+  cssString,
+  generatePagedCss,
+  hasBackground,
+  hasContent,
+} from "../src/lib/paged-css.ts";
 
 describe("generatePagedCss", () => {
   it("gives every margin box the common styles, emphasised ones included", async () => {
@@ -43,6 +49,35 @@ describe("generatePagedCss", () => {
     assert.doesNotMatch(css, /<\/style/i);
     assert.match(css, /content: "Say \\"hi\\" \\\\ \\3c \/style>\\3c p>\\a next";/);
     assert.match(css, /--doc-title: "A \\3c \/style> title";/);
+  });
+});
+
+describe("buildPuppeteerTemplate", () => {
+  it("shows column text and the title as written", async () => {
+    const html = await buildPuppeteerTemplate(
+      { left: "a < b & <b>x</b> {url}", right: "{title}: {page}/{pages} {page:x}" },
+      "header",
+      process.cwd(),
+      "T <i>&</i> {page}",
+    );
+
+    assert.match(html, /hf-left">a &lt; b &amp; &lt;b&gt;x&lt;\/b&gt; \{url\}<\/span>/);
+    assert.match(
+      html,
+      /hf-right">T &lt;i&gt;&amp;&lt;\/i&gt; \{page\}: <span class="pageNumber"><\/span>\/<span class="totalPages"><\/span> \{page:x\}<\/span>/,
+    );
+  });
+
+  it("treats emphasis as the margin boxes do", async () => {
+    const html = await buildPuppeteerTemplate(
+      { left: "**<all>**", right: "some **mixed** text" },
+      "footer",
+      process.cwd(),
+      "",
+    );
+
+    assert.match(html, /hf-left"><span style="font-weight: bold">&lt;all&gt;<\/span><\/span>/);
+    assert.match(html, /hf-right">some mixed text<\/span>/);
   });
 });
 

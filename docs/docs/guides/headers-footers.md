@@ -27,11 +27,12 @@ footer:
 |----------|-------------|---------|
 | `{page}` | Current page number | 5 |
 | `{pages}` | Total page count | 12 |
-| `{title}` | Document title (from first h1) | My Document |
+| `{title}` | Document title (the first `#` or `##` heading's text, as written) | My Document |
 | `{date}` | Current date (default locale) | December 30, 2024 |
 | `{date:locale}` | Date with specific locale | 30. desember 2024 |
 
-Any other text, quotes and backslashes included, is shown as written.
+Any other text, quotes, backslashes and HTML markup included, is shown as
+written, with or without a background image.
 
 ### Localized Dates
 
@@ -97,8 +98,11 @@ margin rules in your stylesheet instead:
 The margin boxes are `@top-left`, `@top-center`, `@top-right`,
 `@bottom-left`, `@bottom-center` and `@bottom-right`. Your stylesheets come
 after the generated header/footer rules, so your declarations (including
-`@page { margin: ... }`) override the defaults. Markdown (`**bold**`,
-`*italic*`) in a column still works for simple emphasis.
+`@page { margin: ... }`) override the defaults. A column that is entirely
+`**bold**` or `*italic*` is shown bold or italic; emphasis markers around only
+part of a column are dropped and the text shown plain.
 
 When the header or footer has a background image, both are rendered as
-templates instead, and these rules do not apply to them.
+Chromium header/footer templates instead (`@page` cannot paint a background
+image). Their columns mean the same as above, but these `@page` rules,
+`firstPage: false` and `page_numbers` formats do not apply to them.
