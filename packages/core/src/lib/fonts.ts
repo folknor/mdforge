@@ -254,14 +254,6 @@ function generateFontCss(fonts: ResolvedFonts): string {
   return lines.join("\n");
 }
 
-/** Embedded font data extracted from CSS */
-export interface EmbeddedFontData {
-  family: string;
-  data: Uint8Array;
-  weight: number;
-  style: string;
-}
-
 /** Result of generating font stylesheet */
 export interface FontStylesheetResult {
   css: string;
@@ -271,56 +263,6 @@ export interface FontStylesheetResult {
     mono?: FontResolutionInfo;
   };
   warnings: string[];
-  /** Extracted font data for embedding in PDFs */
-  embeddedFonts?: EmbeddedFontData[];
-}
-
-/**
- * Extract embedded font data from CSS @font-face rules
- */
-function extractEmbeddedFonts(css: string): EmbeddedFontData[] {
-  const fonts: EmbeddedFontData[] = [];
-
-  // Match @font-face blocks using matchAll to avoid infinite loop issues with continue
-  const fontFaceRegex = /@font-face\s*\{([^}]+)\}/g;
-
-  for (const match of css.matchAll(fontFaceRegex)) {
-    const block = match[1];
-
-    if (!block) continue;
-
-    // Extract font-family
-    const familyMatch = block.match(/font-family:\s*['"]([^'"]+)['"]/);
-
-    if (!familyMatch?.[1]) continue;
-    const family = familyMatch[1];
-
-    // Extract font-weight (default 400)
-    const weightMatch = block.match(/font-weight:\s*(\d+)/);
-    const weight = weightMatch?.[1] ? parseInt(weightMatch[1], 10) : 400;
-
-    // Extract font-style (default normal)
-    const styleMatch = block.match(/font-style:\s*(\w+)/);
-    const style = styleMatch?.[1] || "normal";
-
-    // Extract base64 woff2 data
-    const dataMatch = block.match(/url\(data:font\/woff2;base64,([^)]+)\)/);
-
-    if (!dataMatch?.[1]) continue;
-
-    // Decode base64 to Uint8Array
-    const base64 = dataMatch[1];
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    fonts.push({ family, data: bytes, weight, style });
-  }
-
-  return fonts;
 }
 
 /**
@@ -360,13 +302,9 @@ export async function generateFontStylesheet(
   if (googleFontsCss) parts.push(googleFontsCss);
   parts.push("", cssRules);
 
-  // Extract embedded font data from Google Fonts CSS
-  const embeddedFonts = googleFontsCss ? extractEmbeddedFonts(googleFontsCss) : [];
-
   return {
     css: parts.join("\n"),
     info: resolved.info,
     warnings,
-    embeddedFonts,
   };
 }

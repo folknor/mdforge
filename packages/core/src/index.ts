@@ -42,7 +42,6 @@ export {
 
 // Font configuration
 export {
-  type EmbeddedFontData,
   type FontConfig,
   type FontPairingConfig,
   type FontPairingPreset,

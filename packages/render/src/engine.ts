@@ -25,13 +25,9 @@
  * it, and the caller gets the timeout at once: teardown is not awaited.
  */
 
-import { execFile } from "node:child_process";
-import { promises as fs } from "node:fs";
 import process from "node:process";
-import { promisify } from "node:util";
 import type { Config, ConversionInfo } from "@mdforge/core";
 import { GenerationError } from "@mdforge/core/errors";
-import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import {
   addPageScript,
   buildPageHtml,
@@ -57,13 +53,20 @@ import {
   readShownPageRefs,
   writeShownPageRefs,
 } from "@mdforge/core/xref";
-import { addAcroFormFields, injectPdfMetadata, readPdfLayout } from "@mdforge/pdf";
+import {
+  addAcroFormFields,
+  injectPdfMetadata,
+  readPdfLayout,
+  SCALE_MARKER_PX,
+  SCALE_MARKER_URL,
+} from "@mdforge/pdf";
 import {
   type DriverPage,
   type PageDriver,
   type PageEnvironment,
   RenderStepError,
 } from "./driver.ts";
+import { addScaleMarker, formConfig, readPageFields } from "./form-styles.ts";
 import { checkedHtml, snapshotHtml } from "./html-output.ts";
 import { rangedPrintMatches, selectedPages } from "./page-ranges.ts";
 import {
@@ -264,6 +267,10 @@ async function pdfOutput(session: Session, prepared: PreparedConversion): Promis
   const timeoutMs = prepared.pdfOptions.timeout ?? DEFAULT_PRINT_TIMEOUT_MS;
   let pdf: Uint8Array;
 
+  if (config.fillable) {
+    await session.evaluate(addScaleMarker, { url: SCALE_MARKER_URL, px: SCALE_MARKER_PX });
+  }
+
   if (hasPageRefs(prepared.html)) {
     const page: PrintablePage = {
       print: () => print(session, wholeDocument(spec), timeoutMs),
@@ -301,97 +308,21 @@ async function pdfOutput(session: Session, prepared: PreparedConversion): Promis
   }
 
   if (config.fillable) {
-    pdf = await addAcroFormFields(Buffer.from(pdf), await readForms(session, prepared));
+    const filled = await addAcroFormFields(Buffer.from(pdf), await readForms(session));
+    pdf = filled.pdf;
+    prepared.info.warnings.push(...filled.warnings);
   }
 
   return pdf;
 }
 
-/** Browser-side: the options of every form select, by field name. */
-function readSelectOptions(): Array<{ name: string; options: string[] }> {
-  const result: Array<{ name: string; options: string[] }> = [];
-
-  for (const select of document.querySelectorAll(
-    "[data-form-field][data-field-type='select'] select",
-  )) {
-    if (!(select instanceof HTMLSelectElement)) continue;
-
-    const name = select.closest("[data-form-field]")?.getAttribute("data-field-name");
-
-    if (!name) continue;
-
-    result.push({ name, options: Array.from(select.options).map((opt) => opt.value || opt.text) });
-  }
-
-  return result;
-}
-
-/** Browser-side: the font of the first form field, the fields' reference. */
-function readFormFont(): { fontFamily: string; fontSize: number } | null {
-  const input = document.querySelector(
-    "[data-form-field] input, [data-form-field] select, [data-form-field] textarea",
-  );
-
-  if (!input) return null;
-
-  const style = window.getComputedStyle(input);
-  const fontFamily = style.fontFamily.split(",")[0]?.trim().replace(/['"]/g, "") || "Helvetica";
-
-  return { fontFamily, fontSize: parseFloat(style.fontSize) || 12 };
-}
-
 /**
- * What the AcroForm fields are built from, read from the page as printed.
- * Scripts that change form fields around printing are not supported.
+ * What the AcroForm fields are built from, read in one evaluation from the
+ * live page after printing (form-styles.ts). Scripts that change form fields
+ * around printing are not supported.
  */
-async function readForms(session: Session, prepared: PreparedConversion) {
-  const selects = await session.evaluate(readSelectOptions, undefined);
-  const formFontInfo = (await session.evaluate(readFormFont, undefined)) ?? undefined;
-  let embeddedFonts = prepared.embeddedFonts;
-
-  // Without embedded web fonts, the system's file for the field font
-  if ((!embeddedFonts || embeddedFonts.length === 0) && formFontInfo) {
-    const systemFont = await detectSystemFont(formFontInfo.fontFamily);
-
-    if (systemFont) embeddedFonts = [systemFont];
-  }
-
-  return {
-    selectOptions:
-      selects.length > 0 ? new Map(selects.map((s) => [s.name, s.options])) : undefined,
-    formFontInfo,
-    embeddedFonts,
-  };
-}
-
-const run = promisify(execFile);
-
-/**
- * The system's font file for a family, via fontconfig's fc-match. The family
- * comes from the document's CSS, so it is passed as an argument, never
- * through a shell.
- */
-async function detectSystemFont(fontFamily: string): Promise<EmbeddedFontData | undefined> {
-  try {
-    const { stdout } = await run("fc-match", ["-f", "%{file}", fontFamily], {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-
-    const fontFile = stdout.trim();
-
-    if (!/\.(ttf|otf|woff2?)$/i.test(fontFile)) return;
-
-    return {
-      family: fontFamily,
-      data: new Uint8Array(await fs.readFile(fontFile)),
-      weight: 400,
-      style: "normal",
-    };
-  } catch {
-    // fc-match not available, or no such font
-    return;
-  }
+async function readForms(session: Session) {
+  return formConfig(await session.evaluate(readPageFields, undefined));
 }
 
 /**

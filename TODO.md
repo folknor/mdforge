@@ -77,11 +77,3 @@ for (const marker of markers) {
   page.removeAnnotation(marker);
 }
 ```
-
----
-
-## Fillable PDF Form Field Fonts
-
-**Status:** ✅ Resolved
-
-Font size is now calculated from CSS (`formFontInfo.fontSize * 0.75` for 96→72 DPI conversion) and custom fonts are embedded via `pdfDoc.embedFont()`. See `acroform.ts:214-249`.

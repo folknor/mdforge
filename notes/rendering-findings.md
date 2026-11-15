@@ -3,19 +3,39 @@
 Open findings about how documents are rendered and post-processed
 (packages/render, packages/pdf, core page loading). Each entry stands alone.
 
-## AcroForm text ignores `pdf_options.scale`
+## Fillable fields never use web fonts
 
-packages/pdf/src/acroform.ts sizes field appearance text as the CSS font size
-times 0.75, while the field rectangles come from the printed (scaled) page.
-With `scale` other than 1, fillable fields get text at a different size from
-the surrounding document. CSS page-size fitting (`preferCSSPageSize`) may do
-the same. Unverified by a render.
+A text or select field whose CSS font is a web font (the Google faces core
+downloads for a theme, or any `@font-face` file) gets the next family in its
+font-family stack that is installed on the system, usually the fontconfig
+default for the stack's generic family (packages/render/src/form-styles.ts).
+The fork @folknor/pdf-lib re-encodes WOFF/WOFF2 into a plain font program only
+when the font was parsed by its own vendored fontkit, which its package does
+not export; through the @pdf-lib/fontkit mdforge registers, it wrote the
+compressed container as /FontFile2 and viewers drew the text blank (poppler:
+"Embedded font file may be invalid"). acroform.ts now refuses WOFF/WOFF2. Even
+with the fork fixed, core only has Google's unicode-range subsets (one per
+script), so a field would need the subset covering what users type, or a
+whole font fetched for fillable output. Filed in bz against pdf-lib.
 
-## One font for every AcroForm field
+## Fillable field text starts where the label's em says, not the control's
 
-packages/render/src/engine.ts `readFormFont` reads the computed font of the
-first form field only, and acroform.ts uses it for every field. Fields styled
-with different families or sizes get wrong appearances.
+`.form-text .form-marker` (core form-fields.ts) insets the marker, and so the
+AcroForm field, by `0.5em` of the wrapper's font, while the control's padding
+is `0.5em` of the control's own font. When document CSS restyles only the
+control's size, typed text starts at a different place from the HTML text. The
+PDF library also adds its own appearance padding. Fixing it means measuring
+the control's text area rather than insetting the marker by a guess.
+
+## Fillable field styles are read in the screen-width layout
+
+Field fonts and sizes are read from the live page after printing, which is laid
+out at the 800px viewport, not the printed page width (the media type is the
+same). CSS that depends on the layout width (width media queries, `vw`/`%`
+font sizes, container queries) can style a field differently in print than
+what the fields are built from. Text size itself is scaled by a fixed-size
+page-scale marker measured in the print, so `pdf_options.scale` and page
+fitting are covered.
 
 ## `page_media_type` does not reach cross-origin iframes
 

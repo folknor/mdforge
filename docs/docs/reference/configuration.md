@@ -103,8 +103,13 @@ other raw-text element) a script creates, for example one containing
 `</style`; rules added through the CSSOM (`insertRule`) are not in the HTML
 file at all. Scripts, and anything else in the document, should
 not change form fields, page references or layout in reaction to printing
-(`beforeprint`/`afterprint`): mdforge reads them from the page as printed and
-prints the page more than once.
+(`beforeprint`/`afterprint`): mdforge reads them from the live page around
+printing and prints the page more than once. In fillable PDFs each field's
+font and text size are read from the page after printing, where it is laid
+out at the screen width, so field styles that depend on the layout width
+(width media queries, `vw` units) are not carried over; a field gets the
+first font in its font-family stack installed on the system (web fonts are
+not used), else Helvetica.
 
 The page is loaded from a temporary file in a private directory of its own,
 not from the document's directory; a `<base>` element points relative URLs at

@@ -24,7 +24,7 @@ import { processConstants } from "./constants.ts";
 import { type ConversionInfo, createConversionInfo } from "./conversion-info.ts";
 import { formatCssErrors, validateCss } from "./css-validator.ts";
 import { ConfigError, IncludeError } from "./errors.ts";
-import { type EmbeddedFontData, fontPairings, generateFontStylesheet } from "./fonts.ts";
+import { fontPairings, generateFontStylesheet } from "./fonts.ts";
 import { formFieldsCss } from "./form-fields.ts";
 import { processIcons } from "./icons.ts";
 import { processIncludes } from "./includes.ts";
@@ -256,9 +256,6 @@ export interface PreparedConversion {
   /** The processed config */
   config: Config;
 
-  /** Embedded font data for fillable forms */
-  embeddedFonts?: EmbeddedFontData[];
-
   /** Conversion info for CLI output */
   info: ConversionInfo;
 
@@ -417,9 +414,6 @@ export async function prepareConversion(
   if (fontResult?.warnings) {
     info.warnings.push(...fontResult.warnings);
   }
-
-  // Store embedded font data for form field rendering
-  const embeddedFonts = fontResult?.embeddedFonts;
 
   // Build stylesheet list: theme, fonts, font_scale, built-in features, user stylesheets
   // Order matters: theme first, fonts override theme, user overrides all
@@ -686,7 +680,6 @@ export async function prepareConversion(
     pdfOptions: config.pdf_options,
     baseUrl,
     config,
-    embeddedFonts,
     info,
     format,
     output,
