@@ -41,7 +41,6 @@ import { resolve } from "node:path";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type {
   ChromeReleaseChannel,
-  FrameAddScriptTagOptions,
   LaunchOptions,
   LowerCasePaperFormat,
   PDFMargin,
@@ -62,6 +61,7 @@ import {
   type PageNumberFormat,
   type PageNumbersConfig,
   type PdfOptions,
+  type ScriptEntry,
   type StylesheetEntry,
   type Theme,
   themes,
@@ -515,13 +515,86 @@ const bodyClass: Decoder<string> = async (ctx, path, value) => {
   return name === "" ? undefined : name;
 };
 
-const script = record<FrameAddScriptTagOptions>({
-  url: literal,
-  path: literal,
-  content: text,
-  type: literal,
-  id: literal,
-});
+const SCRIPT_SOURCES = ["url", "path", "content"] as const;
+
+/**
+ * The `type` values that make a browser fetch a script's `src` and fire
+ * `load` or `error`: classic (none, empty, or a JavaScript MIME type) and
+ * `module`. Any other type is a data block, which the browser never fetches,
+ * so the page would wait on it until the load deadline.
+ */
+const FETCHED_SCRIPT_TYPES = new Set([
+  "",
+  "module",
+  "application/ecmascript",
+  "application/javascript",
+  "application/x-ecmascript",
+  "application/x-javascript",
+  "text/ecmascript",
+  "text/javascript",
+  "text/javascript1.0",
+  "text/javascript1.1",
+  "text/javascript1.2",
+  "text/javascript1.3",
+  "text/javascript1.4",
+  "text/javascript1.5",
+  "text/jscript",
+  "text/livescript",
+  "text/x-ecmascript",
+  "text/x-javascript",
+]);
+
+const scriptFields = record<{
+  url: string;
+  path: string;
+  content: string;
+  type: string;
+  id: string;
+}>({ url: literal, path: literal, content: text, type: literal, id: literal });
+
+/** A script entry: exactly one of `url`, `path` or `content`, non-empty. */
+const script: Decoder<ScriptEntry> = async (ctx, path, value) => {
+  if (!isMapping(value)) return expected(ctx, path, "a mapping", value);
+
+  const sources = SCRIPT_SOURCES.filter((key) => value.has(key));
+  const [kind] = sources;
+
+  if (kind === undefined || sources.length > 1) {
+    return report(ctx, path, "expected exactly one of url, path or content");
+  }
+
+  // A rejected field rejects the entry: code run without its `type` or `id`
+  // is not the script that was asked for.
+  const issues = ctx.issues.length;
+  const fields = await scriptFields(ctx, path, value);
+  const source = fields?.[kind];
+
+  if (fields === undefined || source === undefined || ctx.issues.length > issues) return;
+
+  if (source === "") return report(ctx, childPath(path, kind), "must not be empty");
+
+  const { type, id } = fields;
+
+  if (
+    kind === "url" &&
+    type !== undefined &&
+    !FETCHED_SCRIPT_TYPES.has(type.trim().toLowerCase())
+  ) {
+    return report(
+      ctx,
+      childPath(path, "type"),
+      `a url script must be JavaScript or "module", got ${JSON.stringify(type)}`,
+    );
+  }
+
+  const entry: ScriptEntry = { kind, value: source };
+
+  if (type !== undefined) entry.type = type;
+
+  if (id !== undefined) entry.id = id;
+
+  return entry;
+};
 
 const MARGIN_SIDES = ["top", "right", "bottom", "left"] as const;
 

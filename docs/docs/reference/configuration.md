@@ -10,7 +10,7 @@ Options can be set via:
 Front-matter overrides config file. Relative `stylesheet` paths and `@file`
 references resolve against the directory of the file they are written in (the
 config file or the markdown document). Other paths (`templates`, `script`
-paths) are taken as they are. Relative links, images and includes in the
+`path` entries) are taken as they are. Relative links, images and includes in the
 document resolve against the document's own directory; neither source can
 change that.
 
@@ -54,6 +54,33 @@ A stylesheet file or URL is loaded by the page from where it lives, so
 relative `url(...)` and `@import` references inside it resolve against the
 stylesheet's own location. Relative references in inline CSS resolve against
 the document's directory.
+
+### Scripts
+
+`script` adds JavaScript to the page in both renderers (CLI and desktop), in
+the order given, after the page has loaded and before it is printed. Each
+entry has exactly one of:
+
+- `url`: a script the page loads from that URL.
+- `path`: a file whose code is added inline (relative paths are taken from
+  the working directory). Because it is inline, a module's relative imports
+  resolve against the document, not the file. A missing file fails the
+  conversion.
+- `content`: code (or `"@path"`, see above).
+
+plus optional `type` and `id` attributes for the `<script>` element. An entry
+with no source, more than one, or an empty one is reported and ignored, as is
+a `url` entry whose `type` is not JavaScript or `module` (the browser would
+never fetch it).
+
+The next step waits until a `url` script has loaded (a script that cannot load
+fails the conversion) and until inline classic code has run. Inline module
+scripts, top-level `await` and anything a script starts asynchronously are not
+waited on, and an error thrown by the code itself does not stop the
+conversion. A script's remote loads count against the remote content deadline
+below. Scripts run once per conversion, before the first print. HTML output is
+the page as printed, so it still contains the added `<script>` elements and
+whatever they changed.
 
 ### Remote content
 
@@ -155,6 +182,7 @@ heading_numbers: false
 | `constants` | `object` | - | Named values for `{{ ... }}` placeholders |
 | `constants_locale` | `string` | - | Locale for grouping numeric results |
 | `constants_precision` | `number` | `2` | Maximum fraction digits in a result |
+| `script` | `object \| object[]` | - | Scripts added to the page after loading (see above) |
 
 ## PDF Options
 

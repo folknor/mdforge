@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PdfMetadata } from "@mdforge/pdf";
 import type { MarkedExtension } from "marked";
-import type { FrameAddScriptTagOptions, launch, PDFOptions } from "puppeteer";
+import type { launch, PDFOptions } from "puppeteer";
 import type { Constants } from "./constants.ts";
 import type { FontPairingConfig } from "./fonts.ts";
 import type { HeadingNumbersConfig } from "./heading-numbers.ts";
@@ -23,6 +23,19 @@ const moduleDir: string = fileURLToPath(new URL(".", import.meta.url));
 export interface StylesheetEntry {
   type: "path" | "content" | "url";
   value: string;
+}
+
+/**
+ * One script added to the page after it has loaded: a URL for the page to
+ * load (`url`), a file whose text is added inline (`path`, absolute or
+ * relative to the working directory) or code (`content`). `type` and `id` are
+ * the script element's attributes.
+ */
+export interface ScriptEntry {
+  kind: "url" | "path" | "content";
+  value: string;
+  type?: string;
+  id?: string;
 }
 
 export interface HeaderFooterColumn {
@@ -118,11 +131,10 @@ export interface Config {
   stylesheet: StylesheetEntry[];
 
   /**
-   * List of scripts to load into the page.
-   *
-   * @see https://github.com/puppeteer/puppeteer/blob/main/docs/api.md#pageaddscripttagoptions
+   * Scripts added to the page, in order, after it has loaded (see
+   * `addPageScript` in page-load.ts for what is waited on).
    */
-  script: FrameAddScriptTagOptions[];
+  script: ScriptEntry[];
 
   /**
    * Name of the HTML Document.

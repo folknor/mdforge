@@ -25,7 +25,12 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { baseElement, type PreparedConversion, stylesheetLink } from "./prepare.ts";
+import {
+  baseElement,
+  type PageScript,
+  type PreparedConversion,
+  stylesheetLink,
+} from "./prepare.ts";
 
 /** How long remote content the page loads may take, for the whole conversion. */
 export const REMOTE_LOAD_DEADLINE_MS = 15_000;
@@ -334,6 +339,43 @@ export function takeEndMarker(marker: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Browser-side: add one configured script to the page's head as a real
+ * `<script>` element, so it runs as document code in the page's own world.
+ * Self-contained, for evaluation in the page via {@link pageCall}.
+ *
+ * What is waited on: a `src` script until it has loaded (for a classic script,
+ * run) and fails if it cannot load; inline code is added and, if classic, runs
+ * during the insertion. Inline module scripts, top-level await and anything a
+ * script starts asynchronously are not waited on. An exception the code throws
+ * is the page's own error and does not fail the conversion.
+ */
+export function addPageScript(script: PageScript): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const element = document.createElement("script");
+
+    if (script.type !== undefined) element.type = script.type;
+
+    if (script.id !== undefined) element.id = script.id;
+
+    if (script.src === undefined) {
+      element.text = script.content ?? "";
+      document.head.appendChild(element);
+      resolve();
+
+      return;
+    }
+
+    const { src } = script;
+    element.addEventListener("load", () => resolve(), { once: true });
+    element.addEventListener("error", () => reject(new Error(`Could not load script ${src}`)), {
+      once: true,
+    });
+    element.src = src;
+    document.head.appendChild(element);
+  });
 }
 
 /**

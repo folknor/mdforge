@@ -10,6 +10,7 @@ import { promises as fs } from "node:fs";
 import process from "node:process";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import {
+  addPageScript,
   buildPageHtml,
   pageCall,
   pageEndMarker,
@@ -295,6 +296,11 @@ export async function open(prepared: PreparedConversion): Promise<LoadedPage<Ren
       [
         // Settles with the page's load event (did-finish-load)
         () => win.loadURL(url),
+        // Configured scripts, in order, after the load event (as in the
+        // Puppeteer renderer)
+        ...prepared.scripts.map((script) => async () => {
+          await webContents.executeJavaScript(pageCall(addPageScript, script));
+        }),
         async () => {
           await webContents.executeJavaScript("document.fonts.ready.then(() => undefined)");
         },

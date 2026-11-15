@@ -8,6 +8,7 @@ import { execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import type { EmbeddedFontData } from "@mdforge/core/fonts";
 import {
+  addPageScript,
   buildPageHtml,
   pageEndMarker,
   RemoteLoad,
@@ -170,8 +171,8 @@ export async function open(
         async () => {
           await page.goto(url, { waitUntil: "load", timeout: 0 });
         },
-        ...prepared.scripts.map((options) => async () => {
-          await page.addScriptTag(options);
+        ...prepared.scripts.map((script) => async () => {
+          await page.evaluate(addPageScript, script);
         }),
         async () => {
           await page.evaluate(() => document.fonts.ready.then(() => undefined));

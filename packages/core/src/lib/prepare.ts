@@ -8,12 +8,12 @@ import { createRequire } from "node:module";
 import { basename, dirname, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import type { FrameAddScriptTagOptions } from "puppeteer";
 import { admonitionsCss } from "./admonitions.ts";
 import {
   type Config,
   type HeaderFooterColumn,
   type PdfOptions,
+  type ScriptEntry,
   type StylesheetEntry,
   themes,
   themesDir,
@@ -113,6 +113,67 @@ export async function writeOutput(
 }
 
 /**
+ * A script as the page receives it: a URL to load or code to run, with the
+ * element's `type` and `id`. File scripts are read by preparation, never by
+ * the page.
+ */
+export interface PageScript {
+  src?: string;
+  content?: string;
+  type?: string;
+  id?: string;
+}
+
+/** What ends a JavaScript line comment (LF, CR, LS, PS). */
+const LINE_TERMINATORS = new Set(["\n", "\r", "\u2028", "\u2029"]);
+
+/**
+ * Read file scripts into code, so the page only ever loads URLs or runs code.
+ * The file is a dependency whether or not it reads; an unreadable one fails
+ * the conversion, since the document would print without code it relies on.
+ */
+async function pageScripts(
+  entries: readonly ScriptEntry[],
+  dependencies: string[],
+): Promise<PageScript[]> {
+  const scripts: PageScript[] = [];
+
+  for (const { kind, value, type, id } of entries) {
+    const attributes = { type, id };
+
+    switch (kind) {
+      case "url":
+        scripts.push({ src: value, ...attributes });
+        break;
+      case "content":
+        scripts.push({ content: value, ...attributes });
+        break;
+      case "path": {
+        const file = resolve(value);
+        dependencies.push(file);
+
+        let code: string;
+
+        try {
+          code = await fs.readFile(file, "utf-8");
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new ConfigError(`Cannot read script ${value}: ${reason}`);
+        }
+
+        // On its own line, so a trailing line comment cannot swallow it; the
+        // label is only a name for debuggers, without line terminators.
+        const label = [...file].filter((c) => !LINE_TERMINATORS.has(c)).join("");
+        scripts.push({ content: `${code}\n//# sourceURL=${label}`, ...attributes });
+        break;
+      }
+    }
+  }
+
+  return scripts;
+}
+
+/**
  * Everything needed to render the document.
  * This is the output of prepareConversion() and input to a renderer's open().
  */
@@ -123,8 +184,8 @@ export interface PreparedConversion {
   /** Stylesheets to add to the page */
   stylesheets: StylesheetEntry[];
 
-  /** Scripts to add to the page */
-  scripts: FrameAddScriptTagOptions[];
+  /** Scripts to add to the page after it has loaded, in order */
+  scripts: PageScript[];
 
   /** PDF options for the renderer */
   pdfOptions: PdfOptions;
@@ -547,7 +608,7 @@ export async function prepareConversion(
   return {
     html,
     stylesheets: validatedStylesheets,
-    scripts: config.script,
+    scripts: await pageScripts(config.script, info.dependencies),
     pdfOptions: config.pdf_options,
     baseUrl,
     config,

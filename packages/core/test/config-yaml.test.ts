@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -199,6 +200,52 @@ stylesheet:
 
     assert.deepEqual(config.stylesheet, []);
     assert.deepEqual(issues, []);
+  });
+
+  it("tags each script by its one source", async () => {
+    const { config, issues } = await parse(`
+script:
+  - url: https://example.org/a.js
+    type: module
+  - path: lib/b.js
+    id: b
+  - content: "@header.html"
+`);
+
+    assert.deepEqual(issues, []);
+    assert.deepEqual(config.script, [
+      { kind: "url", value: "https://example.org/a.js", type: "module" },
+      { kind: "path", value: "lib/b.js", id: "b" },
+      { kind: "content", value: await readFile(join(fixtures, "header.html"), "utf-8") },
+    ]);
+  });
+
+  it("drops script entries without exactly one usable source", async () => {
+    const { config, issues } = await parse(`
+script:
+  - id: none
+  - url: https://example.org/a.js
+    content: "void 0"
+  - url: ""
+    content: "void 0"
+  - content: ""
+  - url: https://example.org/data.json
+    type: application/json
+  - content: "void 0"
+    type: 7
+  - content: "{}"
+    type: application/json
+`);
+
+    assert.deepEqual(paths(issues), [
+      "script.0",
+      "script.1",
+      "script.2",
+      "script.3.content",
+      "script.4.type",
+      "script.5.type",
+    ]);
+    assert.deepEqual(config.script, [{ kind: "content", value: "{}", type: "application/json" }]);
   });
 
   it("records a missing @file reference as a dependency", async () => {

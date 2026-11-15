@@ -164,3 +164,44 @@ describe("prepareConversion dependencies", () => {
     ]);
   });
 });
+
+describe("prepareConversion scripts", () => {
+  it("reads file scripts into code and passes URLs and code through", async () => {
+    const script = join(fixtures, "script.js");
+
+    const prepared = await prepareConversion(
+      { content: "# Title\n" },
+      {
+        ...config(),
+        script: [
+          { kind: "url", value: "https://example.org/a.js", type: "module" },
+          { kind: "path", value: script, id: "fixture" },
+          { kind: "content", value: "void 0;" },
+        ],
+      },
+      { output: { kind: "none" } },
+    );
+
+    assert.deepEqual(prepared.scripts, [
+      { src: "https://example.org/a.js", type: "module", id: undefined },
+      {
+        content: `document.body.dataset.fixture = "yes"; // a trailing line comment\n\n//# sourceURL=${script}`,
+        type: undefined,
+        id: "fixture",
+      },
+      { content: "void 0;", type: undefined, id: undefined },
+    ]);
+    assert.ok(prepared.info.dependencies.includes(script));
+  });
+
+  it("fails on an unreadable file script", async () => {
+    await assert.rejects(
+      prepareConversion(
+        { content: "# Title\n" },
+        { ...config(), script: [{ kind: "path", value: join(fixtures, "missing.js") }] },
+        { output: { kind: "none" } },
+      ),
+      /Cannot read script/,
+    );
+  });
+});
