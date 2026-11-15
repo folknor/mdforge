@@ -52,30 +52,77 @@ async function imageToDataUri(imagePath: string, baseDir: string): Promise<strin
   }
 }
 
-/**
- * Scale an SVG by adding width attribute to the root svg element
- */
+/** Absolute SVG lengths in CSS pixels; relative lengths have no intrinsic ratio. */
+function svgLength(value: string | undefined): number | undefined {
+  const match = value
+    ?.trim()
+    .match(/^([+]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*(px|in|cm|mm|q|pt|pc)?$/i);
+
+  if (!match) return undefined;
+
+  const units = new Map([
+    ["px", 1],
+    ["in", 96],
+    ["cm", 96 / 2.54],
+    ["mm", 96 / 25.4],
+    ["q", 96 / 101.6],
+    ["pt", 96 / 72],
+    ["pc", 16],
+  ]);
+
+  const length = Number(match[1]) * (units.get(match[2]?.toLowerCase() ?? "px") ?? 1);
+
+  return Number.isFinite(length) && length > 0 ? length : undefined;
+}
+
+/** Scale the root viewport and its contents together, never retaining a tall height. */
 function scaleSvg(svgContent: string, scalePercent: number): string {
-  // Calculate scaled width (relative to a base size of ~60px for header/footer context)
-  const baseSize = 60;
-  const scaledWidth = Math.round(baseSize * (scalePercent / 100));
+  const root = svgContent.match(/<svg\b[^>]*>/);
 
-  // Check if <svg has a width attribute already
-  const svgTagMatch = svgContent.match(/<svg[^>]*>/);
+  if (!root) return svgContent;
+  const tag = root[0];
 
-  if (!svgTagMatch) return svgContent;
+  const attribute = (name: string) =>
+    tag.match(new RegExp(`\\s${name}\\s*=\\s*(["'])(.*?)\\1`, "s"))?.[2];
 
-  const svgTag = svgTagMatch[0];
+  const viewBox = attribute("viewBox");
 
-  if (svgTag.includes("width=")) {
-    // Replace existing width on svg element only
-    const newSvgTag = svgTag.replace(/width="[^"]*"/, `width="${scaledWidth}"`);
+  const dimensions = viewBox
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
 
-    return svgContent.replace(svgTag, newSvgTag);
-  }
+  const width = svgLength(attribute("width"));
+  const height = svgLength(attribute("height"));
 
-  // Add width to svg element
-  return svgContent.replace("<svg", `<svg width="${scaledWidth}"`);
+  // A viewBox supplies the ratio even with percentage/unit-bearing dimensions.
+  // Without one, absolute dimensions supply both the ratio and the coordinate
+  // system: adding a viewBox also scales artwork that otherwise would be clipped.
+  const validViewBox =
+    dimensions?.length === 4 &&
+    dimensions.every(Number.isFinite) &&
+    (dimensions[2] ?? 0) > 0 &&
+    (dimensions[3] ?? 0) > 0;
+
+  const ratio = validViewBox
+    ? (dimensions[3] ?? 0) / (dimensions[2] ?? 1)
+    : width && height
+      ? height / width
+      : undefined;
+
+  const scaledWidth = Math.round((60 * scalePercent) / 100);
+  let resized = tag.replace(/\s(?:width|height)\s*=\s*(["']).*?\1/gs, "");
+
+  if (!viewBox && width && height)
+    resized = resized.replace(/<svg\b/, `<svg viewBox="0 0 ${width} ${height}"`);
+  // With no recoverable ratio (e.g. percentages without a viewBox), let SVG's
+  // default sizing supply the height rather than preserving an unrelated one.
+  resized = resized.replace(
+    /<svg\b/,
+    `<svg width="${scaledWidth}"${ratio === undefined ? "" : ` height="${scaledWidth * ratio}"`}`,
+  );
+
+  return svgContent.replace(tag, resized);
 }
 
 /**

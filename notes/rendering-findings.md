@@ -26,16 +26,6 @@ cross-origin (out-of-process) iframe prints with print media even when
 Fixing it means applying the emulation to each out-of-process frame target as
 it attaches, in both drivers.
 
-## Scaled header/footer SVGs keep their own height
-
-packages/core/src/lib/paged-css.ts `scaleSvg` (`logo.svg 60%` in a column)
-sets the root `width` but leaves an existing `height` attribute, so an SVG
-that declares both is stretched to its full declared height. Rendered with
-example 07's header-bg.svg (declares 120mm): in a margin box the column's
-image and its text vanish, and in a background template the image is a thin
-line with the following text pushed far down the page. Both renderings share
-the image resolver, so one fix covers both.
-
 ## Images and other subresources that fail to load are silent
 
 A stylesheet that fails to load is named in a warning (page-load.ts

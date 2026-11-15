@@ -1,3 +1,6 @@
+import { promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
@@ -100,5 +103,79 @@ describe("header/footer activity", () => {
   it("ignores an empty background when choosing the renderer", () => {
     assert.equal(hasBackground({ header: { background: "" }, footer: { center: "x" } }), false);
     assert.equal(hasBackground({ footer: { background: "bg.png" } }), true);
+  });
+});
+
+function decodeSvg(output: string): string {
+  return Buffer.from(output.match(/base64,([A-Za-z0-9+/=]+)/)?.[1] ?? "", "base64").toString();
+}
+
+describe("scaled SVG columns", () => {
+  it("shares proportional SVG sizing between margin boxes and templates", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-svg-"));
+
+    try {
+      const cases = [
+        { attrs: 'width="1920mm" height="120mm" viewBox="0 0 1920 120"', height: 2.25 },
+        { attrs: "viewBox='0,0,200,100'", height: 18 },
+        { attrs: "width = '2in' height = '72pt'", height: 18 },
+        { attrs: 'width="200" height="100"', height: 18 },
+        { attrs: 'width="100%" height="100%" viewBox="0 0 200 100"', height: 18 },
+        { attrs: 'width="100%" height="100%"', height: undefined },
+        { attrs: 'width="20em" height="10em"', height: undefined },
+      ];
+
+      for (const { attrs, height } of cases) {
+        await fs.writeFile(
+          join(dir, "logo.svg"),
+          `<svg xmlns="http://www.w3.org/2000/svg" ${attrs}><rect width="20" height="10"/></svg>`,
+        );
+        const unscaled = await generatePagedCss({ footer: { right: "logo.svg" } }, dir);
+
+        assert.match(decodeSvg(unscaled), /<rect width="20" height="10"/);
+        assert.ok(decodeSvg(unscaled).includes(attrs));
+
+        const column = { left: "logo.svg 60% Following text" };
+        const css = await generatePagedCss({ header: column }, dir);
+        const html = await buildPuppeteerTemplate(column, "header", dir, "");
+
+        const svg = decodeSvg(css);
+        assert.equal(decodeSvg(html), svg);
+        const root = svg.match(/<svg[^>]*>/)?.[0] ?? "";
+        assert.match(root, /width="36"/);
+
+        if (height === undefined) assert.doesNotMatch(root, /height=/);
+        else assert.match(root, new RegExp(`height="${height}"`));
+        assert.match(svg, /<rect width="20" height="10"/);
+
+        if (attrs.includes("2in") || attrs === 'width="200" height="100"')
+          assert.match(root, /viewBox="0 0 /);
+        assert.match(css, /Following text/);
+        assert.match(html, /Following text/);
+      }
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps preserveAspectRatio and leaves nested svg elements alone", async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), "mdforge-svg-"));
+
+    try {
+      const nested =
+        '<svg width="5" height="7" viewBox="0 0 5 7"><rect width="1" height="2"/></svg>';
+
+      await fs.writeFile(
+        join(dir, "logo.svg"),
+        `<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice" width="200" height="100">${nested}</svg>`,
+      );
+      const svg = decodeSvg(await generatePagedCss({ header: { left: "logo.svg 60%" } }, dir));
+
+      assert.match(svg, /preserveAspectRatio="xMinYMid slice"/);
+      assert.ok(svg.includes(nested));
+      assert.match(svg.match(/<svg[^>]*>/)?.[0] ?? "", /width="36"/);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });
